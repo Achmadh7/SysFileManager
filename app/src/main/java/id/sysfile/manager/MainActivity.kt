@@ -1234,7 +1234,19 @@ private fun CategoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(categoryLabel(category, t)) },
+                title = {
+                    Text(
+                        when (category) {
+                            Category.IMAGE -> t.catImages
+                            Category.VIDEO -> t.catVideos
+                            Category.AUDIO -> t.catAudio
+                            Category.DOCUMENT -> t.catDocuments
+                            Category.APP -> t.catApps
+                            Category.ARCHIVE -> t.catArchives
+                            Category.OTHER -> t.catOther
+                        }
+                    )
+                },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
             )
         }
