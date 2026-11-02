@@ -100,14 +100,18 @@ object FileOps {
         return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh")
     }
 
-    fun entryOf(file: File): FEntry = FEntry(
-        path = file.absolutePath,
-        name = file.name,
-        isDir = file.isDirectory,
-        size = if (file.isDirectory) 0L else file.length(),
-        modified = file.lastModified(),
-        category = if (file.isDirectory) Category.OTHER else categoryOf(file.name)
-    )
+    fun entryOf(file: File): FEntry {
+        // isDirectory dibaca sekali saja: setiap panggilan adalah stat ke disk.
+        val isDir = file.isDirectory
+        return FEntry(
+            path = file.absolutePath,
+            name = file.name,
+            isDir = isDir,
+            size = if (isDir) 0L else file.length(),
+            modified = file.lastModified(),
+            category = if (isDir) Category.OTHER else categoryOf(file.name)
+        )
+    }
 
     /** Isi satu folder; null bila folder tidak bisa dibaca. Folder selalu di atas. */
     fun listDir(dir: File, showHidden: Boolean, sort: SortKey, ascending: Boolean): List<FEntry>? {
@@ -123,7 +127,8 @@ object FileOps {
         }
         val sorted = entries.sortedWith(comparator)
         val ordered = if (ascending) sorted else sorted.reversed()
-        return ordered.filter { it.isDir } + ordered.filter { !it.isDir }
+        val (dirs, files) = ordered.partition { it.isDir }
+        return dirs + files
     }
 
     /** Jumlah isi langsung sebuah folder (untuk label "N item"); 0 bila tak terbaca. */

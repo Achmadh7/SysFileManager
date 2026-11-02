@@ -136,6 +136,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -209,6 +212,9 @@ fun SysFileApp() {
     var entries by remember { mutableStateOf<List<FEntry>>(emptyList()) }
     var entryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var entriesLoaded by remember { mutableStateOf(true) }
+    // Cache sesi: folder yang pernah dibuka tampil seketika, lalu dimuat ulang di latar.
+    val listingCache = remember { mutableMapOf<String, List<FEntry>>() }
+    val countCache = remember { mutableMapOf<String, Int>() }
     var reloadKey by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
     var clipboard by remember { mutableStateOf<Pair<List<String>, ClipMode>?>(null) }
@@ -289,7 +295,15 @@ fun SysFileApp() {
             entries = emptyList()
             return@LaunchedEffect
         }
-        entriesLoaded = false
+        val cacheKey = path + "|" + showHidden + "|" + sortKey + "|" + sortAsc
+        val cached = listingCache[cacheKey]
+        if (cached != null) {
+            // Tampilkan hasil sebelumnya seketika; data segar menyusul di bawah.
+            entries = cached
+            entriesLoaded = true
+        } else {
+            entriesLoaded = false
+        }
         val loaded = withContext(Dispatchers.IO) {
             if (RootShell.shouldUseShell(path)) {
                 RootShell.listDir(File(path), showHidden, sortKey, sortAsc)
@@ -299,12 +313,30 @@ fun SysFileApp() {
             }
         }
         entries = loaded ?: emptyList()
+        if (loaded != null) {
+            listingCache[cacheKey] = loaded
+            if (listingCache.size > 16) listingCache.remove(listingCache.keys.first())
+        } else {
+            listingCache.remove(cacheKey)
+        }
         entryCounts = if (loaded == null) {
             emptyMap()
         } else {
-            withContext(Dispatchers.IO) {
-                loaded.filter { it.isDir }.associate { it.path to FileOps.childCount(it.file) }
+            val dirs = loaded.filter { it.isDir }
+            val missing = dirs.filter { it.path !in countCache }
+            if (missing.isNotEmpty()) {
+                // Hitungan isi folder dihitung paralel, bukan satu per satu.
+                val fresh = withContext(Dispatchers.IO) {
+                    coroutineScope {
+                        missing.map { entry ->
+                            async { entry.path to FileOps.childCount(entry.file) }
+                        }.awaitAll()
+                    }
+                }
+                if (countCache.size > 512) countCache.clear()
+                fresh.forEach { (p, c) -> countCache[p] = c }
             }
+            dirs.associate { it.path to (countCache[it.path] ?: 0) }
         }
         entriesLoaded = true
         selected = emptySet()
