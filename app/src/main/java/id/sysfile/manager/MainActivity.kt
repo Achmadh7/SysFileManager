@@ -369,11 +369,23 @@ fun SysFileApp() {
                             if (encrypted) {
                                 dialog = DialogKind.ZipPassword(entry)
                             } else {
-                                runOp(t.extractDone) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                                working = true
+                                scope.launch {
+                                    val ok = withContext(Dispatchers.IO) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                                    working = false
+                                    if (ok) { notify(t.extractDone); reloadKey++ } else notify(t.opFailed)
+                                }
                             }
                         }
                     }
-                    else -> runOp(t.extractDone) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                    else -> {
+                        working = true
+                        scope.launch {
+                            val ok = withContext(Dispatchers.IO) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                            working = false
+                            if (ok) { notify(t.extractDone); reloadKey++ } else notify(t.opFailed)
+                        }
+                    }
                 }
             }
             else -> openExternal(f)
