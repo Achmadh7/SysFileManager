@@ -20,6 +20,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -48,6 +51,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import android.webkit.WebView
+import androidx.compose.runtime.key
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -136,6 +145,11 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
     var content by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
+    val fileExt = remember(path) { FileOps.extOf(File(path).name) }
+    val isHtml = fileExt == "html" || fileExt == "htm"
+    val isMarkup = isHtml || fileExt == "xml"
+    var preview by remember { mutableStateOf(false) }
+    var previewTick by remember { mutableStateOf(0) }
 
     LaunchedEffect(path) {
         val text = withContext(Dispatchers.IO) {
@@ -160,7 +174,15 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                 },
                 actions = {
                     if (content != null) {
-                        if (editing) {
+                        if (isHtml) {
+                            if (preview) {
+                                IconButton(onClick = { previewTick++ }) { Icon(Icons.Default.Refresh, t.refresh) }
+                                IconButton(onClick = { preview = false }) { Icon(Icons.Default.Code, t.codeLabel) }
+                            } else {
+                                IconButton(onClick = { preview = true }) { Icon(Icons.Default.Visibility, t.preview) }
+                            }
+                        }
+                        if (!preview && editing) {
                             IconButton(onClick = {
                                 val toSave = content ?: ""
                                 scope.launch {
@@ -180,7 +202,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                                     }
                                 }
                             }) { Icon(Icons.Default.Save, t.save) }
-                        } else {
+                        } else if (!preview) {
                             IconButton(onClick = { editing = true }) { Icon(Icons.Default.Edit, t.edit) }
                         }
                     }
@@ -192,6 +214,22 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
             when {
                 failed -> Text(t.readFailed, Modifier.align(Alignment.Center))
                 content == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                preview && isHtml -> key(previewTick) {
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                settings.javaScriptEnabled = true
+                                settings.allowFileAccess = true
+                                settings.domStorageEnabled = true
+                            }
+                        },
+                        update = { wv ->
+                            val baseUrl = "file://" + (File(path).parent ?: "") + "/"
+                            wv.loadDataWithBaseURL(baseUrl, content ?: "", "text/html", "UTF-8", null)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 editing -> OutlinedTextField(
                     value = content ?: "",
                     onValueChange = { content = it },
@@ -199,9 +237,48 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
                 )
                 else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-                    Text(content ?: "", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                    if (isMarkup) {
+                        Text(
+                            highlightMarkup(
+                                content ?: "",
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.tertiary,
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                        )
+                    } else {
+                        Text(content ?: "", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                    }
                 }
             }
+        }
+    }
+}
+
+/** Penyorotan sintaks ringan untuk markup (HTML/XML): tag, nilai atribut, komentar. */
+private fun highlightMarkup(
+    code: String,
+    tagColor: Color,
+    stringColor: Color,
+    commentColor: Color
+): AnnotatedString {
+    return buildAnnotatedString {
+        append(code)
+        Regex("<[^>]+>").findAll(code).forEach { m ->
+            addStyle(SpanStyle(color = tagColor), m.range.first, m.range.last + 1)
+            val tagText = code.substring(m.range.first, m.range.last + 1)
+            Regex("\"[^\"]*\"|'[^']*'").findAll(tagText).forEach { sm ->
+                addStyle(
+                    SpanStyle(color = stringColor),
+                    m.range.first + sm.range.first,
+                    m.range.first + sm.range.last + 1
+                )
+            }
+        }
+        // Komentar terakhir agar warnanya menimpa tag di dalamnya.
+        Regex("<!--[\\s\\S]*?-->").findAll(code).forEach { m ->
+            addStyle(SpanStyle(color = commentColor), m.range.first, m.range.last + 1)
         }
     }
 }
