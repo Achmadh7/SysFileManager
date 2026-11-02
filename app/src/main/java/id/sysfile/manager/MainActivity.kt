@@ -791,19 +791,6 @@ private fun HomeScreen(
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Column {
-                Text("SysFile", style = MaterialTheme.typography.headlineSmall)
-                val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-                val greeting = when (hour) {
-                    in 4..10 -> t.greetingMorning
-                    in 11..14 -> t.greetingAfternoon
-                    in 15..18 -> t.greetingEvening
-                    else -> t.greetingNight
-                }
-                Text(greeting, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
         if (!accessGranted) {
             item {
                 SectionCard(icon = Icons.Default.Warning, title = t.permissionTitle) {
