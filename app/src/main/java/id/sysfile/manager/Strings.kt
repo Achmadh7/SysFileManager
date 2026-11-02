@@ -112,7 +112,16 @@ class Txt(
     val catDocumentsS: String,
     val catAppsS: String,
     val catArchivesS: String,
-    val catOtherS: String
+    val catOtherS: String,
+    val all: String,
+    val foldersLabel: String,
+    val filesLabel: String,
+    val scannedLabel: String,
+    val seeAll: String,
+    val showLess: String,
+    val appearance: String,
+    val fileSection: String,
+    val otherSection: String
 )
 
 val TxtId = Txt(
@@ -224,7 +233,16 @@ val TxtId = Txt(
     catDocumentsS = "Dokumen",
     catAppsS = "APK",
     catArchivesS = "Arsip",
-    catOtherS = "Lainnya"
+    catOtherS = "Lainnya",
+    all = "Semua",
+    foldersLabel = "Folder",
+    filesLabel = "File",
+    scannedLabel = "Terpindai",
+    seeAll = "Lihat Semua",
+    showLess = "Tutup",
+    appearance = "Tampilan",
+    fileSection = "Berkas",
+    otherSection = "Lainnya"
 )
 
 val TxtEn = Txt(
@@ -336,7 +354,16 @@ val TxtEn = Txt(
     catDocumentsS = "Docs",
     catAppsS = "Apps",
     catArchivesS = "Archives",
-    catOtherS = "Other"
+    catOtherS = "Other",
+    all = "All",
+    foldersLabel = "Folders",
+    filesLabel = "Files",
+    scannedLabel = "Scanned",
+    seeAll = "See All",
+    showLess = "Show Less",
+    appearance = "Appearance",
+    fileSection = "Files",
+    otherSection = "Other"
 )
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */

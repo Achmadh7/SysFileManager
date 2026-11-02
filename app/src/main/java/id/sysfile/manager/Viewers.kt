@@ -1,6 +1,10 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,9 +16,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,26 +54,38 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Penampil foto layar penuh dengan cubit-zoom dan geser. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Penampil foto layar penuh: cubit-zoom, geser, ketuk untuk mode imersif, toolbar aksi melayang. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ImageViewerScreen(path: String, onBack: () -> Unit) {
+fun ImageViewerScreen(
+    path: String,
+    onBack: () -> Unit,
+    onShare: () -> Unit,
+    onInfo: () -> Unit,
+    onDelete: () -> Unit
+) {
     val t = txt()
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
+    var chrome by remember { mutableStateOf(true) }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(File(path).name, maxLines = 1) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                }
-            )
+            AnimatedVisibility(visible = chrome, enter = fadeIn(), exit = fadeOut()) {
+                TopAppBar(
+                    title = { Text(File(path).name, maxLines = 1) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                    }
+                )
+            }
         }
     ) { padding ->
         Box(
             Modifier.fillMaxSize().padding(padding).background(Color.Black)
+                .pointerInput(path) {
+                    detectTapGestures { chrome = !chrome }
+                }
                 .pointerInput(path) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         scale = (scale * zoom).coerceIn(1f, 6f)
@@ -91,6 +111,18 @@ fun ImageViewerScreen(path: String, onBack: () -> Unit) {
                     translationY = offsetY
                 }
             )
+            AnimatedVisibility(
+                visible = chrome,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)
+            ) {
+                HorizontalFloatingToolbar(expanded = true) {
+                    IconButton(onClick = onShare) { Icon(Icons.Default.Share, t.share) }
+                    IconButton(onClick = onInfo) { Icon(Icons.Default.Info, t.properties) }
+                    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, t.delete) }
+                }
+            }
         }
     }
 }

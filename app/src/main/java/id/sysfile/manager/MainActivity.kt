@@ -57,13 +57,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -75,6 +79,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -82,6 +87,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.ShortNavigationBar
@@ -98,6 +105,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -111,6 +120,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -139,7 +150,6 @@ private sealed interface DialogKind {
     data class Properties(val entry: FEntry) : DialogKind
     data class Compress(val entries: List<FEntry>) : DialogKind
     data object Sort : DialogKind
-    data object Settings : DialogKind
     data object About : DialogKind
 }
 
@@ -168,6 +178,7 @@ fun SysFileApp() {
     val prefs = remember { context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE) }
 
     var homeTab by remember { mutableStateOf(0) }
+    var showSettings by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -179,6 +190,7 @@ fun SysFileApp() {
     var browseStack by remember { mutableStateOf<List<String>>(emptyList()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     var entries by remember { mutableStateOf<List<FEntry>>(emptyList()) }
+    var entryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var entriesLoaded by remember { mutableStateOf(true) }
     var reloadKey by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -254,6 +266,13 @@ fun SysFileApp() {
             FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
         }
         entries = loaded ?: emptyList()
+        entryCounts = if (loaded == null) {
+            emptyMap()
+        } else {
+            withContext(Dispatchers.IO) {
+                loaded.filter { it.isDir }.associate { it.path to FileOps.childCount(it.file) }
+            }
+        }
         entriesLoaded = true
         selected = emptySet()
     }
@@ -331,16 +350,49 @@ fun SysFileApp() {
         }
     }
 
-    BackHandler(enabled = overlay != null) { overlay = null }
-    BackHandler(enabled = overlay == null && browseStack.isEmpty() && homeTab == 1) { homeTab = 0 }
+    BackHandler(enabled = showSettings) { showSettings = false }
+    BackHandler(enabled = !showSettings && overlay != null) { overlay = null }
+    BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab == 1) { homeTab = 0 }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
     }
 
     SysFileTheme(themeMode, dynamicColor) {
-        when (val ov = overlay) {
-            is Overlay.ImageView -> ImageViewerScreen(ov.path, onBack = { overlay = null })
+        if (showSettings) {
+            SettingsScreen(
+                themeMode = themeMode,
+                language = language,
+                showHidden = showHidden,
+                dynamicColor = dynamicColor,
+                onTheme = { mode ->
+                    themeMode = mode
+                    prefs.edit().putString("theme_mode", mode).apply()
+                },
+                onLanguage = { lang ->
+                    language = lang
+                    AppLang.code = lang
+                    prefs.edit().putString("app_language", lang).apply()
+                },
+                onHidden = { v ->
+                    showHidden = v
+                    prefs.edit().putBoolean("show_hidden", v).apply()
+                },
+                onDynamicColor = { v ->
+                    dynamicColor = v
+                    prefs.edit().putBoolean("dynamic_color", v).apply()
+                },
+                onAbout = { dialog = DialogKind.About },
+                onBack = { showSettings = false }
+            )
+        } else when (val ov = overlay) {
+            is Overlay.ImageView -> ImageViewerScreen(
+                path = ov.path,
+                onBack = { overlay = null },
+                onShare = { shareFile(File(ov.path)) },
+                onInfo = { dialog = DialogKind.Properties(FileOps.entryOf(File(ov.path))) },
+                onDelete = { dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(ov.path)))) }
+            )
             is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
             is Overlay.Search -> SearchScreen(
                 rootPath = ov.rootPath,
@@ -361,11 +413,12 @@ fun SysFileApp() {
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbar) },
                     topBar = {
+                        Column {
                         if (currentPath == null) {
                             TopAppBar(
                                 title = { Text("SysFileManager") },
                                 actions = {
-                                    IconButton(onClick = { dialog = DialogKind.Settings }) {
+                                    IconButton(onClick = { showSettings = true }) {
                                         Icon(Icons.Default.Settings, t.settings)
                                     }
                                 }
@@ -474,6 +527,14 @@ fun SysFileApp() {
                                 }
                             )
                         }
+                        if (currentPath != null && selected.isEmpty()) {
+                            BreadcrumbBar(
+                                currentPath = currentPath,
+                                currentRoot = currentRoot,
+                                onNavigate = { browseStack = it }
+                            )
+                        }
+                        }
                     },
                     bottomBar = {
                         if (selected.isNotEmpty() && currentPath != null) {
@@ -519,7 +580,7 @@ fun SysFileApp() {
                                 )
                                 ShortNavigationBarItem(
                                     selected = false,
-                                    onClick = { dialog = DialogKind.Settings },
+                                    onClick = { showSettings = true },
                                     icon = { Icon(Icons.Default.Settings, t.settings) },
                                     label = { Text(t.settings) }
                                 )
@@ -597,7 +658,18 @@ fun SysFileApp() {
                                     }
                                 },
                                 canGoUp = currentRoot != null && animatedPath != currentRoot.path,
-                                onNewFolder = { dialog = DialogKind.NewFolder }
+                                onNewFolder = { dialog = DialogKind.NewFolder },
+                                sortLabel = when (sortKey) {
+                                    SortKey.NAME -> t.sortName
+                                    SortKey.DATE -> t.sortDate
+                                    SortKey.SIZE -> t.sortSize
+                                },
+                                onSortClick = { dialog = DialogKind.Sort },
+                                onToggleView = {
+                                    gridView = !gridView
+                                    prefs.edit().putBoolean("grid_view", gridView).apply()
+                                },
+                                counts = entryCounts
                                 )
                             }
                         }
@@ -657,11 +729,15 @@ fun SysFileApp() {
                         runOp(t.deletedDone) {
                             d.entries.all { FileOps.deleteRecursively(it.file) }
                         }
+                        val viewing = overlay as? Overlay.ImageView
+                        if (viewing != null && d.entries.any { it.path == viewing.path }) {
+                            overlay = null
+                        }
                     }) { Text(t.delete) }
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
             )
-            is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null })
+            is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) })
             is DialogKind.Sort -> SortDialog(
                 sortKey = sortKey, ascending = sortAsc,
                 onDismiss = { dialog = null },
@@ -672,35 +748,10 @@ fun SysFileApp() {
                     dialog = null
                 }
             )
-            is DialogKind.Settings -> SettingsDialog(
-                themeMode = themeMode,
-                language = language,
-                showHidden = showHidden,
-                dynamicColor = dynamicColor,
-                onTheme = { mode ->
-                    themeMode = mode
-                    prefs.edit().putString("theme_mode", mode).apply()
-                },
-                onLanguage = { lang ->
-                    language = lang
-                    AppLang.code = lang
-                    prefs.edit().putString("app_language", lang).apply()
-                },
-                onHidden = { v ->
-                    showHidden = v
-                    prefs.edit().putBoolean("show_hidden", v).apply()
-                },
-                onDynamicColor = { v ->
-                    dynamicColor = v
-                    prefs.edit().putBoolean("dynamic_color", v).apply()
-                },
-                onAbout = { dialog = DialogKind.About },
-                onDismiss = { dialog = null }
-            )
             is DialogKind.About -> AlertDialog(
                 onDismissRequest = { dialog = null },
                 title = { Text("SysFileManager") },
-                text = { Text(t.slogan + "\n\n" + t.version("1.2.0")) },
+                text = { Text(t.slogan + "\n\n" + t.version("1.3.0")) },
                 confirmButton = { TextButton(onClick = { dialog = null }) { Text(t.close) } }
             )
             null -> {}
@@ -722,6 +773,7 @@ fun rootLabel(root: RootInfo, t: Txt): String {
 // Layar Beranda
 // ---------------------------------------------------------------------------
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HomeScreen(
     accessGranted: Boolean,
@@ -767,7 +819,37 @@ private fun HomeScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     roots.forEach { root ->
-                        if (root.total > 0) {
+                        if (root.kind != "internal" && root.total > 0) {
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                                    .clickable { onOpenRoot(root.path) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    when (root.kind) {
+                                        "sd" -> Icons.Default.SdStorage
+                                        "usb" -> Icons.Default.Usb
+                                        else -> Icons.Default.Storage
+                                    },
+                                    null, tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
+                                    LinearWavyProgressIndicator(
+                                        progress = { ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f) },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Text(
+                                        t.free(FileOps.formatSize(root.free)),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else if (root.total > 0) {
                             GradientStorageCard(
                                 label = rootLabel(root, t),
                                 usedText = FileOps.formatSize(root.total - root.free) + " / " + FileOps.formatSize(root.total),
@@ -780,6 +862,22 @@ private fun HomeScreen(
                                 Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
+                    }
+                }
+            }
+        }
+        if (accessGranted && recentFiles.isNotEmpty()) {
+            item {
+                SectionCard(icon = Icons.Default.History, title = t.recentFiles) {
+                    recentFiles.forEach { entry ->
+                        FileRow(
+                            entry = entry,
+                            selectionMode = false,
+                            isSelected = false,
+                            itemCount = null,
+                            onClick = { onOpenRecent(entry) },
+                            onLongClick = {}
+                        )
                     }
                 }
             }
@@ -830,50 +928,27 @@ private fun HomeScreen(
                 }
             }
         }
-        if (accessGranted && recentFiles.isNotEmpty()) {
-            item {
-                SectionCard(icon = Icons.Default.History, title = t.recentFiles) {
-                    recentFiles.forEach { entry ->
-                        FileRow(
-                            entry = entry,
-                            selectionMode = false,
-                            isSelected = false,
-                            itemCount = null,
-                            onClick = { onOpenRecent(entry) },
-                            onLongClick = {}
-                        )
-                    }
-                }
-            }
-        }
         item {
-            SectionCard(icon = Icons.Default.Star, title = t.favorites) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(t.favorites, style = MaterialTheme.typography.titleMedium)
+                }
                 if (favorites.isEmpty()) {
                     Text(t.noFavorites, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    favorites.sorted().forEach { path ->
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { onOpenFavorite(path) }
-                                .padding(vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Folder, null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(File(path).name.ifEmpty { path }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(favorites.sorted(), key = { it }) { path ->
+                            FilterChip(
+                                selected = false,
+                                onClick = { onOpenFavorite(path) },
+                                label = { Text(File(path).name.ifEmpty { path }, maxLines = 1) },
+                                leadingIcon = { Icon(Icons.Default.Folder, null, Modifier.size(18.dp)) }
+                            )
                         }
                     }
                 }
-            }
-        }
-        item {
-            Button(onClick = onOpenCategory, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                Icon(Icons.Default.Analytics, null)
-                Spacer(Modifier.width(8.dp))
-                Text(t.storageAnalysis)
             }
         }
     }
@@ -882,6 +957,42 @@ private fun HomeScreen(
 // ---------------------------------------------------------------------------
 // Layar peramban folder
 // ---------------------------------------------------------------------------
+
+/** Baris chip jalur folder, kini menempel di bawah bilah judul atas. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BreadcrumbBar(
+    currentPath: String,
+    currentRoot: RootInfo?,
+    onNavigate: (List<String>) -> Unit
+) {
+    val t = txt()
+    val rootPath = currentRoot?.path ?: currentPath
+    val relative = currentPath.removePrefix(rootPath).trim('/')
+    val segments = if (relative.isEmpty()) emptyList() else relative.split('/')
+    val crumbPaths = segments.scan(rootPath) { acc, seg -> "$acc/$seg" }
+    LazyRow(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        item {
+            FilterChip(
+                selected = segments.isEmpty(),
+                onClick = { onNavigate(listOf(rootPath)) },
+                label = { Text(currentRoot?.let { rootLabel(it, t) } ?: rootPath) }
+            )
+        }
+        itemsIndexed(segments) { index, seg ->
+            Text("/", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FilterChip(
+                selected = index == segments.lastIndex,
+                onClick = { onNavigate(crumbPaths.drop(1).take(index + 1).let { listOf(rootPath) + it }) },
+                label = { Text(seg) }
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -897,33 +1008,39 @@ private fun BrowseScreen(
     onLongPress: (FEntry) -> Unit,
     onGoUp: () -> Unit,
     canGoUp: Boolean,
-    onNewFolder: () -> Unit
+    onNewFolder: () -> Unit,
+    sortLabel: String,
+    onSortClick: () -> Unit,
+    onToggleView: () -> Unit,
+    counts: Map<String, Int>
 ) {
     val t = txt()
-    val rootPath = currentRoot?.path ?: currentPath
-    val relative = currentPath.removePrefix(rootPath).trim('/')
-    val segments = if (relative.isEmpty()) emptyList() else relative.split('/')
-    val crumbPaths = segments.scan(rootPath) { acc, seg -> "$acc/$seg" }
-
     Column(Modifier.fillMaxSize()) {
-        LazyRow(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item {
-                FilterChip(
-                    selected = segments.isEmpty(),
-                    onClick = { onNavigate(listOf(rootPath)) },
-                    label = { Text(currentRoot?.let { rootLabel(it, t) } ?: rootPath) }
-                )
-            }
-            itemsIndexed(segments) { index, seg ->
-                Text("/", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                FilterChip(
-                    selected = index == segments.lastIndex,
-                    onClick = { onNavigate(crumbPaths.drop(1).take(index + 1).let { listOf(rootPath) + it }) },
-                    label = { Text(seg) }
+            AssistChip(
+                onClick = onSortClick,
+                label = { Text(t.sortBy + ": " + sortLabel) },
+                leadingIcon = { Icon(Icons.Default.Sort, null, Modifier.size(18.dp)) }
+            )
+            FilterChip(
+                selected = gridView,
+                onClick = onToggleView,
+                label = { Text(if (gridView) t.gridView else t.listView) },
+                leadingIcon = {
+                    Icon(if (gridView) Icons.Default.GridView else Icons.Default.ViewList, null, Modifier.size(18.dp))
+                }
+            )
+            Spacer(Modifier.weight(1f))
+            if (currentRoot != null && currentRoot.total > 0) {
+                Text(
+                    rootLabel(currentRoot, t) + " · " + t.free(FileOps.formatSize(currentRoot.free)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
                 )
             }
         }
@@ -970,7 +1087,7 @@ private fun BrowseScreen(
                             entry = entry,
                             selectionMode = selected.isNotEmpty(),
                             isSelected = selected.contains(entry.path),
-                            itemCount = null,
+                            itemCount = counts[entry.path],
                             onClick = { onOpenEntry(entry) },
                             onLongClick = { onLongPress(entry) }
                         )
@@ -1057,6 +1174,7 @@ private fun SearchScreen(
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<FEntry>>(emptyList()) }
+    var filterCat by remember { mutableStateOf<Category?>(null) }
     var searching by remember { mutableStateOf(false) }
 
     LaunchedEffect(query) {
@@ -1074,30 +1192,74 @@ private fun SearchScreen(
         searching = false
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(t.search) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
-            )
-        }
-    ) { padding ->
+    val filtered = results.filter { filterCat == null || it.category == filterCat }
+    val dirResults = filtered.filter { it.isDir }
+    val fileResults = filtered.filter { !it.isDir }
+
+    Scaffold { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text(t.searchHint) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                SearchBar(
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = query,
+                            onQueryChange = { query = it },
+                            onSearch = {},
+                            expanded = false,
+                            onExpandedChange = {},
+                            placeholder = { Text(t.searchHint) },
+                            trailingIcon = {
+                                if (query.isNotEmpty()) {
+                                    IconButton(onClick = { query = "" }) {
+                                        Icon(Icons.Default.Close, t.cancel)
+                                    }
+                                }
+                            }
+                        )
+                    },
+                    expanded = false,
+                    onExpandedChange = {},
+                    modifier = Modifier.weight(1f)
+                ) {}
+            }
+            LazyRow(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = filterCat == null,
+                        onClick = { filterCat = null },
+                        label = { Text(t.all) }
+                    )
+                }
+                listOf(
+                    Category.IMAGE to t.catImagesS,
+                    Category.VIDEO to t.catVideosS,
+                    Category.AUDIO to t.catAudioS,
+                    Category.DOCUMENT to t.catDocumentsS
+                ).forEach { (cat, label) ->
+                    item {
+                        FilterChip(
+                            selected = filterCat == cat,
+                            onClick = { filterCat = if (filterCat == cat) null else cat },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+            }
             if (searching) {
-                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     LoadingIndicator(Modifier.size(30.dp))
                     Spacer(Modifier.width(10.dp))
                     Text(t.searching, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            if (!searching && query.isNotBlank() && results.isEmpty()) {
+            if (!searching && query.isNotBlank() && filtered.isEmpty()) {
                 Text(
                     t.searchNoResults,
                     style = MaterialTheme.typography.bodyMedium,
@@ -1106,15 +1268,43 @@ private fun SearchScreen(
                 )
             }
             LazyColumn(Modifier.fillMaxSize()) {
-                items(results, key = { it.path }) { entry ->
-                    FileRow(
-                        entry = entry,
-                        selectionMode = false,
-                        isSelected = false,
-                        itemCount = null,
-                        onClick = { onOpenEntry(entry) },
-                        onLongClick = {}
-                    )
+                if (dirResults.isNotEmpty()) {
+                    item {
+                        Text(
+                            t.foldersLabel,
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    items(dirResults, key = { it.path }) { entry ->
+                        FileRow(
+                            entry = entry,
+                            selectionMode = false,
+                            isSelected = false,
+                            itemCount = null,
+                            onClick = { onOpenEntry(entry) },
+                            onLongClick = {}
+                        )
+                    }
+                }
+                if (fileResults.isNotEmpty()) {
+                    item {
+                        Text(
+                            t.filesLabel,
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    items(fileResults, key = { it.path }) { entry ->
+                        FileRow(
+                            entry = entry,
+                            selectionMode = false,
+                            isSelected = false,
+                            itemCount = null,
+                            onClick = { onOpenEntry(entry) },
+                            onLongClick = {}
+                        )
+                    }
                 }
             }
         }
@@ -1135,6 +1325,8 @@ private fun AnalysisScreen(
     val t = txt()
     var results by remember { mutableStateOf<Map<String, AnalysisResult>>(emptyMap()) }
     var scanningPath by remember { mutableStateOf<String?>(null) }
+    var selectedRootPath by remember { mutableStateOf<String?>(null) }
+    var expandedLargest by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     LaunchedEffect(roots) {
         for (root in roots) {
@@ -1148,11 +1340,42 @@ private fun AnalysisScreen(
         scanningPath = null
     }
 
+    val activeRootPath = selectedRootPath ?: roots.firstOrNull()?.path
+    val displayRoots = if (roots.size > 1) roots.filter { it.path == activeRootPath } else roots
     LazyColumn(
             Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            roots.forEach { root ->
+            val done = roots.mapNotNull { results[it.path] }
+            if (done.isNotEmpty()) {
+                item(key = "summary") {
+                    val totalFilesAll = done.sumOf { it.totalFiles }
+                    val scannedBytes = done.sumOf { res -> res.byCategory.values.sum() }
+                    val totalStorage = roots.sumOf { it.total }
+                    val usedStorage = roots.sumOf { it.total - it.free }
+                    GradientStorageCard(
+                        label = t.storageAnalysis,
+                        usedText = FileOps.formatSize(usedStorage) + " / " + FileOps.formatSize(totalStorage),
+                        freeText = t.items(totalFilesAll) + " · " + FileOps.formatSize(scannedBytes) + " " + t.scannedLabel.lowercase(),
+                        fraction = if (totalStorage > 0) usedStorage.toFloat() / totalStorage.toFloat() else 0f,
+                        onClick = {}
+                    )
+                }
+            }
+            if (roots.size > 1) {
+                item(key = "tabs") {
+                    TabRow(selectedTabIndex = roots.indexOfFirst { it.path == activeRootPath }.coerceAtLeast(0)) {
+                        roots.forEach { root ->
+                            Tab(
+                                selected = root.path == activeRootPath,
+                                onClick = { selectedRootPath = root.path },
+                                text = { Text(rootLabel(root, t)) }
+                            )
+                        }
+                    }
+                }
+            }
+            displayRoots.forEach { root ->
                 val res = results[root.path]
                 item(key = "root-" + root.path) {
                     SectionCard(
@@ -1197,7 +1420,8 @@ private fun AnalysisScreen(
                             }
                             if (res.largest.isNotEmpty()) {
                                 Text(t.largestFiles, style = MaterialTheme.typography.titleSmall)
-                                res.largest.forEach { entry ->
+                                val shownLargest = if (expandedLargest.contains(root.path)) res.largest else res.largest.take(5)
+                                shownLargest.forEach { entry ->
                                     Row(
                                         Modifier.fillMaxWidth()
                                             .clickable { onOpenFile(entry) }
@@ -1211,6 +1435,20 @@ private fun AnalysisScreen(
                                             Text(entry.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                         Text(FileOps.formatSize(entry.size), style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                                if (res.largest.size > 5) {
+                                    TextButton(onClick = {
+                                        expandedLargest = if (expandedLargest.contains(root.path)) {
+                                            expandedLargest - root.path
+                                        } else {
+                                            expandedLargest + root.path
+                                        }
+                                    }) {
+                                        Text(
+                                            if (expandedLargest.contains(root.path)) t.showLess
+                                            else t.seeAll + " (" + res.largest.size + ")"
+                                        )
                                     }
                                 }
                             }
@@ -1258,8 +1496,9 @@ private fun NameDialog(
 }
 
 @Composable
-private fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit) {
+private fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
     val t = txt()
+    val clipboard = LocalClipboardManager.current
     var dirSize by remember { mutableStateOf<Long?>(if (entry.isDir) null else entry.size) }
     LaunchedEffect(entry.path) {
         if (entry.isDir) {
@@ -1270,15 +1509,45 @@ private fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text((if (entry.isDir) t.propFolder else t.propFile), style = MaterialTheme.typography.bodyMedium)
-                Text(t.propPath + ": " + (entry.file.parent ?: ""), style = MaterialTheme.typography.bodySmall)
-                Text(t.propSize + ": " + (dirSize?.let { FileOps.formatSize(it) } ?: "…"), style = MaterialTheme.typography.bodySmall)
-                Text(
-                    t.propModified + ": " + java.text.DateFormat.getDateTimeInstance(
-                        java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, appLocale()
-                    ).format(java.util.Date(entry.modified)),
-                    style = MaterialTheme.typography.bodySmall
+            Column {
+                ListItem(
+                    headlineContent = { Text(if (entry.isDir) t.propFolder else t.propFile) },
+                    leadingContent = {
+                        Icon(if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name), null)
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+                ListItem(
+                    headlineContent = { Text(t.propPath) },
+                    supportingContent = { Text(entry.path) },
+                    leadingContent = { Icon(Icons.Default.FolderOpen, null) },
+                    trailingContent = {
+                        IconButton(onClick = {
+                            clipboard.setText(AnnotatedString(entry.path))
+                            onNotify(t.copiedDone)
+                        }) {
+                            Icon(Icons.Default.ContentCopy, t.copy)
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+                ListItem(
+                    headlineContent = { Text(t.propSize) },
+                    supportingContent = { Text(dirSize?.let { FileOps.formatSize(it) } ?: "…") },
+                    leadingContent = { Icon(Icons.Default.Storage, null) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+                ListItem(
+                    headlineContent = { Text(t.propModified) },
+                    supportingContent = {
+                        Text(
+                            java.text.DateFormat.getDateTimeInstance(
+                                java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, appLocale()
+                            ).format(java.util.Date(entry.modified))
+                        )
+                    },
+                    leadingContent = { Icon(Icons.Default.Schedule, null) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
             }
         },
@@ -1333,7 +1602,7 @@ private fun SortDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsDialog(
+private fun SettingsScreen(
     themeMode: String,
     language: String,
     showHidden: Boolean,
@@ -1343,67 +1612,84 @@ private fun SettingsDialog(
     onHidden: (Boolean) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onAbout: () -> Unit,
-    onDismiss: () -> Unit
+    onBack: () -> Unit
 ) {
     val t = txt()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(t.settings) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(t.theme, style = MaterialTheme.typography.titleSmall)
-                val themeOptions = listOf("light" to t.themeLight, "dark" to t.themeDark, "system" to t.themeSystem)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    themeOptions.forEachIndexed { index, (mode, label) ->
-                        SegmentedButton(
-                            selected = themeMode == mode,
-                            onClick = { onTheme(mode) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = themeOptions.size),
-                            label = { Text(label, maxLines = 1) }
-                        )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(t.settings) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                SectionCard(icon = Icons.Default.Palette, title = t.appearance) {
+                    Text(t.theme, style = MaterialTheme.typography.titleSmall)
+                    val themeOptions = listOf("light" to t.themeLight, "dark" to t.themeDark, "system" to t.themeSystem)
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        themeOptions.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = themeMode == mode,
+                                onClick = { onTheme(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = themeOptions.size),
+                                label = { Text(label, maxLines = 1) }
+                            )
+                        }
+                    }
+                    Text(t.language, style = MaterialTheme.typography.titleSmall)
+                    val langOptions = listOf("id" to "Indonesia", "en" to "English")
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        langOptions.forEachIndexed { index, (code, label) ->
+                            SegmentedButton(
+                                selected = language == code,
+                                onClick = { onLanguage(code) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = langOptions.size),
+                                label = { Text(label, maxLines = 1) }
+                            )
+                        }
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(t.dynamicColor)
+                            Text(
+                                t.dynamicColorDesc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = dynamicColor, onCheckedChange = onDynamicColor)
                     }
                 }
-                Text(t.language, style = MaterialTheme.typography.titleSmall)
-                val langOptions = listOf("id" to "Indonesia", "en" to "English")
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    langOptions.forEachIndexed { index, (code, label) ->
-                        SegmentedButton(
-                            selected = language == code,
-                            onClick = { onLanguage(code) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = langOptions.size),
-                            label = { Text(label, maxLines = 1) }
-                        )
-                    }
-                }
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(t.showHidden, Modifier.weight(1f))
-                    Switch(checked = showHidden, onCheckedChange = onHidden)
-                }
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(t.dynamicColor)
-                        Text(
-                            t.dynamicColorDesc,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(checked = dynamicColor, onCheckedChange = onDynamicColor)
-                }
-                ListItem(
-                    headlineContent = { Text(t.about) },
-                    leadingContent = { Icon(Icons.Default.Info, null) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { onAbout() }
-                )
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(t.close) } }
-    )
+            item {
+                SectionCard(icon = Icons.Default.Folder, title = t.fileSection) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(t.showHidden, Modifier.weight(1f))
+                        Switch(checked = showHidden, onCheckedChange = onHidden)
+                    }
+                }
+            }
+            item {
+                SectionCard(icon = Icons.Default.Info, title = t.otherSection) {
+                    ListItem(
+                        headlineContent = { Text(t.about) },
+                        leadingContent = { Icon(Icons.Default.Info, null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { onAbout() }
+                    )
+                }
+            }
+        }
+    }
 }

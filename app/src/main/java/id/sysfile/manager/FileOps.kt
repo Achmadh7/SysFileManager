@@ -122,6 +122,11 @@ object FileOps {
         return ordered.filter { it.isDir } + ordered.filter { !it.isDir }
     }
 
+    /** Jumlah isi langsung sebuah folder (untuk label "N item"); 0 bila tak terbaca. */
+    fun childCount(dir: File): Int {
+        return try { dir.listFiles()?.size ?: 0 } catch (e: Exception) { 0 }
+    }
+
     /** Semua volume penyimpanan yang bisa dijangkau aplikasi. */
     fun storageRoots(context: Context): List<RootInfo> {
         val roots = mutableListOf<RootInfo>()
