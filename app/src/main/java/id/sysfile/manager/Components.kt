@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
@@ -256,45 +259,88 @@ fun FileCell(
     }
 }
 
-/** Kartu penyimpanan gradasi ungu→oranye dengan cincin persen pemakaian (arah "Gelap Gradasi"). */
+/** Status kesehatan penyimpanan dari sisa ruang: teks + warna titik indikator. */
+@Composable
+fun storageStatus(freeFraction: Float): Pair<String, Color> {
+    val t = txt()
+    return when {
+        freeFraction >= 0.25f -> t.statusHealthy to Color(0xFF4ADE80)
+        freeFraction >= 0.10f -> t.statusAlmostFull to Color(0xFFFFC107)
+        else -> t.statusFull to Color(0xFFFF5252)
+    }
+}
+
+/** Kartu penyimpanan "Gradasi Ringkas": gradasi ungu→oranye diagonal, angka terpakai
+ *  besar, persen raksasa di kanan, garis gelombang putih, chip status kesehatan. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GradientStorageCard(
     label: String,
     usedText: String,
-    freeText: String,
+    detailText: String,
+    percentText: String,
+    usedWord: String,
+    statusText: String,
+    statusDot: Color,
     fraction: Float,
     onClick: () -> Unit
 ) {
     val frac = fraction.coerceIn(0f, 1f)
-    val pct = (frac * 100).toInt()
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0xFF7B1FA2), Color(0xFFE65100))))
+            .background(Brush.linearGradient(listOf(Color(0xFF7B1FA2), Color(0xFFE65100))))
             .clickable { onClick() }
             .padding(20.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(78.dp), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.fillMaxSize()) {
-                    val stroke = 9.dp.toPx()
-                    drawArc(
-                        color = Color.White.copy(alpha = 0.28f),
-                        startAngle = 0f, sweepAngle = 360f, useCenter = false,
-                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        label.uppercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.White.copy(alpha = 0.85f)
                     )
-                    drawArc(
-                        color = Color(0xFFFFD54F),
-                        startAngle = -90f, sweepAngle = 360f * frac, useCenter = false,
-                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+                    Text(
+                        usedText,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        detailText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.92f)
                     )
                 }
-                Text("$pct%", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        percentText,
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        usedWord,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                }
             }
-            Spacer(Modifier.width(16.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(label.uppercase(), style = MaterialTheme.typography.labelMedium, color = Color(0xFFFFE0B2))
-                Text(usedText, style = MaterialTheme.typography.titleLarge, color = Color.White)
-                Text(freeText, style = MaterialTheme.typography.bodyMedium, color = Color(0xFFFFF3E0))
+            LinearWavyProgressIndicator(
+                progress = { frac },
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.White,
+                trackColor = Color.White.copy(alpha = 0.35f)
+            )
+            Row(
+                Modifier.clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
+                Spacer(Modifier.width(8.dp))
+                Text(statusText, style = MaterialTheme.typography.labelLarge, color = Color.White)
             }
         }
     }

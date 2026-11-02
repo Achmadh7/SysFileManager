@@ -122,6 +122,11 @@ class Txt(
     val appearance: String,
     val categoryEmpty: String,
     val analysisShort: String,
+    val ofTotal: (String) -> String,
+    val usedWord: String,
+    val statusHealthy: String,
+    val statusAlmostFull: String,
+    val statusFull: String,
     val fileSection: String,
     val otherSection: String
 )
@@ -245,6 +250,11 @@ val TxtId = Txt(
     appearance = "Tampilan",
     categoryEmpty = "Belum ada berkas di kategori ini.",
     analysisShort = "Analisis",
+    ofTotal = { "dari $it" },
+    usedWord = "terpakai",
+    statusHealthy = "Sehat",
+    statusAlmostFull = "Hampir Penuh",
+    statusFull = "Penuh",
     fileSection = "Berkas",
     otherSection = "Lainnya"
 )
@@ -368,6 +378,11 @@ val TxtEn = Txt(
     appearance = "Appearance",
     categoryEmpty = "No files in this category yet.",
     analysisShort = "Analysis",
+    ofTotal = { "of $it" },
+    usedWord = "used",
+    statusHealthy = "Healthy",
+    statusAlmostFull = "Almost Full",
+    statusFull = "Full",
     fileSection = "Files",
     otherSection = "Other"
 )

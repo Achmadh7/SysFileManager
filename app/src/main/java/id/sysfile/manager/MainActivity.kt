@@ -849,10 +849,15 @@ private fun HomeScreen(
                                 }
                             }
                         } else if (root.total > 0) {
+                            val (statusText, statusDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
                             GradientStorageCard(
                                 label = rootLabel(root, t),
-                                usedText = FileOps.formatSize(root.total - root.free) + " / " + FileOps.formatSize(root.total),
-                                freeText = t.free(FileOps.formatSize(root.free)),
+                                usedText = FileOps.formatSize(root.total - root.free),
+                                detailText = t.ofTotal(FileOps.formatSize(root.total)) + " · " + t.free(FileOps.formatSize(root.free)),
+                                percentText = ((root.total - root.free) * 100 / root.total).toString() + "%",
+                                usedWord = t.usedWord,
+                                statusText = statusText,
+                                statusDot = statusDot,
                                 fraction = (root.total - root.free).toFloat() / root.total.toFloat(),
                                 onClick = { onOpenRoot(root.path) }
                             )
@@ -1460,13 +1465,18 @@ private fun AnalysisScreen(
             if (done.isNotEmpty()) {
                 item(key = "summary") {
                     val totalFilesAll = done.sumOf { it.totalFiles }
-                    val scannedBytes = done.sumOf { res -> res.byCategory.values.sum() }
                     val totalStorage = roots.sumOf { it.total }
                     val usedStorage = roots.sumOf { it.total - it.free }
+                    val freeFracSummary = if (totalStorage > 0) (totalStorage - usedStorage).toFloat() / totalStorage.toFloat() else 0f
+                    val (statusText, statusDot) = storageStatus(freeFracSummary)
                     GradientStorageCard(
                         label = t.storageAnalysis,
-                        usedText = FileOps.formatSize(usedStorage) + " / " + FileOps.formatSize(totalStorage),
-                        freeText = t.items(totalFilesAll) + " · " + FileOps.formatSize(scannedBytes) + " " + t.scannedLabel.lowercase(),
+                        usedText = FileOps.formatSize(usedStorage),
+                        detailText = t.ofTotal(FileOps.formatSize(totalStorage)) + " · " + t.items(totalFilesAll),
+                        percentText = (if (totalStorage > 0) usedStorage * 100 / totalStorage else 0).toString() + "%",
+                        usedWord = t.usedWord,
+                        statusText = statusText,
+                        statusDot = statusDot,
                         fraction = if (totalStorage > 0) usedStorage.toFloat() / totalStorage.toFloat() else 0f,
                         onClick = {}
                     )
