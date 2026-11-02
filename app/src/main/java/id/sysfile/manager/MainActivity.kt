@@ -212,6 +212,7 @@ fun SysFileApp() {
     var recentFiles by remember { mutableStateOf<List<FEntry>>(emptyList()) }
 
     var showHidden by remember { mutableStateOf(prefs.getBoolean("show_hidden", false)) }
+    var showRootEntry by remember { mutableStateOf(prefs.getBoolean("root_entry", false)) }
     var gridView by remember { mutableStateOf(prefs.getBoolean("grid_view", false)) }
     var sortKey by remember {
         mutableStateOf(
@@ -425,6 +426,7 @@ fun SysFileApp() {
                 language = language,
                 showHidden = showHidden,
                 dynamicColor = dynamicColor,
+                showRootEntry = showRootEntry,
                 onTheme = { mode ->
                     themeMode = mode
                     prefs.edit().putString("theme_mode", mode).apply()
@@ -441,6 +443,10 @@ fun SysFileApp() {
                 onDynamicColor = { v ->
                     dynamicColor = v
                     prefs.edit().putBoolean("dynamic_color", v).apply()
+                },
+                onRootEntry = { v ->
+                    showRootEntry = v
+                    prefs.edit().putBoolean("root_entry", v).apply()
                 },
                 onFormats = { showFormats = true },
                 onAbout = { dialog = DialogKind.About },
@@ -685,7 +691,7 @@ fun SysFileApp() {
                                         )
                                         else -> HomeScreen(
                                             accessGranted = accessGranted,
-                                            roots = allRoots,
+                                            roots = if (showRootEntry) allRoots else roots,
                                             rootActive = rootActive,
                                             favorites = favorites,
                                             onRequestAccess = { requestAccess() },

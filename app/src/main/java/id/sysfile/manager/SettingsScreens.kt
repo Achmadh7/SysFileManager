@@ -45,6 +45,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
@@ -147,10 +148,12 @@ fun SettingsScreen(
     language: String,
     showHidden: Boolean,
     dynamicColor: Boolean,
+    showRootEntry: Boolean,
     onTheme: (String) -> Unit,
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
+    onRootEntry: (Boolean) -> Unit,
     onFormats: () -> Unit,
     onAbout: () -> Unit,
     onBack: () -> Unit
@@ -223,6 +226,27 @@ fun SettingsScreen(
             }
             item {
                 SectionCard(icon = Icons.Default.Info, title = t.otherSection) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape).background(Color(0xFFC62828)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Security, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(t.rootAccessTitle, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                t.rootAccessDesc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = showRootEntry, onCheckedChange = onRootEntry)
+                    }
                     ListItem(
                         headlineContent = { Text(t.formatsTitle) },
                         leadingContent = { Icon(Icons.Default.Archive, null) },
