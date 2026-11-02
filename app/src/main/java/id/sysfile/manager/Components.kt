@@ -1,5 +1,6 @@
 package id.sysfile.manager
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -39,7 +41,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -60,7 +65,7 @@ fun SectionCard(
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -92,14 +97,21 @@ fun categoryIcon(category: Category, name: String): ImageVector {
 
 fun categoryColor(category: Category): Color {
     return when (category) {
-        Category.IMAGE -> Color(0xFF2E7D32)
-        Category.VIDEO -> Color(0xFF6A1B9A)
-        Category.AUDIO -> Color(0xFFAD1457)
-        Category.DOCUMENT -> Color(0xFF1565C0)
-        Category.APP -> Color(0xFF00838F)
-        Category.ARCHIVE -> Color(0xFF5D4037)
-        Category.OTHER -> Color(0xFF616161)
+        Category.IMAGE -> Color(0xFF7C4DFF)
+        Category.VIDEO -> Color(0xFFEC407A)
+        Category.AUDIO -> Color(0xFF009688)
+        Category.DOCUMENT -> Color(0xFF2196F3)
+        Category.APP -> Color(0xFF689F38)
+        Category.ARCHIVE -> Color(0xFF8D6E63)
+        Category.OTHER -> Color(0xFF757575)
     }
+}
+
+/** Warna ikon satu entri: folder amber, PDF merah, sisanya warna kategorinya. */
+fun entryColor(entry: FEntry): Color {
+    if (entry.isDir) return Color(0xFFFFA000)
+    if (FileOps.extOf(entry.name) == "pdf") return Color(0xFFE53935)
+    return categoryColor(entry.category)
 }
 
 @Composable
@@ -126,16 +138,47 @@ fun FileThumb(entry: FEntry, sizeDp: Int) {
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
     } else {
+        val color = entryColor(entry)
         Box(
-            Modifier.size(sizeDp.dp).clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+            Modifier.size(sizeDp.dp).clip(CircleShape)
+                .background(color.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
                 null,
-                tint = if (entry.isDir) MaterialTheme.colorScheme.primary else categoryColor(entry.category),
-                modifier = Modifier.size((sizeDp * 0.55f).dp)
+                tint = color,
+                modifier = Modifier.size((sizeDp * 0.52f).dp)
+            )
+        }
+    }
+}
+
+/** Miniatur besar untuk sel kisi 2 kolom: foto/video memenuhi sel, lainnya panel ikon berwarna. */
+@Composable
+fun FileThumbLarge(entry: FEntry) {
+    val isMedia = (entry.category == Category.IMAGE || entry.category == Category.VIDEO) && !entry.isDir
+    if (isMedia) {
+        AsyncImage(
+            model = File(entry.path),
+            contentDescription = null,
+            imageLoader = rememberThumbLoader(),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+    } else {
+        val color = entryColor(entry)
+        Box(
+            Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(16.dp))
+                .background(color.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
+                null,
+                tint = color,
+                modifier = Modifier.size(46.dp)
             )
         }
     }
@@ -201,7 +244,7 @@ fun FileCell(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        FileThumb(entry, 56)
+        FileThumbLarge(entry)
         Text(
             entry.name,
             style = MaterialTheme.typography.bodySmall,
@@ -221,4 +264,48 @@ fun StorageBar(usedFraction: Float) {
         progress = { usedFraction.coerceIn(0f, 1f) },
         modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))
     )
+}
+
+/** Kartu penyimpanan gradasi ungu→oranye dengan cincin persen pemakaian (arah "Gelap Gradasi"). */
+@Composable
+fun GradientStorageCard(
+    label: String,
+    usedText: String,
+    freeText: String,
+    fraction: Float,
+    onClick: () -> Unit
+) {
+    val frac = fraction.coerceIn(0f, 1f)
+    val pct = (frac * 100).toInt()
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+            .background(Brush.horizontalGradient(listOf(Color(0xFF7B1FA2), Color(0xFFE65100))))
+            .clickable { onClick() }
+            .padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(78.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val stroke = 9.dp.toPx()
+                    drawArc(
+                        color = Color.White.copy(alpha = 0.28f),
+                        startAngle = 0f, sweepAngle = 360f, useCenter = false,
+                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = Color(0xFFFFD54F),
+                        startAngle = -90f, sweepAngle = 360f * frac, useCenter = false,
+                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+                    )
+                }
+                Text("$pct%", color = Color.White, style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(label.uppercase(), style = MaterialTheme.typography.labelMedium, color = Color(0xFFFFE0B2))
+                Text(usedText, style = MaterialTheme.typography.titleLarge, color = Color.White)
+                Text(freeText, style = MaterialTheme.typography.bodyMedium, color = Color(0xFFFFF3E0))
+            }
+        }
+    }
 }

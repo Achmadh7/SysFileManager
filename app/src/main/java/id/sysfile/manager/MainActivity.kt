@@ -14,6 +14,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +40,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
@@ -48,6 +57,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -91,6 +101,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -149,6 +160,7 @@ fun SysFileApp() {
     val prefs = remember { context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE) }
 
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
+    var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
     AppLang.code = language
     val t = txt()
@@ -166,6 +178,7 @@ fun SysFileApp() {
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var favorites by remember { mutableStateOf(prefs.getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
+    var recentFiles by remember { mutableStateOf<List<FEntry>>(emptyList()) }
 
     var showHidden by remember { mutableStateOf(prefs.getBoolean("show_hidden", false)) }
     var gridView by remember { mutableStateOf(prefs.getBoolean("grid_view", false)) }
@@ -234,6 +247,16 @@ fun SysFileApp() {
         entries = loaded ?: emptyList()
         entriesLoaded = true
         selected = emptySet()
+    }
+
+    LaunchedEffect(accessGranted, roots, showHidden, reloadKey) {
+        if (!accessGranted || roots.isEmpty()) {
+            recentFiles = emptyList()
+            return@LaunchedEffect
+        }
+        recentFiles = withContext(Dispatchers.IO) {
+            FileOps.recentFiles(roots.map { File(it.path) }, showHidden)
+        }
     }
 
     fun openExternal(file: File) {
@@ -305,7 +328,7 @@ fun SysFileApp() {
         browseStack = browseStack.dropLast(1)
     }
 
-    SysFileTheme(themeMode) {
+    SysFileTheme(themeMode, dynamicColor) {
         when (val ov = overlay) {
             is Overlay.ImageView -> ImageViewerScreen(ov.path, onBack = { overlay = null })
             is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
@@ -480,19 +503,38 @@ fun SysFileApp() {
                     }
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding)) {
-                        if (currentPath == null) {
-                            HomeScreen(
-                                accessGranted = accessGranted,
-                                roots = roots,
-                                favorites = favorites,
-                                onRequestAccess = { requestAccess() },
-                                onOpenRoot = { browseStack = listOf(it) },
-                                onOpenFavorite = { browseStack = listOf(it) },
-                                onOpenCategory = { overlay = Overlay.Analysis }
-                            )
-                        } else {
-                            BrowseScreen(
-                                currentPath = currentPath,
+                        AnimatedContent(
+                            targetState = currentPath,
+                            transitionSpec = {
+                                val fromDepth = initialState?.count { it == '/' } ?: -1
+                                val toDepth = targetState?.count { it == '/' } ?: -1
+                                if (toDepth >= fromDepth) {
+                                    (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
+                                        (slideOutHorizontally { w -> -w / 3 } + fadeOut())
+                                } else {
+                                    (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
+                                        (slideOutHorizontally { w -> w / 3 } + fadeOut())
+                                }
+                            },
+                            label = "folderAnim"
+                        ) { animatedPath ->
+                            if (animatedPath == null) {
+                                HomeScreen(
+                                    accessGranted = accessGranted,
+                                    roots = roots,
+                                    favorites = favorites,
+                                    recentFiles = recentFiles,
+                                    onRequestAccess = { requestAccess() },
+                                    onOpenRoot = { browseStack = listOf(it) },
+                                    onOpenFavorite = { browseStack = listOf(it) },
+                                    onOpenCategory = { overlay = Overlay.Analysis },
+                                    onOpenRecent = { entry ->
+                                        if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
+                                    }
+                                )
+                            } else {
+                                BrowseScreen(
+                                currentPath = animatedPath,
                                 currentRoot = currentRoot,
                                 entries = entries,
                                 loaded = entriesLoaded,
@@ -508,15 +550,16 @@ fun SysFileApp() {
                                 },
                                 onLongPress = { entry -> selected = selected + entry.path },
                                 onGoUp = {
-                                    val parent = File(currentPath).parent
+                                    val parent = File(animatedPath).parent
                                     if (parent != null && currentRoot != null && parent.startsWith(currentRoot.path)) {
                                         browseStack = browseStack.dropLast(1) + parent
                                     } else {
                                         browseStack = browseStack.dropLast(1)
                                     }
                                 },
-                                canGoUp = currentRoot != null && currentPath != currentRoot.path
-                            )
+                                canGoUp = currentRoot != null && animatedPath != currentRoot.path
+                                )
+                            }
                         }
                     }
                 }
@@ -593,6 +636,7 @@ fun SysFileApp() {
                 themeMode = themeMode,
                 language = language,
                 showHidden = showHidden,
+                dynamicColor = dynamicColor,
                 onTheme = { mode ->
                     themeMode = mode
                     prefs.edit().putString("theme_mode", mode).apply()
@@ -606,13 +650,17 @@ fun SysFileApp() {
                     showHidden = v
                     prefs.edit().putBoolean("show_hidden", v).apply()
                 },
+                onDynamicColor = { v ->
+                    dynamicColor = v
+                    prefs.edit().putBoolean("dynamic_color", v).apply()
+                },
                 onAbout = { dialog = DialogKind.About },
                 onDismiss = { dialog = null }
             )
             is DialogKind.About -> AlertDialog(
                 onDismissRequest = { dialog = null },
                 title = { Text("SysFileManager") },
-                text = { Text(t.slogan + "\n\n" + t.version("1.0.0")) },
+                text = { Text(t.slogan + "\n\n" + t.version("1.1.0")) },
                 confirmButton = { TextButton(onClick = { dialog = null }) { Text(t.close) } }
             )
             null -> {}
@@ -639,10 +687,12 @@ private fun HomeScreen(
     accessGranted: Boolean,
     roots: List<RootInfo>,
     favorites: Set<String>,
+    recentFiles: List<FEntry>,
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenFavorite: (String) -> Unit,
-    onOpenCategory: () -> Unit
+    onOpenCategory: () -> Unit,
+    onOpenRecent: (FEntry) -> Unit
 ) {
     val t = txt()
     LazyColumn(
@@ -652,7 +702,14 @@ private fun HomeScreen(
         item {
             Column {
                 Text("SysFileManager", style = MaterialTheme.typography.headlineSmall)
-                Text(t.slogan, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                val greeting = when (hour) {
+                    in 4..10 -> t.greetingMorning
+                    in 11..14 -> t.greetingAfternoon
+                    in 15..18 -> t.greetingEvening
+                    else -> t.greetingNight
+                }
+                Text(greeting, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (!accessGranted) {
@@ -668,37 +725,19 @@ private fun HomeScreen(
         }
         if (roots.isNotEmpty()) {
             item {
-                SectionCard(icon = Icons.Default.Storage, title = t.storage) {
-                    roots.forEachIndexed { index, root ->
-                        if (index > 0) Spacer(Modifier.height(8.dp))
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { onOpenRoot(root.path) }
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                when (root.kind) {
-                                    "sd" -> Icons.Default.SdStorage
-                                    "usb" -> Icons.Default.Usb
-                                    else -> Icons.Default.Storage
-                                },
-                                null, tint = MaterialTheme.colorScheme.primary
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    roots.forEach { root ->
+                        if (root.total > 0) {
+                            GradientStorageCard(
+                                label = rootLabel(root, t),
+                                usedText = FileOps.formatSize(root.total - root.free) + " / " + FileOps.formatSize(root.total),
+                                freeText = t.free(FileOps.formatSize(root.free)),
+                                fraction = (root.total - root.free).toFloat() / root.total.toFloat(),
+                                onClick = { onOpenRoot(root.path) }
                             )
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
-                                if (root.total > 0) {
-                                    StorageBar(((root.total - root.free).toFloat() / root.total.toFloat()))
-                                    Text(
-                                        t.usedOf(FileOps.formatSize(root.total - root.free), FileOps.formatSize(root.total)) +
-                                            " • " + t.free(FileOps.formatSize(root.free)),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                } else {
-                                    Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+                        } else {
+                            SectionCard(icon = Icons.Default.Storage, title = rootLabel(root, t)) {
+                                Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -708,24 +747,61 @@ private fun HomeScreen(
         item {
             SectionCard(icon = Icons.Default.Analytics, title = t.categories) {
                 val cats = listOf(
-                    Category.IMAGE to t.catImages,
-                    Category.VIDEO to t.catVideos,
-                    Category.AUDIO to t.catAudio,
-                    Category.DOCUMENT to t.catDocuments,
-                    Category.APP to t.catApps,
-                    Category.ARCHIVE to t.catArchives,
-                    Category.OTHER to t.catOther
+                    Category.IMAGE to t.catImagesS,
+                    Category.VIDEO to t.catVideosS,
+                    Category.AUDIO to t.catAudioS,
+                    Category.DOCUMENT to t.catDocumentsS,
+                    Category.APP to t.catAppsS,
+                    Category.ARCHIVE to t.catArchivesS,
+                    Category.OTHER to t.catOtherS
                 )
-                cats.forEach { (cat, label) ->
+                cats.chunked(3).forEach { rowCats ->
                     Row(
-                        Modifier.fillMaxWidth()
-                            .clickable { onOpenCategory() }
-                            .padding(vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(categoryIcon(cat, ""), null, tint = categoryColor(cat))
-                        Spacer(Modifier.width(12.dp))
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                        rowCats.forEach { (cat, label) ->
+                            val color = categoryColor(cat)
+                            Column(
+                                Modifier.weight(1f)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(color.copy(alpha = 0.13f))
+                                    .clickable { onOpenCategory() }
+                                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    Modifier.size(42.dp).clip(CircleShape).background(color),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(categoryIcon(cat, ""), null, tint = Color.White, modifier = Modifier.size(22.dp))
+                                }
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        repeat(3 - rowCats.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
+        }
+        if (accessGranted && recentFiles.isNotEmpty()) {
+            item {
+                SectionCard(icon = Icons.Default.History, title = t.recentFiles) {
+                    recentFiles.forEach { entry ->
+                        FileRow(
+                            entry = entry,
+                            selectionMode = false,
+                            isSelected = false,
+                            itemCount = null,
+                            onClick = { onOpenRecent(entry) },
+                            onLongClick = {}
+                        )
                     }
                 }
             }
@@ -827,8 +903,10 @@ private fun BrowseScreen(
                     modifier = Modifier.align(Alignment.Center).padding(24.dp)
                 )
                 gridView -> LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(entries, key = { it.path }) { entry ->
                         FileCell(
@@ -1212,9 +1290,11 @@ private fun SettingsDialog(
     themeMode: String,
     language: String,
     showHidden: Boolean,
+    dynamicColor: Boolean,
     onTheme: (String) -> Unit,
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
+    onDynamicColor: (Boolean) -> Unit,
     onAbout: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1252,6 +1332,20 @@ private fun SettingsDialog(
                 ) {
                     Text(t.showHidden, Modifier.weight(1f))
                     Switch(checked = showHidden, onCheckedChange = onHidden)
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(t.dynamicColor)
+                        Text(
+                            t.dynamicColorDesc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = dynamicColor, onCheckedChange = onDynamicColor)
                 }
                 ListItem(
                     headlineContent = { Text(t.about) },

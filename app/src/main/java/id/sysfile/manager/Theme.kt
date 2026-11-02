@@ -1,15 +1,19 @@
 package id.sysfile.manager
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -64,37 +68,37 @@ private val DarkScheme: ColorScheme = ColorScheme(
     primaryContainer = Color(0xFF6E3400),
     onPrimaryContainer = Color(0xFFFFDCC3),
     inversePrimary = Color(0xFF9A4A00),
-    secondary = Color(0xFFE5C0A8),
-    onSecondary = Color(0xFF422B1A),
-    secondaryContainer = Color(0xFF5A4130),
-    onSecondaryContainer = Color(0xFFFFDCC3),
+    secondary = Color(0xFFCDB9DD),
+    onSecondary = Color(0xFF372847),
+    secondaryContainer = Color(0xFF4F3D63),
+    onSecondaryContainer = Color(0xFFEDDCFF),
     tertiary = Color(0xFFC6CC94),
     onTertiary = Color(0xFF2E330F),
     tertiaryContainer = Color(0xFF44481F),
     onTertiaryContainer = Color(0xFFE2E6AE),
-    background = Color(0xFF1A120C),
-    onBackground = Color(0xFFF0DFD3),
-    surface = Color(0xFF1A120C),
-    onSurface = Color(0xFFF0DFD3),
-    surfaceVariant = Color(0xFF54443A),
-    onSurfaceVariant = Color(0xFFD8C2B4),
+    background = Color(0xFF141118),
+    onBackground = Color(0xFFEDE6F2),
+    surface = Color(0xFF141118),
+    onSurface = Color(0xFFEDE6F2),
+    surfaceVariant = Color(0xFF2C2733),
+    onSurfaceVariant = Color(0xFFCFC6D9),
     surfaceTint = Color(0xFFFFB77D),
-    inverseSurface = Color(0xFFF0DFD3),
-    inverseOnSurface = Color(0xFF382E27),
+    inverseSurface = Color(0xFFEDE6F2),
+    inverseOnSurface = Color(0xFF332C3D),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    outline = Color(0xFFA08D81),
-    outlineVariant = Color(0xFF54443A),
+    outline = Color(0xFF988DA1),
+    outlineVariant = Color(0xFF4A4356),
     scrim = Color(0xFF000000),
-    surfaceBright = Color(0xFF413731),
-    surfaceDim = Color(0xFF1A120C),
-    surfaceContainerLowest = Color(0xFF140D08),
-    surfaceContainerLow = Color(0xFF221A14),
-    surfaceContainer = Color(0xFF261E17),
-    surfaceContainerHigh = Color(0xFF31281F),
-    surfaceContainerHighest = Color(0xFF3D332A)
+    surfaceBright = Color(0xFF3B3544),
+    surfaceDim = Color(0xFF141118),
+    surfaceContainerLowest = Color(0xFF0E0B11),
+    surfaceContainerLow = Color(0xFF1C1822),
+    surfaceContainer = Color(0xFF221D2A),
+    surfaceContainerHigh = Color(0xFF2C2635),
+    surfaceContainerHighest = Color(0xFF373040)
 )
 
 private val AppTypography = Typography(
@@ -122,14 +126,18 @@ private val AppShapes = Shapes(
 /** Tema aplikasi: mode "light" / "dark" / "system" dari preferensi. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SysFileTheme(themeMode: String, content: @Composable () -> Unit) {
+fun SysFileTheme(themeMode: String, dynamicColor: Boolean = false, content: @Composable () -> Unit) {
     val dark = when (themeMode) {
         "light" -> false
         "dark" -> true
         else -> isSystemInDarkTheme()
     }
+    val context = LocalContext.current
+    val scheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else if (dark) DarkScheme else LightScheme
     MaterialExpressiveTheme(
-        colorScheme = if (dark) DarkScheme else LightScheme,
+        colorScheme = scheme,
         motionScheme = MotionScheme.expressive(),
         typography = AppTypography,
         shapes = AppShapes,

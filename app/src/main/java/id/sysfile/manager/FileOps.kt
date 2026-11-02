@@ -286,6 +286,25 @@ object FileOps {
         return results
     }
 
+    /** File terbaru lintas volume: pindai terbatas, hasil diurutkan dari yang paling baru diubah. */
+    fun recentFiles(roots: List<File>, showHidden: Boolean, limit: Int = 12, cap: Int = 8000): List<FEntry> {
+        val found = mutableListOf<FEntry>()
+        var visited = 0
+        for (root in roots) {
+            if (!root.isDirectory || visited >= cap) continue
+            root.walkTopDown()
+                .onEnter { dir -> dir.canRead() && (showHidden || !dir.name.startsWith(".") || dir == root) }
+                .forEach { f ->
+                    if (visited >= cap) return@forEach
+                    if (f.isFile) {
+                        visited++
+                        if (showHidden || !f.name.startsWith(".")) found += entryOf(f)
+                    }
+                }
+        }
+        return found.sortedByDescending { it.modified }.take(limit)
+    }
+
     /** Kompres daftar entri menjadi satu berkas ZIP di folder tujuan. */
     fun zipFiles(sources: List<File>, destDir: File, zipName: String): File? {
         val clean = zipName.trim().removeSuffix(".zip")

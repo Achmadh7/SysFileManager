@@ -98,7 +98,21 @@ class Txt(
     val openFailed: String,
     val home: String,
     val storage: String,
-    val sortBy: String
+    val sortBy: String,
+    val recentFiles: String,
+    val greetingMorning: String,
+    val greetingAfternoon: String,
+    val greetingEvening: String,
+    val greetingNight: String,
+    val dynamicColor: String,
+    val dynamicColorDesc: String,
+    val catImagesS: String,
+    val catVideosS: String,
+    val catAudioS: String,
+    val catDocumentsS: String,
+    val catAppsS: String,
+    val catArchivesS: String,
+    val catOtherS: String
 )
 
 val TxtId = Txt(
@@ -196,7 +210,21 @@ val TxtId = Txt(
     openFailed = "Tidak ada aplikasi yang bisa membuka file ini.",
     home = "Beranda",
     storage = "Penyimpanan",
-    sortBy = "Urutkan"
+    sortBy = "Urutkan",
+    recentFiles = "File Terbaru",
+    greetingMorning = "Selamat pagi",
+    greetingAfternoon = "Selamat siang",
+    greetingEvening = "Selamat sore",
+    greetingNight = "Selamat malam",
+    dynamicColor = "Warna Dinamis (Material You)",
+    dynamicColorDesc = "Ikuti warna wallpaper (Android 12+).",
+    catImagesS = "Gambar",
+    catVideosS = "Video",
+    catAudioS = "Audio",
+    catDocumentsS = "Dokumen",
+    catAppsS = "APK",
+    catArchivesS = "Arsip",
+    catOtherS = "Lainnya"
 )
 
 val TxtEn = Txt(
@@ -294,7 +322,21 @@ val TxtEn = Txt(
     openFailed = "No app can open this file.",
     home = "Home",
     storage = "Storage",
-    sortBy = "Sort by"
+    sortBy = "Sort by",
+    recentFiles = "Recent Files",
+    greetingMorning = "Good morning",
+    greetingAfternoon = "Good afternoon",
+    greetingEvening = "Good evening",
+    greetingNight = "Good night",
+    dynamicColor = "Dynamic Color (Material You)",
+    dynamicColorDesc = "Follow your wallpaper colors (Android 12+).",
+    catImagesS = "Images",
+    catVideosS = "Videos",
+    catAudioS = "Audio",
+    catDocumentsS = "Docs",
+    catAppsS = "Apps",
+    catArchivesS = "Archives",
+    catOtherS = "Other"
 )
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */
