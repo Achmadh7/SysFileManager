@@ -148,6 +148,7 @@ private sealed interface Overlay {
     data class TextView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
     data class ArchiveView(val path: String) : Overlay
+    data class PayloadView(val path: String) : Overlay
 }
 
 private enum class ClipMode { COPY, CUT }
@@ -362,17 +363,15 @@ fun SysFileApp() {
             return
         }
         if (f.name.equals("payload.bin", ignoreCase = true)) {
+            // Jangan langsung mengekstrak: buka layar isi (daftar partisi) dulu.
             working = true
             scope.launch {
-                val outcome = withContext(Dispatchers.IO) { PayloadOps.extract(f, f.parentFile ?: f) }
+                val listing = withContext(Dispatchers.IO) { PayloadOps.listPartitions(f) }
                 working = false
                 when {
-                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                    outcome.error != null -> notify(t.payloadInvalid)
-                    else -> {
-                        notify(t.payloadDone(outcome.partitions))
-                        reloadKey++
-                    }
+                    listing.error == "unsupported" -> notify(t.payloadUnsupported)
+                    listing.error != null -> notify(t.payloadInvalid)
+                    else -> overlay = Overlay.PayloadView(entry.path)
                 }
             }
             return
@@ -482,7 +481,8 @@ fun SysFileApp() {
                 targetState = overlay,
                 transitionSpec = {
                     if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
-                        initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView) {
+                        initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView ||
+                        initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
                         fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
                             fadeOut(animationSpec = tween(durationMillis = 300))
                     } else {
@@ -550,6 +550,49 @@ fun SysFileApp() {
                                     openEntry(FileOps.entryOf(out))
                                 } else {
                                     notify(t.opFailed)
+                                }
+                            }
+                        }
+                    )
+                    is Overlay.PayloadView -> PayloadScreen(
+                        path = ov.path,
+                        onBack = { overlay = null },
+                        onError = { overlay = null; notify(t.opFailed) },
+                        onUnsupported = { overlay = null; notify(t.payloadUnsupported) },
+                        onExtractAll = {
+                            val payloadFile = File(ov.path)
+                            overlay = null
+                            working = true
+                            scope.launch {
+                                val outcome = withContext(Dispatchers.IO) {
+                                    PayloadOps.extract(payloadFile, payloadFile.parentFile ?: payloadFile)
+                                }
+                                working = false
+                                when {
+                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error != null -> notify(t.payloadInvalid)
+                                    else -> {
+                                        notify(t.payloadDone(outcome.partitions))
+                                        reloadKey++
+                                    }
+                                }
+                            }
+                        },
+                        onOpenPartition = { name ->
+                            val payloadFile = File(ov.path)
+                            working = true
+                            scope.launch {
+                                val outcome = withContext(Dispatchers.IO) {
+                                    PayloadOps.extractOne(payloadFile, name, payloadFile.parentFile ?: payloadFile)
+                                }
+                                working = false
+                                when {
+                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error != null -> notify(t.opFailed)
+                                    outcome.file != null -> {
+                                        overlay = null
+                                        openEntry(FileOps.entryOf(outcome.file))
+                                    }
                                 }
                             }
                         }

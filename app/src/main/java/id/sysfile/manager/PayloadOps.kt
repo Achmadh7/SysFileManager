@@ -17,6 +17,15 @@ object PayloadOps {
     /** Hasil ekstraksi: jumlah partisi yang ditulis, atau kode galat. */
     data class Outcome(val partitions: Int, val error: String?)
 
+    /** Satu partisi untuk layar isi payload: nama + ukuran berkas .img hasil ekstrak. */
+    data class PartitionInfo(val name: String, val size: Long)
+
+    /** Hasil pemeriksaan payload: daftar partisi, atau kode galat ("unsupported"/"invalid"). */
+    data class Listing(val partitions: List<PartitionInfo>, val error: String?)
+
+    /** Hasil ekstrak satu partisi: berkas .img yang dibuat, atau kode galat. */
+    data class OneOutcome(val file: File?, val error: String?)
+
     private class Op(
         val type: Long,
         val dataOffset: Long,
@@ -149,56 +158,112 @@ object PayloadOps {
         }
     }
 
+    private class Parsed(val blockSize: Long, val blobOffset: Long, val partitions: List<Partition>)
+
+    /** Baca header + manifest payload dari [raf]; melempar IllegalArgumentException bila tidak valid. */
+    private fun readManifest(raf: RandomAccessFile): Parsed {
+        val magic = ByteArray(4)
+        raf.readFully(magic)
+        if (String(magic, Charsets.US_ASCII) != "CrAU") throw IllegalArgumentException("magic")
+        val version = raf.readLong()
+        if (version < 1L || version > 2L) throw IllegalArgumentException("version")
+        val manifestSize = raf.readLong()
+        if (manifestSize <= 0L || manifestSize > 64L * 1024 * 1024) {
+            throw IllegalArgumentException("manifest size")
+        }
+        val sigSize = if (version > 1L) raf.readInt().toLong() and 0xFFFFFFFFL else 0L
+        val manifestBytes = ByteArray(manifestSize.toInt())
+        raf.readFully(manifestBytes)
+        val blobOffset = raf.filePointer + sigSize
+
+        var blockSize = 4096L
+        val partitions = mutableListOf<Partition>()
+        val mc = Cursor(manifestBytes, 0, manifestBytes.size)
+        while (mc.hasNext()) {
+            val tag = mc.varint().toInt()
+            val field = tag ushr 3
+            val wire = tag and 7
+            when {
+                field == 3 && wire == 0 -> blockSize = mc.varint()
+                field == 13 && wire == 2 -> partitions += parsePartition(mc.sub())
+                else -> mc.skip(wire)
+            }
+        }
+        if (partitions.isEmpty() || partitions.size > 128) throw IllegalArgumentException("partitions")
+        if (blockSize <= 0L || blockSize > 1024L * 1024) throw IllegalArgumentException("block size")
+        return Parsed(blockSize, blobOffset, partitions)
+    }
+
+    /** Tolak payload delta: hanya operasi penulisan penuh yang didukung. */
+    private fun checkSupported(partitions: List<Partition>) {
+        for (partition in partitions) {
+            for (op in partition.ops) {
+                if (op.type != 0L && op.type != 1L && op.type != 2L && op.type != 7L && op.type != 8L) {
+                    throw UnsupportedOperationException("op ${op.type}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Daftar partisi di dalam payload TANPA mengekstrak apa pun (untuk layar
+     * isi payload). Ukuran = perkiraan ukuran berkas .img hasil ekstrak.
+     */
+    fun listPartitions(file: File): Listing {
+        return try {
+            RandomAccessFile(file, "r").use { raf ->
+                val parsed = readManifest(raf)
+                checkSupported(parsed.partitions)
+                Listing(parsed.partitions.map { partition ->
+                    val blocks = partition.ops.flatMap { it.dstExtents }
+                        .maxOfOrNull { it.first + it.second } ?: 0L
+                    PartitionInfo(partition.name, blocks * parsed.blockSize)
+                }, null)
+            }
+        } catch (e: UnsupportedOperationException) {
+            Listing(emptyList(), "unsupported")
+        } catch (e: Exception) {
+            Listing(emptyList(), "invalid")
+        }
+    }
+
+    /** Ekstrak SATU partisi ke berkas .img unik di [destDir]. */
+    fun extractOne(file: File, partitionName: String, destDir: File): OneOutcome {
+        return try {
+            RandomAccessFile(file, "r").use { raf ->
+                val parsed = readManifest(raf)
+                val partition = parsed.partitions.firstOrNull { it.name == partitionName }
+                    ?: throw IllegalArgumentException("partition")
+                checkSupported(listOf(partition))
+                val safeName = partition.name
+                    .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    .ifBlank { "partition" }
+                val outFile = File(destDir, FileOps.uniqueName(destDir, "$safeName.img"))
+                extractPartition(raf, parsed.blobOffset, parsed.blockSize, partition, outFile)
+                OneOutcome(outFile, null)
+            }
+        } catch (e: UnsupportedOperationException) {
+            OneOutcome(null, "unsupported")
+        } catch (e: Exception) {
+            OneOutcome(null, "invalid")
+        }
+    }
+
     private fun doExtract(file: File, parentDir: File): Outcome {
         RandomAccessFile(file, "r").use { raf ->
-            val magic = ByteArray(4)
-            raf.readFully(magic)
-            if (String(magic, Charsets.US_ASCII) != "CrAU") throw IllegalArgumentException("magic")
-            val version = raf.readLong()
-            if (version < 1L || version > 2L) throw IllegalArgumentException("version")
-            val manifestSize = raf.readLong()
-            if (manifestSize <= 0L || manifestSize > 64L * 1024 * 1024) {
-                throw IllegalArgumentException("manifest size")
-            }
-            val sigSize = if (version > 1L) raf.readInt().toLong() and 0xFFFFFFFFL else 0L
-            val manifestBytes = ByteArray(manifestSize.toInt())
-            raf.readFully(manifestBytes)
-            val blobOffset = raf.filePointer + sigSize
-
-            var blockSize = 4096L
-            val partitions = mutableListOf<Partition>()
-            val mc = Cursor(manifestBytes, 0, manifestBytes.size)
-            while (mc.hasNext()) {
-                val tag = mc.varint().toInt()
-                val field = tag ushr 3
-                val wire = tag and 7
-                when {
-                    field == 3 && wire == 0 -> blockSize = mc.varint()
-                    field == 13 && wire == 2 -> partitions += parsePartition(mc.sub())
-                    else -> mc.skip(wire)
-                }
-            }
-            if (partitions.isEmpty() || partitions.size > 128) throw IllegalArgumentException("partitions")
-            if (blockSize <= 0L || blockSize > 1024L * 1024) throw IllegalArgumentException("block size")
-
+            val parsed = readManifest(raf)
             // Tolak payload delta SEBELUM menulis apa pun.
-            for (partition in partitions) {
-                for (op in partition.ops) {
-                    if (op.type != 0L && op.type != 1L && op.type != 2L && op.type != 7L && op.type != 8L) {
-                        throw UnsupportedOperationException("op ${op.type}")
-                    }
-                }
-            }
+            checkSupported(parsed.partitions)
 
             val destDir = File(parentDir, FileOps.uniqueName(parentDir, "payload"))
             if (!destDir.mkdirs() && !destDir.isDirectory) throw IllegalArgumentException("dest")
 
             var done = 0
-            for (partition in partitions) {
+            for (partition in parsed.partitions) {
                 val safeName = partition.name
                     .replace(Regex("[^A-Za-z0-9._-]"), "_")
                     .ifBlank { "partition" }
-                extractPartition(raf, blobOffset, blockSize, partition, File(destDir, "$safeName.img"))
+                extractPartition(raf, parsed.blobOffset, parsed.blockSize, partition, File(destDir, "$safeName.img"))
                 done++
             }
             return Outcome(done, null)

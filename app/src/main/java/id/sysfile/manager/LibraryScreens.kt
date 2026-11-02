@@ -342,6 +342,89 @@ private fun ArchiveItemRow(item: ArchiveItem, count: Int?, onClick: () -> Unit) 
  * Folder di dalam arsip bisa dimasuki; mengetuk berkas mengekstrak berkas itu
  * saja lalu membukanya; tombol Ekstrak Semua mengekstrak seluruh isi.
  */
+/**
+ * Layar isi payload.bin: daftar partisi di dalamnya, dibuka TANPA mengekstrak.
+ * "Ekstrak Semua" mengekstrak semua partisi ke folder "payload"; mengetuk satu
+ * partisi mengekstrak partisi itu saja lalu membukanya.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun PayloadScreen(
+    path: String,
+    onBack: () -> Unit,
+    onError: () -> Unit,
+    onUnsupported: () -> Unit,
+    onExtractAll: () -> Unit,
+    onOpenPartition: (String) -> Unit
+) {
+    val t = txt()
+    val payloadFile = remember(path) { File(path) }
+    var listing by remember(path) { mutableStateOf<PayloadOps.Listing?>(null) }
+    LaunchedEffect(path) {
+        val loaded = withContext(Dispatchers.IO) { PayloadOps.listPartitions(payloadFile) }
+        when {
+            loaded.error == "unsupported" -> onUnsupported()
+            loaded.error != null -> onError()
+            else -> listing = loaded
+        }
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(payloadFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
+                actions = {
+                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                }
+            )
+        }
+    ) { padding ->
+        val loaded = listing
+        val parts = loaded?.partitions.orEmpty()
+        val contentState = when {
+            loaded == null -> 0
+            parts.isEmpty() -> 1
+            else -> 2
+        }
+        AnimatedContent(
+            targetState = contentState,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
+                    fadeOut(animationSpec = tween(durationMillis = 300))
+            },
+            modifier = Modifier.fillMaxSize().padding(padding),
+            label = "payloadContentFade"
+        ) { state ->
+            when (state) {
+                0 -> Box(Modifier.fillMaxSize()) {
+                    Column(
+                        Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        LoadingIndicator()
+                        Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+                1 -> Box(Modifier.fillMaxSize()) {
+                    Text(
+                        t.archiveEmpty,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else -> LazyColumn(Modifier.fillMaxSize()) {
+                    items(parts, key = { it.name }) { part ->
+                        ArchiveItemRow(ArchiveItem(part.name + ".img", false, part.size), null) {
+                            onOpenPartition(part.name)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ArchiveScreen(
