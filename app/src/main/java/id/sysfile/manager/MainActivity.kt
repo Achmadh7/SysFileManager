@@ -123,6 +123,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -352,7 +353,7 @@ fun SysFileApp() {
 
     BackHandler(enabled = showSettings) { showSettings = false }
     BackHandler(enabled = !showSettings && overlay != null) { overlay = null }
-    BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab == 1) { homeTab = 0 }
+    BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab != 0) { homeTab = 0 }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
@@ -609,25 +610,27 @@ fun SysFileApp() {
                                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                                     label = "tabAnim"
                                 ) { tab ->
-                                    if (tab == 1) {
-                                        AnalysisScreen(
+                                    when (tab) {
+                                        1 -> RecentScreen(
+                                            files = recentFiles,
+                                            accessGranted = accessGranted,
+                                            onOpenEntry = { entry ->
+                                                if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
+                                            }
+                                        )
+                                        2 -> AnalysisScreen(
                                             roots = roots,
                                             onOpenFolder = { path -> homeTab = 0; browseStack = listOf(path) },
                                             onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                         )
-                                    } else {
-                                        HomeScreen(
+                                        else -> HomeScreen(
                                             accessGranted = accessGranted,
                                             roots = roots,
                                             favorites = favorites,
-                                            recentFiles = recentFiles,
                                             onRequestAccess = { requestAccess() },
                                             onOpenRoot = { browseStack = listOf(it) },
                                             onOpenFavorite = { browseStack = listOf(it) },
-                                            onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
-                                            onOpenRecent = { entry ->
-                                                if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
-                                            }
+                                            onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) }
                                         )
                                     }
                                 }
@@ -778,12 +781,10 @@ private fun HomeScreen(
     accessGranted: Boolean,
     roots: List<RootInfo>,
     favorites: Set<String>,
-    recentFiles: List<FEntry>,
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenFavorite: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
-    onOpenRecent: (FEntry) -> Unit
 ) {
     val t = txt()
     LazyColumn(
@@ -870,22 +871,6 @@ private fun HomeScreen(
                 }
             }
         }
-        if (accessGranted && recentFiles.isNotEmpty()) {
-            item {
-                SectionCard(icon = Icons.Default.History, title = t.recentFiles) {
-                    recentFiles.forEach { entry ->
-                        FileRow(
-                            entry = entry,
-                            selectionMode = false,
-                            isSelected = false,
-                            itemCount = null,
-                            onClick = { onOpenRecent(entry) },
-                            onLongClick = {}
-                        )
-                    }
-                }
-            }
-        }
         item {
             SectionCard(icon = Icons.Default.Analytics, title = t.categories) {
                 val cats = listOf(
@@ -968,7 +953,8 @@ private fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val t = txt()
     val items = listOf(
         Triple(0, Icons.Default.Home, t.home),
-        Triple(1, Icons.Default.Analytics, t.analysisShort)
+        Triple(1, Icons.Default.History, t.recentShort),
+        Triple(2, Icons.Default.Analytics, t.analysisShort)
     )
     Surface(
         shape = RoundedCornerShape(percent = 50),
@@ -991,7 +977,7 @@ private fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                     Modifier.clip(RoundedCornerShape(percent = 50))
                         .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                         .clickable { onSelect(index) }
-                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
@@ -1207,6 +1193,50 @@ private fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
 // ---------------------------------------------------------------------------
 // Layar pencarian
 // ---------------------------------------------------------------------------
+
+/** Tab File Terbaru: daftar berkas terbaru lintas volume (dulu seksi di Beranda). */
+@Composable
+private fun RecentScreen(
+    files: List<FEntry>,
+    accessGranted: Boolean,
+    onOpenEntry: (FEntry) -> Unit
+) {
+    val t = txt()
+    if (!accessGranted) {
+        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+            Text(
+                t.permissionBody,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+        return
+    }
+    if (files.isEmpty()) {
+        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+            Text(
+                t.noRecent,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+        return
+    }
+    LazyColumn(Modifier.fillMaxSize()) {
+        items(files, key = { it.path }) { entry ->
+            FileRow(
+                entry = entry,
+                selectionMode = false,
+                isSelected = false,
+                itemCount = null,
+                onClick = { onOpenEntry(entry) },
+                onLongClick = {}
+            )
+        }
+    }
+}
 
 /** Layar satu kategori: semua berkas kategori itu lintas volume, terbaru dulu. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

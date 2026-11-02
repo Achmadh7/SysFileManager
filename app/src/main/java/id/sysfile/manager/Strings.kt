@@ -127,6 +127,8 @@ class Txt(
     val statusHealthy: String,
     val statusAlmostFull: String,
     val statusFull: String,
+    val recentShort: String,
+    val noRecent: String,
     val fileSection: String,
     val otherSection: String
 )
@@ -255,6 +257,8 @@ val TxtId = Txt(
     statusHealthy = "Sehat",
     statusAlmostFull = "Hampir Penuh",
     statusFull = "Penuh",
+    recentShort = "Terbaru",
+    noRecent = "Belum ada file terbaru.",
     fileSection = "Berkas",
     otherSection = "Lainnya"
 )
@@ -383,6 +387,8 @@ val TxtEn = Txt(
     statusHealthy = "Healthy",
     statusAlmostFull = "Almost Full",
     statusFull = "Full",
+    recentShort = "Recent",
+    noRecent = "No recent files yet.",
     fileSection = "Files",
     otherSection = "Other"
 )
