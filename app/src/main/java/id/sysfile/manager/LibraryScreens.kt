@@ -280,6 +280,158 @@ fun CategoryScreen(
     }
 }
 
+/** Anak-anak langsung dari [prefix] di dalam arsip: folder (dengan jumlah isi) dulu, lalu berkas. */
+private fun archiveChildren(items: List<ArchiveItem>, prefix: String): List<Pair<ArchiveItem, Int?>> {
+    val folderPaths = linkedSetOf<String>()
+    val files = mutableListOf<ArchiveItem>()
+    for (item in items) {
+        if (!item.name.startsWith(prefix)) continue
+        val rest = item.name.removePrefix(prefix)
+        if (rest.isBlank()) continue
+        val slash = rest.indexOf('/')
+        if (slash >= 0) {
+            folderPaths += prefix + rest.substring(0, slash + 1)
+        } else if (item.isDir) {
+            folderPaths += if (item.name.endsWith("/")) item.name else item.name + "/"
+        } else {
+            files += item
+        }
+    }
+    val folders = folderPaths.map { path ->
+        val count = items.count { it.name.length > path.length && it.name.startsWith(path) }
+        ArchiveItem(path, true, 0L) to count
+    }
+    return folders.sortedBy { it.first.name.lowercase() } +
+        files.sortedBy { it.name.lowercase() }.map { it to null }
+}
+
+@Composable
+private fun ArchiveItemRow(item: ArchiveItem, count: Int?, onClick: () -> Unit) {
+    val displayName = item.name.removeSuffix("/").substringAfterLast('/')
+    val category = if (item.isDir) Category.OTHER else FileOps.categoryOf(displayName)
+    val color = entryColor(FEntry(item.name, displayName, item.isDir, item.size, 0L, category))
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(46.dp).clip(CircleShape).background(color.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (item.isDir) Icons.Default.Folder else categoryIcon(category, displayName),
+                null,
+                tint = color,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(displayName, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val sub = if (item.isDir) count?.let { txt().items(it) } else FileOps.formatSize(item.size)
+            if (!sub.isNullOrEmpty()) {
+                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/**
+ * Layar Isi Arsip: mengetuk arsip membuka layar ini (bukan langsung ekstrak).
+ * Folder di dalam arsip bisa dimasuki; mengetuk berkas mengekstrak berkas itu
+ * saja lalu membukanya; tombol Ekstrak Semua mengekstrak seluruh isi.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ArchiveScreen(
+    path: String,
+    onBack: () -> Unit,
+    onError: () -> Unit,
+    onExtractAll: () -> Unit,
+    onOpenFile: (String) -> Unit
+) {
+    val t = txt()
+    val archiveFile = remember(path) { File(path) }
+    var items by remember(path) { mutableStateOf<List<ArchiveItem>?>(null) }
+    var prefix by remember(path) { mutableStateOf("") }
+    LaunchedEffect(path) {
+        val loaded = withContext(Dispatchers.IO) { ArchiveOps.listContents(archiveFile) }
+        if (loaded == null) onError() else items = loaded
+    }
+    BackHandler(enabled = prefix.isNotEmpty()) {
+        val parent = prefix.removeSuffix("/").substringBeforeLast('/', "")
+        prefix = if (parent.isEmpty()) "" else "$parent/"
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(archiveFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
+                actions = {
+                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (prefix.isNotEmpty()) {
+                Text(
+                    "/" + prefix.removeSuffix("/"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+            val loaded = items
+            val contentState = when {
+                loaded == null -> 0
+                loaded.isEmpty() -> 1
+                else -> 2
+            }
+            AnimatedContent(
+                targetState = (contentState to prefix),
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
+                        fadeOut(animationSpec = tween(durationMillis = 300))
+                },
+                modifier = Modifier.fillMaxSize(),
+                label = "archiveContentFade"
+            ) { (state, shownPrefix) ->
+                when (state) {
+                    0 -> Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            LoadingIndicator()
+                            Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
+                    }
+                    1 -> Box(Modifier.fillMaxSize()) {
+                        Text(
+                            t.archiveEmpty,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    else -> {
+                        val children = archiveChildren(loaded.orEmpty(), shownPrefix)
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(children, key = { it.first.name }) { (item, count) ->
+                                ArchiveItemRow(item = item, count = count, onClick = {
+                                    if (item.isDir) prefix = item.name else onOpenFile(item.name)
+                                })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SearchScreen(

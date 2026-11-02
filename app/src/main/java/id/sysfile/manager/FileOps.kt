@@ -40,6 +40,9 @@ data class RootInfo(
     val free: Long
 )
 
+/** Satu entri di dalam arsip, untuk layar Isi Arsip (dibuka tanpa ekstrak). */
+data class ArchiveItem(val name: String, val isDir: Boolean, val size: Long)
+
 /** Hasil analisis penyimpanan: ukuran per kategori + file terbesar. */
 data class AnalysisResult(
     val byCategory: Map<Category, Long>,
@@ -641,6 +644,155 @@ object ArchiveOps {
         } catch (e: Exception) {
             null
         }
+    }
+
+    /** Daftar isi arsip (ZIP/7Z/TAR*/RAR) untuk dibuka tanpa ekstrak; null bila gagal/tidak didukung. */
+    fun listContents(file: File): List<ArchiveItem>? {
+        return try {
+            when (val kind = kindOf(file.name)) {
+                "zip" -> listZipContents(file)?.map { (name, size) ->
+                    ArchiveItem(name, size < 0L, if (size < 0L) 0L else size)
+                }
+                "7z" -> list7z(file)
+                "tar", "tar.gz", "tar.bz2", "tar.xz" -> listTar(file, kind!!)
+                "rar" -> listRar(file)
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun list7z(archive: File): List<ArchiveItem> {
+        val result = mutableListOf<ArchiveItem>()
+        org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
+            while (true) {
+                val e = seven.nextEntry ?: break
+                result += ArchiveItem(
+                    e.name.replace('\\', '/'),
+                    e.isDirectory,
+                    if (e.isDirectory) 0L else e.size
+                )
+            }
+        }
+        return result
+    }
+
+    private fun openTar(
+        archive: File,
+        kind: String
+    ): org.apache.commons.compress.archivers.tar.TarArchiveInputStream {
+        val raw = BufferedInputStream(FileInputStream(archive))
+        val decompressed = when (kind) {
+            "tar.gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream(raw)
+            "tar.bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(raw)
+            "tar.xz" -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(raw)
+            else -> raw
+        }
+        return org.apache.commons.compress.archivers.tar.TarArchiveInputStream(decompressed)
+    }
+
+    private fun listTar(archive: File, kind: String): List<ArchiveItem> {
+        val result = mutableListOf<ArchiveItem>()
+        openTar(archive, kind).use { tis ->
+            while (true) {
+                val e = tis.nextEntry ?: break
+                result += ArchiveItem(e.name, e.isDirectory, if (e.isDirectory) 0L else e.size)
+            }
+        }
+        return result
+    }
+
+    private fun listRar(archive: File): List<ArchiveItem> {
+        val result = mutableListOf<ArchiveItem>()
+        com.github.junrar.Archive(archive).use { rar ->
+            while (true) {
+                val header = rar.nextFileHeader() ?: break
+                val name = header.fileName.replace('\\', '/')
+                if (name.isBlank()) continue
+                result += ArchiveItem(name, header.isDirectory, if (header.isDirectory) 0L else header.unpSize)
+            }
+        }
+        return result
+    }
+
+    /** Ekstrak SATU entri [entryName] dari arsip ke [destDir]; berkas hasil atau null. */
+    fun extractSingle(file: File, entryName: String, destDir: File): File? {
+        val base = entryName.substringAfterLast('/')
+        if (base.isBlank()) return null
+        val out = uniqueDest(destDir, base)
+        val ok = try {
+            when (val kind = kindOf(file.name)) {
+                "zip" -> extractSingleZip(file, entryName, out)
+                "7z" -> extractSingle7z(file, entryName, out)
+                "tar", "tar.gz", "tar.bz2", "tar.xz" -> extractSingleTar(file, kind!!, entryName, out)
+                "rar" -> extractSingleRar(file, entryName, out)
+                else -> false
+            }
+        } catch (e: Exception) {
+            false
+        }
+        return if (ok) out else {
+            out.delete()
+            null
+        }
+    }
+
+    private fun extractSingleZip(file: File, entryName: String, out: File): Boolean {
+        ZipFile(file).use { zip ->
+            val e = zip.getEntry(entryName) ?: return false
+            if (e.isDirectory) return false
+            zip.getInputStream(e).use { input ->
+                FileOutputStream(out).use { input.copyTo(it, 64 * 1024) }
+            }
+        }
+        return true
+    }
+
+    private fun extractSingle7z(archive: File, entryName: String, out: File): Boolean {
+        org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
+            while (true) {
+                val e = seven.nextEntry ?: break
+                if (e.isDirectory || e.name.replace('\\', '/') != entryName) continue
+                FileOutputStream(out).use { fos ->
+                    val buffer = ByteArray(8192)
+                    var remaining = e.size
+                    while (remaining > 0) {
+                        val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                        if (read <= 0) break
+                        fos.write(buffer, 0, read)
+                        remaining -= read
+                    }
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun extractSingleTar(archive: File, kind: String, entryName: String, out: File): Boolean {
+        openTar(archive, kind).use { tis ->
+            while (true) {
+                val e = tis.nextEntry ?: break
+                if (e.isDirectory || e.name != entryName) continue
+                FileOutputStream(out).use { fos -> tis.copyTo(fos, 64 * 1024) }
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun extractSingleRar(archive: File, entryName: String, out: File): Boolean {
+        com.github.junrar.Archive(archive).use { rar ->
+            while (true) {
+                val header = rar.nextFileHeader() ?: break
+                if (header.isDirectory) continue
+                if (header.fileName.replace('\\', '/') != entryName) continue
+                FileOutputStream(out).use { fos -> rar.extractFile(header, fos) }
+                return true
+            }
+        }
+        return false
     }
 
     private fun createEncryptedZip(sources: List<File>, destDir: File, baseName: String, password: String): File? {

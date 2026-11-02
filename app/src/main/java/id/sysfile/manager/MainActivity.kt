@@ -147,6 +147,7 @@ private sealed interface Overlay {
     data class ImageView(val path: String) : Overlay
     data class TextView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
+    data class ArchiveView(val path: String) : Overlay
 }
 
 private enum class ClipMode { COPY, CUT }
@@ -390,6 +391,14 @@ fun SysFileApp() {
                 val kind = ArchiveOps.kindOf(f.name)
                 when {
                     kind == null -> openExternal(f)
+                    kind == "gz" || kind == "bz2" || kind == "xz" -> {
+                        working = true
+                        scope.launch {
+                            val ok = withContext(Dispatchers.IO) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                            working = false
+                            if (ok) { notify(t.extractDone); reloadKey++ } else notify(t.opFailed)
+                        }
+                    }
                     kind == "zip" -> {
                         working = true
                         scope.launch {
@@ -398,23 +407,11 @@ fun SysFileApp() {
                             if (encrypted) {
                                 dialog = DialogKind.ZipPassword(entry)
                             } else {
-                                working = true
-                                scope.launch {
-                                    val ok = withContext(Dispatchers.IO) { ArchiveOps.extract(f, f.parentFile ?: f) }
-                                    working = false
-                                    if (ok) { notify(t.extractDone); reloadKey++ } else notify(t.opFailed)
-                                }
+                                overlay = Overlay.ArchiveView(entry.path)
                             }
                         }
                     }
-                    else -> {
-                        working = true
-                        scope.launch {
-                            val ok = withContext(Dispatchers.IO) { ArchiveOps.extract(f, f.parentFile ?: f) }
-                            working = false
-                            if (ok) { notify(t.extractDone); reloadKey++ } else notify(t.opFailed)
-                        }
-                    }
+                    else -> overlay = Overlay.ArchiveView(entry.path)
                 }
             }
             else -> openExternal(f)
@@ -484,7 +481,8 @@ fun SysFileApp() {
             AnimatedContent(
                 targetState = overlay,
                 transitionSpec = {
-                    if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView) {
+                    if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
+                        initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView) {
                         fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
                             fadeOut(animationSpec = tween(durationMillis = 300))
                     } else {
@@ -528,6 +526,32 @@ fun SysFileApp() {
                                 if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
                             }
                             openEntry(entry)
+                        }
+                    )
+                    is Overlay.ArchiveView -> ArchiveScreen(
+                        path = ov.path,
+                        onBack = { overlay = null },
+                        onError = { overlay = null; notify(t.opFailed) },
+                        onExtractAll = {
+                            val archiveFile = File(ov.path)
+                            overlay = null
+                            runOp(t.extractDone) { ArchiveOps.extract(archiveFile, archiveFile.parentFile ?: archiveFile) }
+                        },
+                        onOpenFile = { itemName ->
+                            val archiveFile = File(ov.path)
+                            working = true
+                            scope.launch {
+                                val out = withContext(Dispatchers.IO) {
+                                    ArchiveOps.extractSingle(archiveFile, itemName, archiveFile.parentFile ?: archiveFile)
+                                }
+                                working = false
+                                if (out != null) {
+                                    reloadKey++
+                                    openEntry(FileOps.entryOf(out))
+                                } else {
+                                    notify(t.opFailed)
+                                }
+                            }
                         }
                     )
                     null -> {
