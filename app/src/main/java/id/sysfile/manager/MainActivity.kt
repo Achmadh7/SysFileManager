@@ -15,6 +15,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -477,294 +480,312 @@ fun SysFileApp() {
                 onAbout = { dialog = DialogKind.About },
                 onBack = { showSettings = false }
             )
-        } else when (val ov = overlay) {
-            is Overlay.ImageView -> ImageViewerScreen(
-                path = ov.path,
-                onBack = { overlay = null },
-                onShare = { shareFile(File(ov.path)) },
-                onInfo = { dialog = DialogKind.Properties(FileOps.entryOf(File(ov.path))) },
-                onDelete = { dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(ov.path)))) }
-            )
-            is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
-            is Overlay.Search -> SearchScreen(
-                rootPath = ov.rootPath,
-                onBack = { overlay = null },
-                onOpenEntry = { entry ->
-                    overlay = null
-                    if (entry.isDir) {
-                        browseStack = listOf(entry.path)
+        } else {
+            AnimatedContent(
+                targetState = overlay,
+                transitionSpec = {
+                    if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView) {
+                        fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
+                            fadeOut(animationSpec = tween(durationMillis = 300))
                     } else {
-                        entry.parentPath()?.let { parent ->
-                            if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
-                        }
-                        openEntry(entry)
+                        EnterTransition.None togetherWith ExitTransition.None
                     }
-                }
-            )
-            is Overlay.CategoryView -> CategoryScreen(
-                category = ov.category,
-                roots = roots,
-                showHidden = showHidden,
-                accessGranted = accessGranted,
-                onBack = { overlay = null },
-                onOpenEntry = { entry ->
-                    entry.parentPath()?.let { parent ->
-                        if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
-                    }
-                    openEntry(entry)
-                }
-            )
-            null -> {
-                Scaffold(
-                    snackbarHost = { SnackbarHost(snackbar) },
-                    topBar = {
-                        Column {
-                        if (currentPath == null) {
-                            TopAppBar(
-                                title = { Text("SysFile") },
-                                actions = {
-                                    IconButton(onClick = { showSettings = true }) {
-                                        Icon(Icons.Default.Settings, t.settings)
-                                    }
+                },
+                label = "overlayAnim"
+            ) { ov ->
+                when (ov) {
+                    is Overlay.ImageView -> ImageViewerScreen(
+                        path = ov.path,
+                        onBack = { overlay = null },
+                        onShare = { shareFile(File(ov.path)) },
+                        onInfo = { dialog = DialogKind.Properties(FileOps.entryOf(File(ov.path))) },
+                        onDelete = { dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(ov.path)))) }
+                    )
+                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
+                    is Overlay.Search -> SearchScreen(
+                        rootPath = ov.rootPath,
+                        onBack = { overlay = null },
+                        onOpenEntry = { entry ->
+                            overlay = null
+                            if (entry.isDir) {
+                                browseStack = listOf(entry.path)
+                            } else {
+                                entry.parentPath()?.let { parent ->
+                                    if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
                                 }
-                            )
-                        } else if (selected.isNotEmpty()) {
-                            TopAppBar(
-                                title = { Text(t.selected(selected.size)) },
-                                navigationIcon = {
-                                    IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, t.cancel) }
-                                },
-                                actions = {
-                                    IconButton(onClick = { selected = entries.map { it.path }.toSet() }) {
-                                        Icon(Icons.Default.DoneAll, t.selectAll)
-                                    }
-                                }
-                            )
-                        } else {
-                            TopAppBar(
-                                title = {
-                                    Text(
-                                        if (currentRoot != null && currentPath == currentRoot.path) {
-                                            rootLabel(currentRoot, t)
-                                        } else {
-                                            File(currentPath).name
-                                        },
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                navigationIcon = {
-                                    IconButton(onClick = { browseStack = browseStack.dropLast(1) }) {
-                                        Icon(Icons.Default.ArrowBack, t.home)
-                                    }
-                                },
-                                actions = {
-                                    val isFav = favorites.contains(currentPath)
-                                    IconButton(onClick = {
-                                        val updated = if (isFav) favorites - currentPath else favorites + currentPath
-                                        favorites = updated
-                                        prefs.edit().putStringSet("favorites", updated).apply()
-                                        notify(if (isFav) t.removeFavorite else t.addFavorite)
-                                    }) {
-                                        Icon(if (isFav) Icons.Default.Star else Icons.Default.StarBorder, t.favorites)
-                                    }
-                                    IconButton(onClick = { overlay = Overlay.Search(currentPath) }) {
-                                        Icon(Icons.Default.Search, t.search)
-                                    }
-                                    IconButton(onClick = { browseStack = emptyList() }) {
-                                        Icon(Icons.Default.Home, t.home)
-                                    }
-                                    Box {
-                                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
-                                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                            DropdownMenuItem(
-                                                text = { Text(t.newFolder) },
-                                                leadingIcon = { Icon(Icons.Default.CreateNewFolder, null) },
-                                                onClick = { menuOpen = false; dialog = DialogKind.NewFolder }
-                                            )
-                                            if (clipboard != null) {
-                                                DropdownMenuItem(
-                                                    text = { Text(t.paste) },
-                                                    leadingIcon = { Icon(Icons.Default.ContentPaste, null) },
-                                                    onClick = {
-                                                        menuOpen = false
-                                                        val (paths, mode) = clipboard!!
-                                                        val destDir = File(currentPath)
-                                                        runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
-                                                            val files = paths.map { File(it) }
-                                                            if (mode == ClipMode.COPY) {
-                                                                FileOps.copyInto(files, destDir) > 0
-                                                            } else {
-                                                                FileOps.moveInto(files, destDir) > 0
-                                                            }
-                                                        }
-                                                        if (mode == ClipMode.CUT) clipboard = null
-                                                    }
-                                                )
-                                            }
-                                            DropdownMenuItem(
-                                                text = { Text(t.sortBy) },
-                                                onClick = { menuOpen = false; dialog = DialogKind.Sort }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(if (gridView) t.listView else t.gridView) },
-                                                leadingIcon = { Icon(if (gridView) Icons.Default.ViewList else Icons.Default.GridView, null) },
-                                                onClick = {
-                                                    menuOpen = false
-                                                    gridView = !gridView
-                                                    prefs.edit().putBoolean("grid_view", gridView).apply()
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(t.showHidden) },
-                                                trailingIcon = {
-                                                    Switch(checked = showHidden, onCheckedChange = { v ->
-                                                        showHidden = v
-                                                        prefs.edit().putBoolean("show_hidden", v).apply()
-                                                    })
-                                                },
-                                                onClick = {
-                                                    showHidden = !showHidden
-                                                    prefs.edit().putBoolean("show_hidden", showHidden).apply()
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                        if (currentPath != null && selected.isEmpty()) {
-                            BreadcrumbBar(
-                                currentPath = currentPath,
-                                currentRoot = currentRoot,
-                                onNavigate = { browseStack = it }
-                            )
-                        }
-                        }
-                    },
-                    bottomBar = {
-                        if (selected.isNotEmpty() && currentPath != null) {
-                            SelectionBar(
-                                single = selected.size == 1,
-                                singleEntry = entries.firstOrNull { it.path == selected.first() },
-                                onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
-                                onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
-                                onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
-                                onShare = { entries.firstOrNull { it.path == selected.first() }?.let { shareFile(it.file) } },
-                                onRename = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Rename(it) } },
-                                onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
-                                onProperties = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Properties(it) } }
-                            )
-                        } else if (clipboard != null && currentPath != null) {
-                            ClipboardBar(
-                                count = clipboard!!.first.size,
-                                onPaste = {
-                                    val (paths, mode) = clipboard!!
-                                    val destDir = File(currentPath)
-                                    runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
-                                        val files = paths.map { File(it) }
-                                        if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
-                                        else FileOps.moveInto(files, destDir) > 0
-                                    }
-                                    if (mode == ClipMode.CUT) clipboard = null
-                                },
-                                onClear = { clipboard = null }
-                            )
-                        } else if (currentPath == null) {
-                            Box(
-                                Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                PillNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                openEntry(entry)
                             }
                         }
-                    }
-                ) { padding ->
-                    Box(Modifier.fillMaxSize().padding(padding)) {
-                        AnimatedContent(
-                            targetState = currentPath,
-                            transitionSpec = {
-                                val fromDepth = initialState?.count { it == '/' } ?: -1
-                                val toDepth = targetState?.count { it == '/' } ?: -1
-                                if (toDepth >= fromDepth) {
-                                    (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
-                                        (slideOutHorizontally { w -> -w / 3 } + fadeOut())
+                    )
+                    is Overlay.CategoryView -> CategoryScreen(
+                        category = ov.category,
+                        roots = roots,
+                        showHidden = showHidden,
+                        accessGranted = accessGranted,
+                        onBack = { overlay = null },
+                        onOpenEntry = { entry ->
+                            entry.parentPath()?.let { parent ->
+                                if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
+                            }
+                            openEntry(entry)
+                        }
+                    )
+                    null -> {
+                        Scaffold(
+                            snackbarHost = { SnackbarHost(snackbar) },
+                            topBar = {
+                                Column {
+                                if (currentPath == null) {
+                                    TopAppBar(
+                                        title = { Text("SysFile") },
+                                        actions = {
+                                            IconButton(onClick = { showSettings = true }) {
+                                                Icon(Icons.Default.Settings, t.settings)
+                                            }
+                                        }
+                                    )
+                                } else if (selected.isNotEmpty()) {
+                                    TopAppBar(
+                                        title = { Text(t.selected(selected.size)) },
+                                        navigationIcon = {
+                                            IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, t.cancel) }
+                                        },
+                                        actions = {
+                                            IconButton(onClick = { selected = entries.map { it.path }.toSet() }) {
+                                                Icon(Icons.Default.DoneAll, t.selectAll)
+                                            }
+                                        }
+                                    )
                                 } else {
-                                    (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
-                                        (slideOutHorizontally { w -> w / 3 } + fadeOut())
+                                    TopAppBar(
+                                        title = {
+                                            Text(
+                                                if (currentRoot != null && currentPath == currentRoot.path) {
+                                                    rootLabel(currentRoot, t)
+                                                } else {
+                                                    File(currentPath).name
+                                                },
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                                            )
+                                        },
+                                        navigationIcon = {
+                                            IconButton(onClick = { browseStack = browseStack.dropLast(1) }) {
+                                                Icon(Icons.Default.ArrowBack, t.home)
+                                            }
+                                        },
+                                        actions = {
+                                            val isFav = favorites.contains(currentPath)
+                                            IconButton(onClick = {
+                                                val updated = if (isFav) favorites - currentPath else favorites + currentPath
+                                                favorites = updated
+                                                prefs.edit().putStringSet("favorites", updated).apply()
+                                                notify(if (isFav) t.removeFavorite else t.addFavorite)
+                                            }) {
+                                                Icon(if (isFav) Icons.Default.Star else Icons.Default.StarBorder, t.favorites)
+                                            }
+                                            IconButton(onClick = { overlay = Overlay.Search(currentPath) }) {
+                                                Icon(Icons.Default.Search, t.search)
+                                            }
+                                            IconButton(onClick = { browseStack = emptyList() }) {
+                                                Icon(Icons.Default.Home, t.home)
+                                            }
+                                            Box {
+                                                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
+                                                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                                    DropdownMenuItem(
+                                                        text = { Text(t.newFolder) },
+                                                        leadingIcon = { Icon(Icons.Default.CreateNewFolder, null) },
+                                                        onClick = { menuOpen = false; dialog = DialogKind.NewFolder }
+                                                    )
+                                                    if (clipboard != null) {
+                                                        DropdownMenuItem(
+                                                            text = { Text(t.paste) },
+                                                            leadingIcon = { Icon(Icons.Default.ContentPaste, null) },
+                                                            onClick = {
+                                                                menuOpen = false
+                                                                val (paths, mode) = clipboard!!
+                                                                val destDir = File(currentPath)
+                                                                runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
+                                                                    val files = paths.map { File(it) }
+                                                                    if (mode == ClipMode.COPY) {
+                                                                        FileOps.copyInto(files, destDir) > 0
+                                                                    } else {
+                                                                        FileOps.moveInto(files, destDir) > 0
+                                                                    }
+                                                                }
+                                                                if (mode == ClipMode.CUT) clipboard = null
+                                                            }
+                                                        )
+                                                    }
+                                                    DropdownMenuItem(
+                                                        text = { Text(t.sortBy) },
+                                                        onClick = { menuOpen = false; dialog = DialogKind.Sort }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text(if (gridView) t.listView else t.gridView) },
+                                                        leadingIcon = { Icon(if (gridView) Icons.Default.ViewList else Icons.Default.GridView, null) },
+                                                        onClick = {
+                                                            menuOpen = false
+                                                            gridView = !gridView
+                                                            prefs.edit().putBoolean("grid_view", gridView).apply()
+                                                        }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text(t.showHidden) },
+                                                        trailingIcon = {
+                                                            Switch(checked = showHidden, onCheckedChange = { v ->
+                                                                showHidden = v
+                                                                prefs.edit().putBoolean("show_hidden", v).apply()
+                                                            })
+                                                        },
+                                                        onClick = {
+                                                            showHidden = !showHidden
+                                                            prefs.edit().putBoolean("show_hidden", showHidden).apply()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                                if (currentPath != null && selected.isEmpty()) {
+                                    BreadcrumbBar(
+                                        currentPath = currentPath,
+                                        currentRoot = currentRoot,
+                                        onNavigate = { browseStack = it }
+                                    )
+                                }
                                 }
                             },
-                            label = "folderAnim"
-                        ) { animatedPath ->
-                            if (animatedPath == null) {
-                                AnimatedContent(
-                                    targetState = homeTab,
-                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                                    label = "tabAnim"
-                                ) { tab ->
-                                    when (tab) {
-                                        1 -> RecentScreen(
-                                            files = recentFiles,
-                                            accessGranted = accessGranted,
-                                            onOpenEntry = { entry ->
-                                                if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
+                            bottomBar = {
+                                if (selected.isNotEmpty() && currentPath != null) {
+                                    SelectionBar(
+                                        single = selected.size == 1,
+                                        singleEntry = entries.firstOrNull { it.path == selected.first() },
+                                        onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
+                                        onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
+                                        onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
+                                        onShare = { entries.firstOrNull { it.path == selected.first() }?.let { shareFile(it.file) } },
+                                        onRename = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Rename(it) } },
+                                        onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
+                                        onProperties = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Properties(it) } }
+                                    )
+                                } else if (clipboard != null && currentPath != null) {
+                                    ClipboardBar(
+                                        count = clipboard!!.first.size,
+                                        onPaste = {
+                                            val (paths, mode) = clipboard!!
+                                            val destDir = File(currentPath)
+                                            runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
+                                                val files = paths.map { File(it) }
+                                                if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
+                                                else FileOps.moveInto(files, destDir) > 0
                                             }
-                                        )
-                                        2 -> AnalysisScreen(
-                                            roots = roots,
-                                            onOpenFolder = { path -> homeTab = 0; browseStack = listOf(path) },
-                                            onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
-                                        )
-                                        else -> HomeScreen(
-                                            accessGranted = accessGranted,
-                                            roots = if (showRootEntry) allRoots else roots,
-                                            rootActive = rootActive,
-                                            favorites = favorites,
-                                            onRequestAccess = { requestAccess() },
-                                            onOpenRoot = { browseStack = listOf(it) },
-                                            onOpenFavorite = { browseStack = listOf(it) },
-                                            onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) }
+                                            if (mode == ClipMode.CUT) clipboard = null
+                                        },
+                                        onClear = { clipboard = null }
+                                    )
+                                } else if (currentPath == null) {
+                                    Box(
+                                        Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        PillNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                    }
+                                }
+                            }
+                        ) { padding ->
+                            Box(Modifier.fillMaxSize().padding(padding)) {
+                                AnimatedContent(
+                                    targetState = currentPath,
+                                    transitionSpec = {
+                                        val fromDepth = initialState?.count { it == '/' } ?: -1
+                                        val toDepth = targetState?.count { it == '/' } ?: -1
+                                        if (toDepth >= fromDepth) {
+                                            (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
+                                                (slideOutHorizontally { w -> -w / 3 } + fadeOut())
+                                        } else {
+                                            (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
+                                                (slideOutHorizontally { w -> w / 3 } + fadeOut())
+                                        }
+                                    },
+                                    label = "folderAnim"
+                                ) { animatedPath ->
+                                    if (animatedPath == null) {
+                                        AnimatedContent(
+                                            targetState = homeTab,
+                                            transitionSpec = {
+                                                fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
+                                                    fadeOut(animationSpec = tween(durationMillis = 300))
+                                            },
+                                            label = "tabAnim"
+                                        ) { tab ->
+                                            when (tab) {
+                                                1 -> RecentScreen(
+                                                    files = recentFiles,
+                                                    accessGranted = accessGranted,
+                                                    onOpenEntry = { entry ->
+                                                        if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
+                                                    }
+                                                )
+                                                2 -> AnalysisScreen(
+                                                    roots = roots,
+                                                    onOpenFolder = { path -> homeTab = 0; browseStack = listOf(path) },
+                                                    onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
+                                                )
+                                                else -> HomeScreen(
+                                                    accessGranted = accessGranted,
+                                                    roots = if (showRootEntry) allRoots else roots,
+                                                    rootActive = rootActive,
+                                                    favorites = favorites,
+                                                    onRequestAccess = { requestAccess() },
+                                                    onOpenRoot = { browseStack = listOf(it) },
+                                                    onOpenFavorite = { browseStack = listOf(it) },
+                                                    onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) }
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        BrowseScreen(
+                                        currentPath = animatedPath,
+                                        currentRoot = currentRoot,
+                                        entries = entries,
+                                        loaded = entriesLoaded,
+                                        gridView = gridView,
+                                        selected = selected,
+                                        onNavigate = { browseStack = it },
+                                        onOpenEntry = { entry ->
+                                            if (selected.isNotEmpty()) {
+                                                selected = if (selected.contains(entry.path)) selected - entry.path else selected + entry.path
+                                            } else {
+                                                openEntry(entry)
+                                            }
+                                        },
+                                        onLongPress = { entry -> selected = selected + entry.path },
+                                        onGoUp = {
+                                            val parent = File(animatedPath).parent
+                                            if (parent != null && currentRoot != null && parent.startsWith(currentRoot.path)) {
+                                                browseStack = browseStack.dropLast(1) + parent
+                                            } else {
+                                                browseStack = browseStack.dropLast(1)
+                                            }
+                                        },
+                                        canGoUp = currentRoot != null && animatedPath != currentRoot.path,
+                                        onNewFolder = { dialog = DialogKind.NewFolder },
+                                        sortLabel = when (sortKey) {
+                                            SortKey.NAME -> t.sortName
+                                            SortKey.DATE -> t.sortDate
+                                            SortKey.SIZE -> t.sortSize
+                                        },
+                                        onSortClick = { dialog = DialogKind.Sort },
+                                        onToggleView = {
+                                            gridView = !gridView
+                                            prefs.edit().putBoolean("grid_view", gridView).apply()
+                                        },
+                                        counts = entryCounts
                                         )
                                     }
                                 }
-                            } else {
-                                BrowseScreen(
-                                currentPath = animatedPath,
-                                currentRoot = currentRoot,
-                                entries = entries,
-                                loaded = entriesLoaded,
-                                gridView = gridView,
-                                selected = selected,
-                                onNavigate = { browseStack = it },
-                                onOpenEntry = { entry ->
-                                    if (selected.isNotEmpty()) {
-                                        selected = if (selected.contains(entry.path)) selected - entry.path else selected + entry.path
-                                    } else {
-                                        openEntry(entry)
-                                    }
-                                },
-                                onLongPress = { entry -> selected = selected + entry.path },
-                                onGoUp = {
-                                    val parent = File(animatedPath).parent
-                                    if (parent != null && currentRoot != null && parent.startsWith(currentRoot.path)) {
-                                        browseStack = browseStack.dropLast(1) + parent
-                                    } else {
-                                        browseStack = browseStack.dropLast(1)
-                                    }
-                                },
-                                canGoUp = currentRoot != null && animatedPath != currentRoot.path,
-                                onNewFolder = { dialog = DialogKind.NewFolder },
-                                sortLabel = when (sortKey) {
-                                    SortKey.NAME -> t.sortName
-                                    SortKey.DATE -> t.sortDate
-                                    SortKey.SIZE -> t.sortSize
-                                },
-                                onSortClick = { dialog = DialogKind.Sort },
-                                onToggleView = {
-                                    gridView = !gridView
-                                    prefs.edit().putBoolean("grid_view", gridView).apply()
-                                },
-                                counts = entryCounts
-                                )
                             }
                         }
                     }
