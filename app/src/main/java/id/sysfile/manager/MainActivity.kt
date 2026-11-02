@@ -751,7 +751,7 @@ fun SysFileApp() {
             is DialogKind.About -> AlertDialog(
                 onDismissRequest = { dialog = null },
                 title = { Text("SysFileManager") },
-                text = { Text(t.slogan + "\n\n" + t.version("1.3.0")) },
+                text = { Text(t.slogan + "\n\n" + t.version("1.0.0")) },
                 confirmButton = { TextButton(onClick = { dialog = null }) { Text(t.close) } }
             )
             null -> {}
