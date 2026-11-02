@@ -45,6 +45,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DarkMode
@@ -411,6 +413,17 @@ fun FormatsScreen(onBack: () -> Unit) {
         MaterialTheme.colorScheme.surfaceContainerHigh,
         MaterialTheme.colorScheme.onSurface
     )
+    val chipDecompress = Triple(
+        t.chipDecompress,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val chipInspect = Triple(
+        t.chipInspect,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val chipNative = Triple(t.chipNative, Color(0xFFB71C1C), Color.White)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -445,6 +458,24 @@ fun FormatsScreen(onBack: () -> Unit) {
                     FormatRow("TAR.BZ2 (.tar.bz2, .tbz2)", t.fmtTarBz2Desc, listOf(chipCreate, chipExtract))
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
                     FormatRow("TAR.XZ (.tar.xz, .txz)", t.fmtTarXzDesc, listOf(chipCreate, chipExtract))
+                }
+            }
+            item {
+                SectionCard(icon = Icons.Default.Compress, title = t.formatGroupSingle) {
+                    FormatRow("GZIP (.gz)", t.fmtGzipDesc, listOf(chipDecompress))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("BZIP2 (.bz2)", t.fmtBzip2Desc, listOf(chipDecompress))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("XZ (.xz)", t.fmtXzDesc, listOf(chipDecompress))
+                }
+            }
+            item {
+                SectionCard(icon = Icons.Default.Android, title = t.formatGroupSpecial) {
+                    FormatRow("RAR (.rar)", t.fmtRarDesc, listOf(chipExtract))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("APK / APKS / XAPK", t.fmtApkDesc, listOf(chipExtract, chipInspect))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("PAYLOAD.BIN", t.fmtPayloadDesc, listOf(chipExtract, chipNative))
                 }
             }
         }

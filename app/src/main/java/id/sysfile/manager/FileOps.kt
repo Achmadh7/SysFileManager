@@ -11,6 +11,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.Locale
 import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
@@ -451,6 +452,11 @@ object ArchiveOps {
             n.endsWith(".tar") -> "tar"
             n.endsWith(".zip") -> "zip"
             n.endsWith(".7z") -> "7z"
+            n.endsWith(".rar") -> "rar"
+            n.endsWith(".apk") || n.endsWith(".apks") || n.endsWith(".xapk") || n.endsWith(".aab") -> "zip"
+            n.endsWith(".gz") -> "gz"
+            n.endsWith(".bz2") -> "bz2"
+            n.endsWith(".xz") -> "xz"
             else -> null
         }
     }
@@ -465,6 +471,10 @@ object ArchiveOps {
                 "tar.gz" -> extractTar(file, destDir, "tar.gz")
                 "tar.bz2" -> extractTar(file, destDir, "tar.bz2")
                 "tar.xz" -> extractTar(file, destDir, "tar.xz")
+                "rar" -> extractRar(file, destDir)
+                "gz" -> decompressSingle(file, destDir, "gz")
+                "bz2" -> decompressSingle(file, destDir, "bz2")
+                "xz" -> decompressSingle(file, destDir, "xz")
                 else -> false
             }
         } catch (e: Exception) {
@@ -572,6 +582,65 @@ object ArchiveOps {
             }
         }
         return true
+    }
+
+    /** Ekstrak arsip RAR (junrar) dengan penjaga path-slip; RAR berenkripsi tidak didukung. */
+    private fun extractRar(archive: File, destDir: File): Boolean {
+        val destPath = destDir.canonicalPath
+        com.github.junrar.Archive(archive).use { rar ->
+            while (true) {
+                val header = rar.nextFileHeader() ?: break
+                val name = header.fileName.replace('\\', '/')
+                if (name.isBlank()) continue
+                val out = File(destDir, name)
+                if (!out.canonicalPath.startsWith(destPath)) continue
+                if (header.isDirectory) {
+                    out.mkdirs()
+                } else {
+                    out.parentFile?.mkdirs()
+                    FileOutputStream(out).use { fos -> rar.extractFile(header, fos) }
+                }
+            }
+        }
+        return true
+    }
+
+    /** Dekompresi aliran berkas tunggal (.gz/.bz2/.xz) menjadi satu berkas tanpa ekstensi kompresi. */
+    private fun decompressSingle(file: File, destDir: File, kind: String): Boolean {
+        val stripped = file.name.dropLast(kind.length + 1)
+        val outName = if (stripped.isBlank()) file.name + ".out" else stripped
+        val out = uniqueDest(destDir, outName)
+        return try {
+            val raw = BufferedInputStream(FileInputStream(file))
+            val stream = when (kind) {
+                "gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream(raw)
+                "bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(raw)
+                "xz" -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(raw)
+                else -> raw
+            }
+            stream.use { input -> FileOutputStream(out).use { input.copyTo(it, 64 * 1024) } }
+            true
+        } catch (e: Exception) {
+            out.delete()
+            false
+        }
+    }
+
+    /** Daftar isi berkas ZIP/APK (nama + ukuran) untuk Inspeksi; null bila bukan ZIP valid. */
+    fun listZipContents(file: File): List<Pair<String, Long>>? {
+        return try {
+            ZipFile(file).use { zip ->
+                val result = mutableListOf<Pair<String, Long>>()
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val e = entries.nextElement()
+                    result += e.name to if (e.isDirectory) -1L else e.size
+                }
+                result
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun createEncryptedZip(sources: List<File>, destDir: File, baseName: String, password: String): File? {

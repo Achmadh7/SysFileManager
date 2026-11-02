@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -45,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
@@ -55,6 +57,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Folder
@@ -128,6 +131,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -353,5 +357,97 @@ fun ZipPasswordDialog(
             ) { Text(t.extract) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
+}
+
+@Composable
+private fun ApkActionRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(16.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/** Pilihan aksi saat berkas APK/APKS/XAPK/AAB diketuk: Inspeksi, Ekstrak, atau Instal. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ApkActionsDialog(
+    entry: FEntry,
+    onDismiss: () -> Unit,
+    onInspect: () -> Unit,
+    onExtract: () -> Unit,
+    onInstall: () -> Unit
+) {
+    val t = txt()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Archive, null) },
+        title = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column {
+                ApkActionRow(Icons.Default.Search, t.apkInspect, onInspect)
+                ApkActionRow(Icons.Default.Archive, t.apkExtract, onExtract)
+                ApkActionRow(Icons.Default.InstallMobile, t.apkInstall, onInstall)
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
+}
+
+/** Daftar isi arsip (Inspeksi): nama entri + ukuran, folder ditandai tanpa ukuran. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ArchiveContentsDialog(
+    entry: FEntry,
+    items: List<Pair<String, Long>>,
+    onDismiss: () -> Unit
+) {
+    val t = txt()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            if (items.isEmpty()) {
+                Text(t.archiveEmpty)
+            } else {
+                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                    items(items) { (name, size) ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (size < 0) Icons.Default.Folder else Icons.Default.Description,
+                                null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (size >= 0) {
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    FileOps.formatSize(size),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(t.close) } }
     )
 }

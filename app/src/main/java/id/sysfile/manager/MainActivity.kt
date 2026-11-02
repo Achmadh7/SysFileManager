@@ -155,6 +155,8 @@ private sealed interface DialogKind {
     data class Properties(val entry: FEntry) : DialogKind
     data class Compress(val entries: List<FEntry>) : DialogKind
     data class ZipPassword(val entry: FEntry) : DialogKind
+    data class ApkActions(val entry: FEntry) : DialogKind
+    data class ArchiveContents(val entry: FEntry, val items: List<Pair<String, Long>>) : DialogKind
     data object Sort : DialogKind
     data object About : DialogKind
 }
@@ -354,6 +356,29 @@ fun SysFileApp() {
                 if (staged != null) openEntry(FileOps.entryOf(staged)) else notify(t.opFailed)
             }
             return
+        }
+        if (f.name.equals("payload.bin", ignoreCase = true)) {
+            working = true
+            scope.launch {
+                val outcome = withContext(Dispatchers.IO) { PayloadOps.extract(f, f.parentFile ?: f) }
+                working = false
+                when {
+                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                    outcome.error != null -> notify(t.payloadInvalid)
+                    else -> {
+                        notify(t.payloadDone(outcome.partitions))
+                        reloadKey++
+                    }
+                }
+            }
+            return
+        }
+        if (entry.category == Category.APP) {
+            val ext = FileOps.extOf(f.name)
+            if (ext == "apk" || ext == "apks" || ext == "xapk" || ext == "aab") {
+                dialog = DialogKind.ApkActions(entry)
+                return
+            }
         }
         when {
             entry.category == Category.IMAGE -> overlay = Overlay.ImageView(entry.path)
@@ -834,6 +859,38 @@ fun SysFileApp() {
                 title = { Text("SysFile") },
                 text = { Text(t.slogan + "\n\n" + t.version("1.0.0")) },
                 confirmButton = { TextButton(onClick = { dialog = null }) { Text(t.close) } }
+            )
+            is DialogKind.ApkActions -> ApkActionsDialog(
+                entry = d.entry,
+                onDismiss = { dialog = null },
+                onInspect = {
+                    val f = d.entry.file
+                    working = true
+                    scope.launch {
+                        val items = withContext(Dispatchers.IO) { ArchiveOps.listZipContents(f) }
+                        working = false
+                        if (items != null) {
+                            dialog = DialogKind.ArchiveContents(d.entry, items)
+                        } else {
+                            dialog = null
+                            notify(t.opFailed)
+                        }
+                    }
+                },
+                onExtract = {
+                    dialog = null
+                    val f = d.entry.file
+                    runOp(t.extractDone) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                },
+                onInstall = {
+                    dialog = null
+                    openExternal(d.entry.file)
+                }
+            )
+            is DialogKind.ArchiveContents -> ArchiveContentsDialog(
+                entry = d.entry,
+                items = d.items,
+                onDismiss = { dialog = null }
             )
             null -> {}
         }
