@@ -129,6 +129,16 @@ object FileOps {
         return try { dir.listFiles()?.size ?: 0 } catch (e: Exception) { 0 }
     }
 
+    /** Volume semu untuk direktori root "/" (di luar penyimpanan bersama). */
+    fun rootFilesystem(): RootInfo {
+        return try {
+            val stat = StatFs("/")
+            RootInfo("/", "root", stat.totalBytes, stat.availableBytes)
+        } catch (e: Exception) {
+            RootInfo("/", "root", 0L, 0L)
+        }
+    }
+
     /** Semua volume penyimpanan yang bisa dijangkau aplikasi. */
     fun storageRoots(context: Context): List<RootInfo> {
         val roots = mutableListOf<RootInfo>()

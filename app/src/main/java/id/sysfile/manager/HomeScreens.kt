@@ -74,6 +74,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
@@ -142,6 +143,7 @@ import java.io.File
 
 fun rootLabel(root: RootInfo, t: Txt): String {
     return when (root.kind) {
+        "root" -> t.rootSystem
         "sd" -> t.sdCard
         "usb" -> t.usbStorage
         else -> t.internalStorage
@@ -157,6 +159,7 @@ fun rootLabel(root: RootInfo, t: Txt): String {
 fun HomeScreen(
     accessGranted: Boolean,
     roots: List<RootInfo>,
+    rootActive: Boolean,
     favorites: Set<String>,
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
@@ -193,6 +196,7 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     when (root.kind) {
+                                        "root" -> Icons.Default.Terminal
                                         "sd" -> Icons.Default.SdStorage
                                         "usb" -> Icons.Default.Usb
                                         else -> Icons.Default.Storage
@@ -207,7 +211,11 @@ fun HomeScreen(
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Text(
-                                        t.free(FileOps.formatSize(root.free)),
+                                        if (root.kind == "root") {
+                                            (if (rootActive) t.rootActive else t.rootLimited) + " · " + t.free(FileOps.formatSize(root.free))
+                                        } else {
+                                            t.free(FileOps.formatSize(root.free))
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

@@ -194,6 +194,9 @@ fun SysFileApp() {
 
     var accessGranted by remember { mutableStateOf(context.hasFileAccess()) }
     var roots by remember { mutableStateOf<List<RootInfo>>(emptyList()) }
+    val rootFs = remember { FileOps.rootFilesystem() }
+    var rootActive by remember { mutableStateOf(false) }
+    val allRoots = roots + rootFs
     var browseStack by remember { mutableStateOf<List<String>>(emptyList()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     var entries by remember { mutableStateOf<List<FEntry>>(emptyList()) }
@@ -222,7 +225,7 @@ fun SysFileApp() {
     var sortAsc by remember { mutableStateOf(prefs.getBoolean("sort_asc", true)) }
 
     val currentPath = browseStack.lastOrNull()
-    val currentRoot = currentPath?.let { p -> roots.filter { p == it.path || p.startsWith(it.path + "/") }.maxByOrNull { it.path.length } }
+    val currentRoot = currentPath?.let { p -> allRoots.filter { p == it.path || it.path == "/" || p.startsWith(it.path + "/") }.maxByOrNull { it.path.length } }
 
     fun notify(msg: String) {
         scope.launch { snackbar.showSnackbar(msg) }
@@ -262,6 +265,16 @@ fun SysFileApp() {
 
     LaunchedEffect(Unit) { refreshRoots() }
 
+    LaunchedEffect(currentRoot?.kind) {
+        if (currentRoot?.kind == "root" && RootShell.state == RootShell.UNKNOWN) {
+            working = true
+            val granted = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+            working = false
+            rootActive = granted
+            reloadKey++
+        }
+    }
+
     LaunchedEffect(currentPath, reloadKey, showHidden, sortKey, sortAsc, accessGranted) {
         val path = currentPath
         if (path == null) {
@@ -270,7 +283,12 @@ fun SysFileApp() {
         }
         entriesLoaded = false
         val loaded = withContext(Dispatchers.IO) {
-            FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
+            if (RootShell.shouldUseShell(path)) {
+                RootShell.listDir(File(path), showHidden, sortKey, sortAsc)
+                    ?: FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
+            } else {
+                FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
+            }
         }
         entries = loaded ?: emptyList()
         entryCounts = if (loaded == null) {
@@ -327,6 +345,15 @@ fun SysFileApp() {
             return
         }
         val f = entry.file
+        if (!f.canRead() && RootShell.state == RootShell.GRANTED) {
+            working = true
+            scope.launch {
+                val staged = withContext(Dispatchers.IO) { RootShell.stageToCache(f, context.cacheDir) }
+                working = false
+                if (staged != null) openEntry(FileOps.entryOf(staged)) else notify(t.opFailed)
+            }
+            return
+        }
         when {
             entry.category == Category.IMAGE -> overlay = Overlay.ImageView(entry.path)
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
@@ -646,7 +673,8 @@ fun SysFileApp() {
                                         )
                                         else -> HomeScreen(
                                             accessGranted = accessGranted,
-                                            roots = roots,
+                                            roots = allRoots,
+                                            rootActive = rootActive,
                                             favorites = favorites,
                                             onRequestAccess = { requestAccess() },
                                             onOpenRoot = { browseStack = listOf(it) },
