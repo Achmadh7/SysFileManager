@@ -7,13 +7,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -94,7 +96,7 @@ fun ImageViewerScreen(path: String, onBack: () -> Unit) {
 }
 
 /** Penampil/pengubah berkas teks sederhana (maks 1 MB yang dimuat). */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit) {
     val t = txt()
@@ -157,7 +159,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 failed -> Text(t.readFailed, Modifier.align(Alignment.Center))
-                content == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                content == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 editing -> OutlinedTextField(
                     value = content ?: "",
                     onValueChange = { content = it },

@@ -73,13 +73,22 @@ import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -117,7 +126,6 @@ import java.io.File
 /** Layar tambahan yang menimpa layar utama (Beranda/peramban). */
 private sealed interface Overlay {
     data class Search(val rootPath: String) : Overlay
-    data object Analysis : Overlay
     data class ImageView(val path: String) : Overlay
     data class TextView(val path: String) : Overlay
 }
@@ -151,7 +159,7 @@ private fun Context.hasFileAccess(): Boolean {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileApp() {
     val context = LocalContext.current
@@ -159,6 +167,7 @@ fun SysFileApp() {
     val snackbar = remember { SnackbarHostState() }
     val prefs = remember { context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE) }
 
+    var homeTab by remember { mutableStateOf(0) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -323,6 +332,7 @@ fun SysFileApp() {
     }
 
     BackHandler(enabled = overlay != null) { overlay = null }
+    BackHandler(enabled = overlay == null && browseStack.isEmpty() && homeTab == 1) { homeTab = 0 }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
@@ -346,12 +356,6 @@ fun SysFileApp() {
                         openEntry(entry)
                     }
                 }
-            )
-            is Overlay.Analysis -> AnalysisScreen(
-                roots = roots,
-                onBack = { overlay = null },
-                onOpenFolder = { path -> overlay = null; browseStack = listOf(path) },
-                onOpenFile = { entry -> overlay = null; openEntry(entry) }
             )
             null -> {
                 Scaffold(
@@ -499,6 +503,27 @@ fun SysFileApp() {
                                 },
                                 onClear = { clipboard = null }
                             )
+                        } else if (currentPath == null) {
+                            ShortNavigationBar {
+                                ShortNavigationBarItem(
+                                    selected = homeTab == 0,
+                                    onClick = { homeTab = 0 },
+                                    icon = { Icon(Icons.Default.Home, t.home) },
+                                    label = { Text(t.home) }
+                                )
+                                ShortNavigationBarItem(
+                                    selected = homeTab == 1,
+                                    onClick = { homeTab = 1 },
+                                    icon = { Icon(Icons.Default.Analytics, t.storageAnalysis) },
+                                    label = { Text(t.storageAnalysis) }
+                                )
+                                ShortNavigationBarItem(
+                                    selected = false,
+                                    onClick = { dialog = DialogKind.Settings },
+                                    icon = { Icon(Icons.Default.Settings, t.settings) },
+                                    label = { Text(t.settings) }
+                                )
+                            }
                         }
                     }
                 ) { padding ->
@@ -519,19 +544,33 @@ fun SysFileApp() {
                             label = "folderAnim"
                         ) { animatedPath ->
                             if (animatedPath == null) {
-                                HomeScreen(
-                                    accessGranted = accessGranted,
-                                    roots = roots,
-                                    favorites = favorites,
-                                    recentFiles = recentFiles,
-                                    onRequestAccess = { requestAccess() },
-                                    onOpenRoot = { browseStack = listOf(it) },
-                                    onOpenFavorite = { browseStack = listOf(it) },
-                                    onOpenCategory = { overlay = Overlay.Analysis },
-                                    onOpenRecent = { entry ->
-                                        if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
+                                AnimatedContent(
+                                    targetState = homeTab,
+                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    label = "tabAnim"
+                                ) { tab ->
+                                    if (tab == 1) {
+                                        AnalysisScreen(
+                                            roots = roots,
+                                            onOpenFolder = { path -> homeTab = 0; browseStack = listOf(path) },
+                                            onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
+                                        )
+                                    } else {
+                                        HomeScreen(
+                                            accessGranted = accessGranted,
+                                            roots = roots,
+                                            favorites = favorites,
+                                            recentFiles = recentFiles,
+                                            onRequestAccess = { requestAccess() },
+                                            onOpenRoot = { browseStack = listOf(it) },
+                                            onOpenFavorite = { browseStack = listOf(it) },
+                                            onOpenCategory = { homeTab = 1 },
+                                            onOpenRecent = { entry ->
+                                                if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
+                                            }
+                                        )
                                     }
-                                )
+                                }
                             } else {
                                 BrowseScreen(
                                 currentPath = animatedPath,
@@ -557,7 +596,8 @@ fun SysFileApp() {
                                         browseStack = browseStack.dropLast(1)
                                     }
                                 },
-                                canGoUp = currentRoot != null && animatedPath != currentRoot.path
+                                canGoUp = currentRoot != null && animatedPath != currentRoot.path,
+                                onNewFolder = { dialog = DialogKind.NewFolder }
                                 )
                             }
                         }
@@ -571,7 +611,7 @@ fun SysFileApp() {
                 onDismissRequest = {},
                 text = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator()
+                        LoadingIndicator(Modifier.size(52.dp))
                         Spacer(Modifier.width(16.dp))
                         Text(t.working)
                     }
@@ -660,7 +700,7 @@ fun SysFileApp() {
             is DialogKind.About -> AlertDialog(
                 onDismissRequest = { dialog = null },
                 title = { Text("SysFileManager") },
-                text = { Text(t.slogan + "\n\n" + t.version("1.1.0")) },
+                text = { Text(t.slogan + "\n\n" + t.version("1.2.0")) },
                 confirmButton = { TextButton(onClick = { dialog = null }) { Text(t.close) } }
             )
             null -> {}
@@ -843,6 +883,7 @@ private fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun BrowseScreen(
     currentPath: String,
@@ -855,7 +896,8 @@ private fun BrowseScreen(
     onOpenEntry: (FEntry) -> Unit,
     onLongPress: (FEntry) -> Unit,
     onGoUp: () -> Unit,
-    canGoUp: Boolean
+    canGoUp: Boolean,
+    onNewFolder: () -> Unit
 ) {
     val t = txt()
     val rootPath = currentRoot?.path ?: currentPath
@@ -870,15 +912,19 @@ private fun BrowseScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             item {
-                TextButton(onClick = { onNavigate(listOf(rootPath)) }) {
-                    Text(currentRoot?.let { rootLabel(it, t) } ?: rootPath)
-                }
+                FilterChip(
+                    selected = segments.isEmpty(),
+                    onClick = { onNavigate(listOf(rootPath)) },
+                    label = { Text(currentRoot?.let { rootLabel(it, t) } ?: rootPath) }
+                )
             }
             itemsIndexed(segments) { index, seg ->
                 Text("/", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { onNavigate(crumbPaths.drop(1).take(index + 1).let { listOf(rootPath) + it }) }) {
-                    Text(seg)
-                }
+                FilterChip(
+                    selected = index == segments.lastIndex,
+                    onClick = { onNavigate(crumbPaths.drop(1).take(index + 1).let { listOf(rootPath) + it }) },
+                    label = { Text(seg) }
+                )
             }
         }
         if (canGoUp) {
@@ -895,7 +941,7 @@ private fun BrowseScreen(
         }
         Box(Modifier.fillMaxSize()) {
             when {
-                !loaded -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                !loaded -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 entries.isEmpty() -> Text(
                     if (File(currentPath).canRead()) t.emptyFolder else t.folderInaccessible,
                     style = MaterialTheme.typography.bodyMedium,
@@ -931,6 +977,14 @@ private fun BrowseScreen(
                     }
                 }
             }
+            if (selected.isEmpty()) {
+                ExtendedFloatingActionButton(
+                    onClick = onNewFolder,
+                    icon = { Icon(Icons.Default.CreateNewFolder, null) },
+                    text = { Text(t.newFolder) },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                )
+            }
         }
     }
 }
@@ -939,6 +993,7 @@ private fun BrowseScreen(
 // Bilah aksi pilihan & papan klip
 // ---------------------------------------------------------------------------
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SelectionBar(
     single: Boolean,
@@ -952,37 +1007,38 @@ private fun SelectionBar(
     onProperties: () -> Unit
 ) {
     val t = txt()
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+    Box(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        BarAction(Icons.Default.ContentCopy, t.copy, onCopy)
-        BarAction(Icons.Default.ContentCut, t.cut, onCut)
-        if (single) BarAction(Icons.Default.Share, t.share, onShare)
-        if (single) BarAction(Icons.Default.Info, t.properties, onProperties)
-        BarAction(Icons.Default.Archive, t.compress, onCompress)
-        BarAction(Icons.Default.Delete, t.delete, onDelete)
+        HorizontalFloatingToolbar(expanded = true) {
+            IconButton(onClick = onCopy) { Icon(Icons.Default.ContentCopy, t.copy) }
+            IconButton(onClick = onCut) { Icon(Icons.Default.ContentCut, t.cut) }
+            if (single) IconButton(onClick = onShare) { Icon(Icons.Default.Share, t.share) }
+            if (single) IconButton(onClick = onProperties) { Icon(Icons.Default.Info, t.properties) }
+            IconButton(onClick = onCompress) { Icon(Icons.Default.Archive, t.compress) }
+            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, t.delete) }
+        }
     }
 }
 
-@Composable
-private fun BarAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onClick) { Icon(icon, label) }
-        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-    }
-}
-
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
     val t = txt()
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(t.pasteHere(count), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = onPaste) { Text(t.paste) }
-        IconButton(onClick = onClear) { Icon(Icons.Default.Close, t.cancel) }
+        HorizontalFloatingToolbar(expanded = true) {
+            Text(
+                t.pasteHere(count),
+                Modifier.padding(start = 14.dp, end = 6.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Button(onClick = onPaste) { Text(t.paste) }
+            IconButton(onClick = onClear) { Icon(Icons.Default.Close, t.cancel) }
+        }
     }
 }
 
@@ -990,7 +1046,7 @@ private fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
 // Layar pencarian
 // ---------------------------------------------------------------------------
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SearchScreen(
     rootPath: String,
@@ -1036,7 +1092,7 @@ private fun SearchScreen(
             )
             if (searching) {
                 Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(18.dp))
+                    LoadingIndicator(Modifier.size(30.dp))
                     Spacer(Modifier.width(10.dp))
                     Text(t.searching, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -1069,11 +1125,10 @@ private fun SearchScreen(
 // Layar analisis penyimpanan
 // ---------------------------------------------------------------------------
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun AnalysisScreen(
     roots: List<RootInfo>,
-    onBack: () -> Unit,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (FEntry) -> Unit
 ) {
@@ -1093,16 +1148,8 @@ private fun AnalysisScreen(
         scanningPath = null
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(t.storageAnalysis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
-            )
-        }
-    ) { padding ->
-        LazyColumn(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp),
+    LazyColumn(
+            Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             roots.forEach { root ->
@@ -1118,7 +1165,7 @@ private fun AnalysisScreen(
                     ) {
                         if (res == null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(Modifier.size(18.dp))
+                                LoadingIndicator(Modifier.size(30.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Text(if (scanningPath == root.path) t.scanning else t.scanFailed)
                             }
@@ -1142,7 +1189,7 @@ private fun AnalysisScreen(
                                         Text(labels[cat] ?: cat.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                                         Text(FileOps.formatSize(size), style = MaterialTheme.typography.bodyMedium)
                                     }
-                                    LinearProgressIndicator(
+                                    LinearWavyProgressIndicator(
                                         progress = { (size.toFloat() / totalCat.toFloat()).coerceIn(0f, 1f) },
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -1172,7 +1219,6 @@ private fun AnalysisScreen(
                 }
             }
         }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1285,6 +1331,7 @@ private fun SortDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsDialog(
     themeMode: String,
@@ -1305,25 +1352,27 @@ private fun SettingsDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(t.theme, style = MaterialTheme.typography.titleSmall)
-                listOf("light" to t.themeLight, "dark" to t.themeDark, "system" to t.themeSystem).forEach { (mode, label) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onTheme(mode) }.padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = themeMode == mode, onClick = { onTheme(mode) })
-                        Text(label, Modifier.weight(1f))
-                        if (themeMode == mode) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                val themeOptions = listOf("light" to t.themeLight, "dark" to t.themeDark, "system" to t.themeSystem)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    themeOptions.forEachIndexed { index, (mode, label) ->
+                        SegmentedButton(
+                            selected = themeMode == mode,
+                            onClick = { onTheme(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = themeOptions.size),
+                            label = { Text(label, maxLines = 1) }
+                        )
                     }
                 }
                 Text(t.language, style = MaterialTheme.typography.titleSmall)
-                listOf("id" to "Bahasa Indonesia", "en" to "English").forEach { (code, label) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onLanguage(code) }.padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = language == code, onClick = { onLanguage(code) })
-                        Text(label, Modifier.weight(1f))
-                        if (language == code) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                val langOptions = listOf("id" to "Indonesia", "en" to "English")
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    langOptions.forEachIndexed { index, (code, label) ->
+                        SegmentedButton(
+                            selected = language == code,
+                            onClick = { onLanguage(code) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = langOptions.size),
+                            label = { Text(label, maxLines = 1) }
+                        )
                     }
                 }
                 Row(

@@ -32,7 +32,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -255,15 +254,6 @@ fun FileCell(
             Checkbox(checked = isSelected, onCheckedChange = { onClick() })
         }
     }
-}
-
-/** Bilah pemakaian penyimpanan. */
-@Composable
-fun StorageBar(usedFraction: Float) {
-    LinearProgressIndicator(
-        progress = { usedFraction.coerceIn(0f, 1f) },
-        modifier = Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp))
-    )
 }
 
 /** Kartu penyimpanan gradasi ungu→oranye dengan cincin persen pemakaian (arah "Gelap Gradasi"). */
