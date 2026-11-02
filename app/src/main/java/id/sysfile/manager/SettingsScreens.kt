@@ -45,6 +45,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
@@ -130,6 +135,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -159,6 +165,10 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val t = txt()
+    var themeDialog by remember { mutableStateOf(false) }
+    var langDialog by remember { mutableStateOf(false) }
+    val themeOptions = listOf("light" to t.themeLight, "dark" to t.themeDark, "system" to t.themeSystem)
+    val langOptions = listOf("id" to "Indonesia", "en" to "English")
     Scaffold(
         topBar = {
             TopAppBar(
@@ -168,101 +178,191 @@ fun SettingsScreen(
         }
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
         ) {
+            item { SettingsSectionLabel(t.appearance) }
             item {
-                SectionCard(icon = Icons.Default.Palette, title = t.appearance) {
-                    Text(t.theme, style = MaterialTheme.typography.titleSmall)
-                    val themeOptions = listOf("light" to t.themeLight, "dark" to t.themeDark, "system" to t.themeSystem)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        themeOptions.forEachIndexed { index, (mode, label) ->
-                            SegmentedButton(
-                                selected = themeMode == mode,
-                                onClick = { onTheme(mode) },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = themeOptions.size),
-                                label = { Text(label, maxLines = 1) }
-                            )
-                        }
-                    }
-                    Text(t.language, style = MaterialTheme.typography.titleSmall)
-                    val langOptions = listOf("id" to "Indonesia", "en" to "English")
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        langOptions.forEachIndexed { index, (code, label) ->
-                            SegmentedButton(
-                                selected = language == code,
-                                onClick = { onLanguage(code) },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = langOptions.size),
-                                label = { Text(label, maxLines = 1) }
-                            )
-                        }
-                    }
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(t.dynamicColor)
-                            Text(
-                                t.dynamicColorDesc,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(checked = dynamicColor, onCheckedChange = onDynamicColor)
-                    }
-                }
+                SettingsRow(
+                    icon = when (themeMode) {
+                        "light" -> Icons.Default.LightMode
+                        "dark" -> Icons.Default.DarkMode
+                        else -> Icons.Default.BrightnessAuto
+                    },
+                    circleColor = Color(0xFFFFB020),
+                    glyphTint = Color(0xFF1A1A1A),
+                    title = t.theme,
+                    subtitle = themeOptions.firstOrNull { it.first == themeMode }?.second,
+                    onClick = { themeDialog = true }
+                )
             }
             item {
-                SectionCard(icon = Icons.Default.Folder, title = t.fileSection) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(t.showHidden, Modifier.weight(1f))
-                        Switch(checked = showHidden, onCheckedChange = onHidden)
-                    }
-                }
+                SettingsRow(
+                    icon = Icons.Default.Translate,
+                    circleColor = Color(0xFF4DA3FF),
+                    glyphTint = Color.White,
+                    title = t.language,
+                    subtitle = langOptions.firstOrNull { it.first == language }?.second,
+                    onClick = { langDialog = true }
+                )
             }
             item {
-                SectionCard(icon = Icons.Default.Info, title = t.otherSection) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            Modifier.size(40.dp).clip(CircleShape).background(Color(0xFFC62828)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Security, null, tint = Color.White, modifier = Modifier.size(22.dp))
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(t.rootAccessTitle, style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                t.rootAccessDesc,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(checked = showRootEntry, onCheckedChange = onRootEntry)
-                    }
-                    ListItem(
-                        headlineContent = { Text(t.formatsTitle) },
-                        leadingContent = { Icon(Icons.Default.Archive, null) },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.clickable { onFormats() }
-                    )
-                    ListItem(
-                        headlineContent = { Text(t.about) },
-                        leadingContent = { Icon(Icons.Default.Info, null) },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.clickable { onAbout() }
-                    )
-                }
+                SettingsRow(
+                    icon = Icons.Default.Palette,
+                    circleColor = Color(0xFF2DD4BF),
+                    glyphTint = Color(0xFF10201C),
+                    title = t.dynamicColor,
+                    subtitle = t.dynamicColorDesc,
+                    trailing = { Switch(checked = dynamicColor, onCheckedChange = onDynamicColor) }
+                )
+            }
+            item { SettingsSectionLabel(t.fileSection, topPadding = 22.dp) }
+            item {
+                SettingsRow(
+                    icon = Icons.Default.Folder,
+                    circleColor = Color(0xFFF06292),
+                    glyphTint = Color.White,
+                    title = t.showHidden,
+                    trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
+                )
+            }
+            item { SettingsSectionLabel(t.otherSection, topPadding = 22.dp) }
+            item {
+                SettingsRow(
+                    icon = Icons.Default.Security,
+                    circleColor = Color(0xFFC62828),
+                    glyphTint = Color.White,
+                    title = t.rootAccessTitle,
+                    subtitle = t.rootAccessDesc,
+                    trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Default.Archive,
+                    circleColor = Color(0xFF8B7CFF),
+                    glyphTint = Color.White,
+                    title = t.formatsTitle,
+                    onClick = onFormats
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Default.Info,
+                    circleColor = Color(0xFFE3C8F5),
+                    glyphTint = Color(0xFF3B2B4D),
+                    title = t.about,
+                    onClick = onAbout
+                )
             }
         }
+        if (themeDialog) {
+            SettingsChoiceDialog(
+                title = t.theme,
+                options = themeOptions,
+                selected = themeMode,
+                onPick = { onTheme(it); themeDialog = false },
+                onDismiss = { themeDialog = false }
+            )
+        }
+        if (langDialog) {
+            SettingsChoiceDialog(
+                title = t.language,
+                options = langOptions,
+                selected = language,
+                onPick = { onLanguage(it); langDialog = false },
+                onDismiss = { langDialog = false }
+            )
+        }
     }
+}
+
+@Composable
+private fun SettingsSectionLabel(text: String, topPadding: Dp = 6.dp) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 4.dp, top = topPadding, bottom = 4.dp)
+    )
+}
+
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    circleColor: Color,
+    glyphTint: Color,
+    title: String,
+    subtitle: String? = null,
+    onClick: (() -> Unit)? = null,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .padding(horizontal = 4.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).background(circleColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = glyphTint, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (trailing != null) {
+            trailing()
+        } else if (onClick != null) {
+            Icon(
+                Icons.Default.ChevronRight, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsChoiceDialog(
+    title: String,
+    options: List<Pair<String, String>>,
+    selected: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val t = txt()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                options.forEach { (value, label) ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onPick(value) }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = selected == value, onClick = { onPick(value) })
+                        Spacer(Modifier.width(12.dp))
+                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
 }
 
 @Composable
