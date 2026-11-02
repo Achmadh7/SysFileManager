@@ -210,6 +210,23 @@ object PayloadOps {
      * isi payload). Ukuran = perkiraan ukuran berkas .img hasil ekstrak.
      */
     fun listPartitions(file: File): Listing {
+        // Berkas .bin yang bukan payload (magic bukan "CrAU") ditandai
+        // "notpayload" agar pemanggil bisa membukanya seperti berkas biasa.
+        val isPayload = try {
+            file.inputStream().use { input ->
+                val magic = ByteArray(4)
+                var read = 0
+                while (read < 4) {
+                    val n = input.read(magic, read, 4 - read)
+                    if (n < 0) break
+                    read += n
+                }
+                read == 4 && String(magic, Charsets.US_ASCII) == "CrAU"
+            }
+        } catch (e: Exception) {
+            false
+        }
+        if (!isPayload) return Listing(emptyList(), "notpayload")
         return try {
             RandomAccessFile(file, "r").use { raf ->
                 val parsed = readManifest(raf)

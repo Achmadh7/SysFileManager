@@ -362,13 +362,16 @@ fun SysFileApp() {
             }
             return
         }
-        if (f.name.equals("payload.bin", ignoreCase = true)) {
-            // Jangan langsung mengekstrak: buka layar isi (daftar partisi) dulu.
+        if (FileOps.extOf(f.name) == "bin") {
+            // Semua berkas .bin: bila benar payload, buka layar isi (daftar
+            // partisi) dulu — jangan langsung mengekstrak. Bila ternyata bukan
+            // payload, buka seperti berkas biasa.
             working = true
             scope.launch {
                 val listing = withContext(Dispatchers.IO) { PayloadOps.listPartitions(f) }
                 working = false
                 when {
+                    listing.error == "notpayload" -> openExternal(f)
                     listing.error == "unsupported" -> notify(t.payloadUnsupported)
                     listing.error != null -> notify(t.payloadInvalid)
                     else -> overlay = Overlay.PayloadView(entry.path)
