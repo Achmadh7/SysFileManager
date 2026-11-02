@@ -270,7 +270,7 @@ fun storageStatus(freeFraction: Float): Pair<String, Color> {
     }
 }
 
-/** Kartu penyimpanan "Gradasi Ringkas": gradasi ungu→oranye diagonal, angka terpakai
+/** Kartu penyimpanan "Gradasi Ringkas": biru baja solid (pilihan pemilik), angka terpakai
  *  besar, persen raksasa di kanan, garis gelombang putih, chip status kesehatan. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -288,7 +288,7 @@ fun GradientStorageCard(
     val frac = fraction.coerceIn(0f, 1f)
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF7B1FA2), Color(0xFFE65100))))
+            .background(Color(0xFF2E5A88))
             .clickable { onClick() }
             .padding(20.dp)
     ) {
