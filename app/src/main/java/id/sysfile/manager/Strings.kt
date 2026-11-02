@@ -121,6 +121,7 @@ class Txt(
     val showLess: String,
     val appearance: String,
     val categoryEmpty: String,
+    val analysisShort: String,
     val fileSection: String,
     val otherSection: String
 )
@@ -243,6 +244,7 @@ val TxtId = Txt(
     showLess = "Tutup",
     appearance = "Tampilan",
     categoryEmpty = "Belum ada berkas di kategori ini.",
+    analysisShort = "Analisis",
     fileSection = "Berkas",
     otherSection = "Lainnya"
 )
@@ -365,6 +367,7 @@ val TxtEn = Txt(
     showLess = "Show Less",
     appearance = "Appearance",
     categoryEmpty = "No files in this category yet.",
+    analysisShort = "Analysis",
     fileSection = "Files",
     otherSection = "Other"
 )

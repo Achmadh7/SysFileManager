@@ -91,8 +91,6 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.ShortNavigationBar
-import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -104,6 +102,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -579,25 +578,11 @@ fun SysFileApp() {
                                 onClear = { clipboard = null }
                             )
                         } else if (currentPath == null) {
-                            ShortNavigationBar {
-                                ShortNavigationBarItem(
-                                    selected = homeTab == 0,
-                                    onClick = { homeTab = 0 },
-                                    icon = { Icon(Icons.Default.Home, t.home) },
-                                    label = { Text(t.home) }
-                                )
-                                ShortNavigationBarItem(
-                                    selected = homeTab == 1,
-                                    onClick = { homeTab = 1 },
-                                    icon = { Icon(Icons.Default.Analytics, t.storageAnalysis) },
-                                    label = { Text(t.storageAnalysis) }
-                                )
-                                ShortNavigationBarItem(
-                                    selected = false,
-                                    onClick = { showSettings = true },
-                                    icon = { Icon(Icons.Default.Settings, t.settings) },
-                                    label = { Text(t.settings) }
-                                )
+                            Box(
+                                Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PillNavBar(homeTab = homeTab, onSelect = { homeTab = it })
                             }
                         }
                     }
@@ -971,6 +956,47 @@ private fun HomeScreen(
 // ---------------------------------------------------------------------------
 // Layar peramban folder
 // ---------------------------------------------------------------------------
+
+/** Bilah tab bawah gaya kapsul melayang: item aktif menjadi pil terisi di dalam kapsul. */
+@Composable
+private fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
+    val t = txt()
+    val items = listOf(
+        Triple(0, Icons.Default.Home, t.home),
+        Triple(1, Icons.Default.Analytics, t.analysisShort)
+    )
+    Surface(
+        shape = RoundedCornerShape(percent = 50),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 6.dp
+    ) {
+        Row(
+            Modifier.padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items.forEach { (index, icon, label) ->
+                val active = homeTab == index
+                val fg = if (active) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Row(
+                    Modifier.clip(RoundedCornerShape(percent = 50))
+                        .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .clickable { onSelect(index) }
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.labelLarge, color = fg)
+                }
+            }
+        }
+    }
+}
 
 /** Baris chip jalur folder, kini menempel di bawah bilah judul atas. */
 @OptIn(ExperimentalMaterial3Api::class)
