@@ -310,6 +310,27 @@ object FileOps {
         return found.sortedByDescending { it.modified }.take(limit)
     }
 
+    /** Semua berkas satu kategori lintas volume (untuk menu kategori di Beranda). */
+    fun categoryFiles(roots: List<File>, category: Category, showHidden: Boolean, cap: Int = 20000, limit: Int = 1000): List<FEntry> {
+        val found = mutableListOf<FEntry>()
+        var visited = 0
+        for (root in roots) {
+            if (!root.isDirectory || visited >= cap) continue
+            root.walkTopDown()
+                .onEnter { dir -> dir.canRead() && (showHidden || !dir.name.startsWith(".") || dir == root) }
+                .forEach { f ->
+                    if (visited >= cap) return@forEach
+                    if (f.isFile) {
+                        visited++
+                        if ((showHidden || !f.name.startsWith(".")) && categoryOf(f.name) == category) {
+                            found += entryOf(f)
+                        }
+                    }
+                }
+        }
+        return found.sortedByDescending { it.modified }.take(limit)
+    }
+
     /** Kompres daftar entri menjadi satu berkas ZIP di folder tujuan. */
     fun zipFiles(sources: List<File>, destDir: File, zipName: String): File? {
         val clean = zipName.trim().removeSuffix(".zip")

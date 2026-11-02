@@ -139,6 +139,7 @@ private sealed interface Overlay {
     data class Search(val rootPath: String) : Overlay
     data class ImageView(val path: String) : Overlay
     data class TextView(val path: String) : Overlay
+    data class CategoryView(val category: Category) : Overlay
 }
 
 private enum class ClipMode { COPY, CUT }
@@ -409,6 +410,19 @@ fun SysFileApp() {
                     }
                 }
             )
+            is Overlay.CategoryView -> CategoryScreen(
+                category = ov.category,
+                roots = roots,
+                showHidden = showHidden,
+                accessGranted = accessGranted,
+                onBack = { overlay = null },
+                onOpenEntry = { entry ->
+                    entry.parentPath()?.let { parent ->
+                        if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
+                    }
+                    openEntry(entry)
+                }
+            )
             null -> {
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbar) },
@@ -625,7 +639,7 @@ fun SysFileApp() {
                                             onRequestAccess = { requestAccess() },
                                             onOpenRoot = { browseStack = listOf(it) },
                                             onOpenFavorite = { browseStack = listOf(it) },
-                                            onOpenCategory = { homeTab = 1 },
+                                            onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
                                             onOpenRecent = { entry ->
                                                 if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
                                             }
@@ -783,7 +797,7 @@ private fun HomeScreen(
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenFavorite: (String) -> Unit,
-    onOpenCategory: () -> Unit,
+    onOpenCategory: (Category) -> Unit,
     onOpenRecent: (FEntry) -> Unit
 ) {
     val t = txt()
@@ -904,7 +918,7 @@ private fun HomeScreen(
                                 Modifier.weight(1f)
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(color.copy(alpha = 0.13f))
-                                    .clickable { onOpenCategory() }
+                                    .clickable { onOpenCategory(cat) }
                                     .padding(vertical = 12.dp, horizontal = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1162,6 +1176,76 @@ private fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
 // ---------------------------------------------------------------------------
 // Layar pencarian
 // ---------------------------------------------------------------------------
+
+/** Layar satu kategori: semua berkas kategori itu lintas volume, terbaru dulu. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CategoryScreen(
+    category: Category,
+    roots: List<RootInfo>,
+    showHidden: Boolean,
+    accessGranted: Boolean,
+    onBack: () -> Unit,
+    onOpenEntry: (FEntry) -> Unit
+) {
+    val t = txt()
+    var files by remember { mutableStateOf<List<FEntry>?>(null) }
+    LaunchedEffect(category, accessGranted) {
+        files = null
+        files = if (accessGranted) {
+            withContext(Dispatchers.IO) {
+                FileOps.categoryFiles(roots.map { File(it.path) }, category, showHidden)
+            }
+        } else {
+            emptyList()
+        }
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(categoryLabel(category, t)) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
+            )
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            val loaded = files
+            when {
+                loaded == null -> {
+                    Column(
+                        Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        LoadingIndicator()
+                        Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+                loaded.isEmpty() -> {
+                    Text(
+                        t.categoryEmpty,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else -> {
+                    LazyColumn(Modifier.fillMaxSize()) {
+                        items(loaded, key = { it.path }) { entry ->
+                            FileRow(
+                                entry = entry,
+                                selectionMode = false,
+                                isSelected = false,
+                                itemCount = null,
+                                onClick = { onOpenEntry(entry) },
+                                onLongClick = {}
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
