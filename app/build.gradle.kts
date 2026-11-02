@@ -80,6 +80,11 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3:1.5.0-alpha08")
     implementation("androidx.compose.material:material-icons-extended")
+    // Mesin arsip: TAR/7Z/GZIP/BZIP2 (Commons Compress) + XZ/LZMA (Tukaani) + ZIP terenkripsi (zip4j)
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("org.tukaani:xz:1.10")
+    implementation("net.lingala.zip4j:zip4j:2.11.5")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-tooling-preview")
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,6 +46,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
@@ -84,6 +87,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
@@ -118,6 +122,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -150,6 +155,7 @@ private sealed interface DialogKind {
     data class Delete(val entries: List<FEntry>) : DialogKind
     data class Properties(val entry: FEntry) : DialogKind
     data class Compress(val entries: List<FEntry>) : DialogKind
+    data class ZipPassword(val entry: FEntry) : DialogKind
     data object Sort : DialogKind
     data object About : DialogKind
 }
@@ -180,6 +186,7 @@ fun SysFileApp() {
 
     var homeTab by remember { mutableStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
+    var showFormats by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -324,12 +331,23 @@ fun SysFileApp() {
         when {
             entry.category == Category.IMAGE -> overlay = Overlay.ImageView(entry.path)
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
-            entry.category == Category.ARCHIVE && FileOps.extOf(entry.name) == "zip" -> {
-                working = true
-                scope.launch {
-                    val ok = withContext(Dispatchers.IO) { FileOps.unzip(f, f.parentFile ?: f) }
-                    working = false
-                    if (ok) { notify(t.extractDone); reloadKey++ } else notify(t.opFailed)
+            entry.category == Category.ARCHIVE -> {
+                val kind = ArchiveOps.kindOf(f.name)
+                when {
+                    kind == null -> openExternal(f)
+                    kind == "zip" -> {
+                        working = true
+                        scope.launch {
+                            val encrypted = withContext(Dispatchers.IO) { ArchiveOps.isZipEncrypted(f) }
+                            working = false
+                            if (encrypted) {
+                                dialog = DialogKind.ZipPassword(entry)
+                            } else {
+                                runOp(t.extractDone) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                            }
+                        }
+                    }
+                    else -> runOp(t.extractDone) { ArchiveOps.extract(f, f.parentFile ?: f) }
                 }
             }
             else -> openExternal(f)
@@ -354,13 +372,16 @@ fun SysFileApp() {
     BackHandler(enabled = showSettings) { showSettings = false }
     BackHandler(enabled = !showSettings && overlay != null) { overlay = null }
     BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab != 0) { homeTab = 0 }
+    BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
     }
 
     SysFileTheme(themeMode, dynamicColor) {
-        if (showSettings) {
+        if (showFormats) {
+            FormatsScreen(onBack = { showFormats = false })
+        } else if (showSettings) {
             SettingsScreen(
                 themeMode = themeMode,
                 language = language,
@@ -383,6 +404,7 @@ fun SysFileApp() {
                     dynamicColor = v
                     prefs.edit().putBoolean("dynamic_color", v).apply()
                 },
+                onFormats = { showFormats = true },
                 onAbout = { dialog = DialogKind.About },
                 onBack = { showSettings = false }
             )
@@ -712,13 +734,25 @@ fun SysFileApp() {
                     runOp(t.renamedDone) { FileOps.rename(d.entry.file, name) != null }
                 }
             )
-            is DialogKind.Compress -> NameDialog(
-                title = t.compress, label = t.zipName, initial = "archive",
+            is DialogKind.Compress -> CompressDialog(
                 onDismiss = { dialog = null },
-                onConfirm = { name ->
+                onConfirm = { name, kind, password ->
                     dialog = null
-                    val dir = currentPath?.let { File(it) } ?: return@NameDialog
-                    runOp(t.zipDone) { FileOps.zipFiles(d.entries.map { it.file }, dir, name) != null }
+                    currentPath?.let { File(it) }?.let { dir ->
+                        runOp(t.zipDone) {
+                            ArchiveOps.create(d.entries.map { it.file }, dir, name, kind, password) != null
+                        }
+                    }
+                }
+            )
+            is DialogKind.ZipPassword -> ZipPasswordDialog(
+                onDismiss = { dialog = null },
+                onConfirm = { password ->
+                    dialog = null
+                    val f = d.entry.file
+                    runOp(t.extractDone) {
+                        ArchiveOps.extractEncryptedZip(f, f.parentFile ?: f, password)
+                    }
                 }
             )
             is DialogKind.Delete -> AlertDialog(
@@ -1760,6 +1794,7 @@ private fun SettingsScreen(
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
+    onFormats: () -> Unit,
     onAbout: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -1832,11 +1867,182 @@ private fun SettingsScreen(
             item {
                 SectionCard(icon = Icons.Default.Info, title = t.otherSection) {
                     ListItem(
+                        headlineContent = { Text(t.formatsTitle) },
+                        leadingContent = { Icon(Icons.Default.Archive, null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { onFormats() }
+                    )
+                    ListItem(
                         headlineContent = { Text(t.about) },
                         leadingContent = { Icon(Icons.Default.Info, null) },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         modifier = Modifier.clickable { onAbout() }
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CompressDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String?) -> Unit
+) {
+    val t = txt()
+    var name by remember { mutableStateOf("archive") }
+    var kind by remember { mutableStateOf("zip") }
+    var password by remember { mutableStateOf("") }
+    val kinds = listOf("zip" to "ZIP", "tar" to "TAR", "tar.gz" to "TAR.GZ", "tar.bz2" to "TAR.BZ2", "tar.xz" to "TAR.XZ")
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(t.compress) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it },
+                    label = { Text(t.archiveName) }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(kinds) { (k, label) ->
+                        FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(label) })
+                    }
+                }
+                if (kind == "zip") {
+                    OutlinedTextField(
+                        value = password, onValueChange = { password = it },
+                        label = { Text(t.zipPassword) }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name.trim(), kind, password.ifBlank { null }) },
+                enabled = name.isNotBlank()
+            ) { Text(t.compress) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ZipPasswordDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    val t = txt()
+    var password by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Lock, null) },
+        title = { Text(t.zipPasswordTitle) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(t.zipPasswordBody, style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = password, onValueChange = { password = it },
+                    label = { Text(t.zipPasswordTitle) }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(password) },
+                enabled = password.isNotEmpty()
+            ) { Text(t.extract) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
+}
+
+@Composable
+private fun FormatChip(text: String, container: Color, content: Color) {
+    Surface(shape = RoundedCornerShape(8.dp), color = container) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = content,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        )
+    }
+}
+
+@Composable
+private fun FormatRow(name: String, desc: String, chips: List<Triple<String, Color, Color>>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(name, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                chips.forEach { (label, bg, fg) -> FormatChip(label, bg, fg) }
+            }
+        }
+        Text(
+            desc,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FormatsScreen(onBack: () -> Unit) {
+    val t = txt()
+    val chipCreate = Triple(t.chipCreate, Color(0xFF2E5A88), Color.White)
+    val chipExtract = Triple(
+        t.chipExtract,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val chipEncrypt = Triple(t.chipEncrypt, Color(0xFFE3C8F5), Color(0xFF3B2B4D))
+    val chipRatio = Triple(
+        t.chipHighRatio,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(t.formatsTitle) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            item {
+                SectionCard(icon = Icons.Default.Archive, title = t.formatGroupStandard) {
+                    FormatRow("ZIP (.zip)", t.fmtZipDesc, listOf(chipCreate, chipExtract, chipEncrypt))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("7Z (.7z)", t.fmt7zDesc, listOf(chipExtract, chipRatio))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("TAR (.tar)", t.fmtTarDesc, listOf(chipCreate, chipExtract))
+                }
+            }
+            item {
+                SectionCard(icon = Icons.Default.Inventory2, title = t.formatGroupTarball) {
+                    FormatRow("TAR.GZ (.tar.gz, .tgz)", t.fmtTarGzDesc, listOf(chipCreate, chipExtract))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("TAR.BZ2 (.tar.bz2, .tbz2)", t.fmtTarBz2Desc, listOf(chipCreate, chipExtract))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    FormatRow("TAR.XZ (.tar.xz, .txz)", t.fmtTarXzDesc, listOf(chipCreate, chipExtract))
                 }
             }
         }

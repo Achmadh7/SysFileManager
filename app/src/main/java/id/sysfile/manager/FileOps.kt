@@ -6,6 +6,8 @@ import android.os.StatFs
 import android.webkit.MimeTypeMap
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -425,5 +427,199 @@ object FileOps {
             unit++
         }
         return String.format(Locale.US, "%.1f %s", value, units[unit])
+    }
+}
+
+/** Mesin arsip tambahan: TAR & tarball (Commons Compress), 7Z ekstrak, ZIP terenkripsi (zip4j). */
+object ArchiveOps {
+
+    /** Jenis arsip dari nama berkas, mis. "tar.gz"; null bila bukan yang didukung. */
+    fun kindOf(name: String): String? {
+        val n = name.lowercase()
+        return when {
+            n.endsWith(".tar.gz") || n.endsWith(".tgz") -> "tar.gz"
+            n.endsWith(".tar.bz2") || n.endsWith(".tbz2") -> "tar.bz2"
+            n.endsWith(".tar.xz") || n.endsWith(".txz") -> "tar.xz"
+            n.endsWith(".tar") -> "tar"
+            n.endsWith(".zip") -> "zip"
+            n.endsWith(".7z") -> "7z"
+            else -> null
+        }
+    }
+
+    /** Ekstrak arsip apa pun yang didukung ke [destDir]; false bila gagal/tidak didukung. */
+    fun extract(file: File, destDir: File): Boolean {
+        return try {
+            when (kindOf(file.name)) {
+                "zip" -> FileOps.unzip(file, destDir)
+                "7z" -> extract7z(file, destDir)
+                "tar" -> extractTar(file, destDir, "tar")
+                "tar.gz" -> extractTar(file, destDir, "tar.gz")
+                "tar.bz2" -> extractTar(file, destDir, "tar.bz2")
+                "tar.xz" -> extractTar(file, destDir, "tar.xz")
+                else -> false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** Buat arsip [kind] ("zip"/"tar"/"tar.gz"/"tar.bz2"/"tar.xz"); kata sandi hanya untuk ZIP. */
+    fun create(sources: List<File>, destDir: File, baseName: String, kind: String, password: String?): File? {
+        return try {
+            when (kind) {
+                "zip" -> if (password.isNullOrBlank()) FileOps.zipFiles(sources, destDir, baseName)
+                         else createEncryptedZip(sources, destDir, baseName, password)
+                "tar", "tar.gz", "tar.bz2", "tar.xz" -> createTar(sources, destDir, baseName, kind)
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun createTar(sources: List<File>, destDir: File, baseName: String, kind: String): File? {
+        val clean = baseName.trim().trimEnd('.')
+        if (clean.isBlank()) return null
+        val dest = uniqueDest(destDir, "$clean.$kind")
+        val raw = BufferedOutputStream(FileOutputStream(dest))
+        val compressed = when (kind) {
+            "tar.gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream(raw)
+            "tar.bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream(raw)
+            "tar.xz" -> org.apache.commons.compress.compressors.xz.XZCompressorOutputStream(raw)
+            else -> raw
+        }
+        org.apache.commons.compress.archivers.tar.TarArchiveOutputStream(compressed).use { tos ->
+            tos.setLongFileMode(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream.LONGFILE_POSIX)
+            for (src in sources) addToTar(tos, src, src.name)
+        }
+        return dest
+    }
+
+    private fun addToTar(
+        tos: org.apache.commons.compress.archivers.tar.TarArchiveOutputStream,
+        file: File,
+        entryName: String
+    ) {
+        if (file.isDirectory) {
+            val dirEntry = org.apache.commons.compress.archivers.tar.TarArchiveEntry(file, entryName)
+            tos.putArchiveEntry(dirEntry)
+            tos.closeArchiveEntry()
+            file.listFiles()?.forEach { addToTar(tos, it, "$entryName/${it.name}") }
+        } else {
+            val entry = org.apache.commons.compress.archivers.tar.TarArchiveEntry(file, entryName)
+            tos.putArchiveEntry(entry)
+            FileInputStream(file).use { it.copyTo(tos) }
+            tos.closeArchiveEntry()
+        }
+    }
+
+    private fun extractTar(archive: File, destDir: File, kind: String): Boolean {
+        val raw = BufferedInputStream(FileInputStream(archive))
+        val decompressed = when (kind) {
+            "tar.gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream(raw)
+            "tar.bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(raw)
+            "tar.xz" -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(raw)
+            else -> raw
+        }
+        val destPath = destDir.canonicalPath
+        org.apache.commons.compress.archivers.tar.TarArchiveInputStream(decompressed).use { tis ->
+            while (true) {
+                val entry = tis.nextEntry ?: break
+                val out = File(destDir, entry.name)
+                if (!out.canonicalPath.startsWith(destPath)) continue
+                if (entry.isDirectory) {
+                    out.mkdirs()
+                } else {
+                    out.parentFile?.mkdirs()
+                    FileOutputStream(out).use { tis.copyTo(it) }
+                }
+            }
+        }
+        return true
+    }
+
+    private fun extract7z(archive: File, destDir: File): Boolean {
+        val destPath = destDir.canonicalPath
+        org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
+            while (true) {
+                val entry = seven.nextEntry ?: break
+                val out = File(destDir, entry.name)
+                if (!out.canonicalPath.startsWith(destPath)) continue
+                if (entry.isDirectory) {
+                    out.mkdirs()
+                } else {
+                    out.parentFile?.mkdirs()
+                    FileOutputStream(out).use { fos ->
+                        val buffer = ByteArray(8192)
+                        var remaining = entry.size
+                        while (remaining > 0) {
+                            val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                            if (read <= 0) break
+                            fos.write(buffer, 0, read)
+                            remaining -= read
+                        }
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    private fun createEncryptedZip(sources: List<File>, destDir: File, baseName: String, password: String): File? {
+        val clean = baseName.trim().trimEnd('.')
+        if (clean.isBlank()) return null
+        val dest = uniqueDest(destDir, "$clean.zip")
+        val zipFile = net.lingala.zip4j.ZipFile(dest, password.toCharArray())
+        val params = net.lingala.zip4j.model.ZipParameters().apply {
+            isEncryptFiles = true
+            encryptionMethod = net.lingala.zip4j.model.enums.EncryptionMethod.AES
+        }
+        for (src in sources) {
+            if (src.isDirectory) zipFile.addFolder(src, params) else zipFile.addFile(src, params)
+        }
+        return dest
+    }
+
+    fun isZipEncrypted(file: File): Boolean = try {
+        net.lingala.zip4j.ZipFile(file).isEncrypted
+    } catch (e: Exception) {
+        false
+    }
+
+    fun extractEncryptedZip(file: File, destDir: File, password: String): Boolean {
+        return try {
+            val zipFile = net.lingala.zip4j.ZipFile(file, password.toCharArray())
+            val destPath = destDir.canonicalPath
+            for (header in zipFile.fileHeaders) {
+                val out = File(destDir, header.fileName)
+                if (!out.canonicalPath.startsWith(destPath)) continue
+                if (header.isDirectory) {
+                    out.mkdirs()
+                } else {
+                    out.parentFile?.mkdirs()
+                    zipFile.getInputStream(header).use { input ->
+                        FileOutputStream(out).use { input.copyTo(it) }
+                    }
+                }
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun uniqueDest(dir: File, fileName: String): File {
+        var candidate = File(dir, fileName)
+        if (!candidate.exists()) return candidate
+        val dot = fileName.indexOf('.')
+        val base = if (dot > 0) fileName.substring(0, dot) else fileName
+        val rest = if (dot > 0) fileName.substring(dot) else ""
+        var i = 1
+        while (candidate.exists()) {
+            candidate = File(dir, "$base ($i)$rest")
+            i++
+        }
+        return candidate
     }
 }

@@ -99,13 +99,13 @@ fun categoryIcon(category: Category, name: String): ImageVector {
 
 fun categoryColor(category: Category): Color {
     return when (category) {
-        Category.IMAGE -> Color(0xFF7C4DFF)
-        Category.VIDEO -> Color(0xFFEC407A)
-        Category.AUDIO -> Color(0xFF009688)
-        Category.DOCUMENT -> Color(0xFF2196F3)
-        Category.APP -> Color(0xFF689F38)
-        Category.ARCHIVE -> Color(0xFF8D6E63)
-        Category.OTHER -> Color(0xFF757575)
+        Category.IMAGE -> Color(0xFF8B7CFF)
+        Category.VIDEO -> Color(0xFFFF5C8A)
+        Category.AUDIO -> Color(0xFF2DD4BF)
+        Category.DOCUMENT -> Color(0xFF4DA3FF)
+        Category.APP -> Color(0xFF7ED957)
+        Category.ARCHIVE -> Color(0xFFFFB020)
+        Category.OTHER -> Color(0xFF9AA7B8)
     }
 }
 
