@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FileKu"
+rootProject.name = "SysFileManager"
 include(":app")

@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "id.fileku.manager"
+    namespace = "id.sysfile.manager"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "id.fileku.manager"
+        applicationId = "id.sysfile.manager"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -17,15 +17,15 @@ android {
     }
 
     // Kunci tanda tangan TETAP untuk semua build dari repo ini (keystore
-    // fileku.p12 di root repo). Tanpa ini, setiap build GitHub Actions
+    // sysfile.p12 di root repo). Tanpa ini, setiap build GitHub Actions
     // memakai kunci debug acak baru, sehingga APK baru tidak bisa dipasang
     // menimpa yang lama dan aplikasi harus di-uninstall dulu setiap update.
     signingConfigs {
         create("ci") {
-            storeFile = rootProject.file("fileku.p12")
-            storePassword = "fileku"
-            keyAlias = "fileku"
-            keyPassword = "fileku"
+            storeFile = rootProject.file("sysfile.p12")
+            storePassword = "sysfile"
+            keyAlias = "sysfile"
+            keyPassword = "sysfile"
             storeType = "PKCS12"
         }
     }
