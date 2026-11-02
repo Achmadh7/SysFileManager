@@ -656,10 +656,36 @@ object ArchiveOps {
                 "7z" -> list7z(file)
                 "tar", "tar.gz", "tar.bz2", "tar.xz" -> listTar(file, kind!!)
                 "rar" -> listRar(file)
+                "gz", "bz2", "xz" -> listSingle(file, kind)
                 else -> null
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /** Isi berkas aliran tunggal (gz/bz2/xz): tepat satu berkas hasil dekompresi. */
+    private fun listSingle(file: File, kind: String): List<ArchiveItem> {
+        val stripped = file.name.dropLast(kind.length + 1)
+        val inner = if (stripped.isBlank()) file.name + ".out" else stripped
+        // Ukuran hasil hanya diketahui untuk GZIP (trailer ISIZE); bz2/xz = 0 (disembunyikan UI).
+        val size = if (kind == "gz") gzipSize(file) else 0L
+        return listOf(ArchiveItem(inner, false, size))
+    }
+
+    /** Ukuran hasil dekompresi dari trailer GZIP (ISIZE, 4 byte terakhir); 0 bila tak terbaca. */
+    private fun gzipSize(file: File): Long {
+        return try {
+            java.io.RandomAccessFile(file, "r").use { raf ->
+                if (raf.length() < 18) return 0L
+                raf.seek(raf.length() - 4)
+                val b = ByteArray(4)
+                raf.readFully(b)
+                (b[0].toLong() and 0xFF) or ((b[1].toLong() and 0xFF) shl 8) or
+                    ((b[2].toLong() and 0xFF) shl 16) or ((b[3].toLong() and 0xFF) shl 24)
+            }
+        } catch (e: Exception) {
+            0L
         }
     }
 
@@ -727,6 +753,8 @@ object ArchiveOps {
                 "7z" -> extractSingle7z(file, entryName, out)
                 "tar", "tar.gz", "tar.bz2", "tar.xz" -> extractSingleTar(file, kind!!, entryName, out)
                 "rar" -> extractSingleRar(file, entryName, out)
+                // Aliran tunggal: dekompresi ke nama hasil yang sama dengan 'out'.
+                "gz", "bz2", "xz" -> decompressSingle(file, destDir, kind)
                 else -> false
             }
         } catch (e: Exception) {

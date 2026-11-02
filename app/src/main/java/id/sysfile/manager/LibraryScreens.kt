@@ -329,7 +329,7 @@ private fun ArchiveItemRow(item: ArchiveItem, count: Int?, onClick: () -> Unit) 
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(displayName, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val sub = if (item.isDir) count?.let { txt().items(it) } else FileOps.formatSize(item.size)
+            val sub = if (item.isDir) count?.let { txt().items(it) } else if (item.size > 0L) FileOps.formatSize(item.size) else ""
             if (!sub.isNullOrEmpty()) {
                 Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

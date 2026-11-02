@@ -393,14 +393,6 @@ fun SysFileApp() {
                 val kind = ArchiveOps.kindOf(f.name)
                 when {
                     kind == null -> openExternal(f)
-                    kind == "gz" || kind == "bz2" || kind == "xz" -> {
-                        working = true
-                        scope.launch {
-                            val ok = withContext(Dispatchers.IO) { ArchiveOps.extract(f, f.parentFile ?: f) }
-                            working = false
-                            if (ok) { notify(t.extractDone); reloadKey++ } else notify(t.opFailed)
-                        }
-                    }
                     kind == "zip" -> {
                         working = true
                         scope.launch {
