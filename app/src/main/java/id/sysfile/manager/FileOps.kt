@@ -646,7 +646,7 @@ object ArchiveOps {
         }
     }
 
-    /** Daftar isi arsip (ZIP/7Z/TAR*/RAR) untuk dibuka tanpa ekstrak; null bila gagal/tidak didukung. */
+    /** Daftar isi arsip (ZIP/7Z/TAR/RAR) untuk dibuka tanpa ekstrak; null bila gagal/tidak didukung. */
     fun listContents(file: File): List<ArchiveItem>? {
         return try {
             when (val kind = kindOf(file.name)) {
