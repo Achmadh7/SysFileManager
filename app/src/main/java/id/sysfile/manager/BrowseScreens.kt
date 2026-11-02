@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
@@ -66,6 +67,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -128,6 +130,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -297,27 +300,103 @@ fun BrowseScreen(
 fun SelectionBar(
     single: Boolean,
     singleEntry: FEntry?,
+    canExtract: Boolean,
     onCopy: () -> Unit,
     onCut: () -> Unit,
     onDelete: () -> Unit,
     onShare: () -> Unit,
     onRename: () -> Unit,
     onCompress: () -> Unit,
-    onProperties: () -> Unit
+    onExtract: () -> Unit,
+    onProperties: () -> Unit,
+    onSelectAll: () -> Unit
 ) {
     val t = txt()
+    var menuOpen by remember { mutableStateOf(false) }
     Box(
         Modifier.fillMaxWidth().padding(bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        HorizontalFloatingToolbar(expanded = true) {
-            IconButton(onClick = onCopy) { Icon(Icons.Default.ContentCopy, t.copy) }
-            IconButton(onClick = onCut) { Icon(Icons.Default.ContentCut, t.cut) }
-            if (single) IconButton(onClick = onShare) { Icon(Icons.Default.Share, t.share) }
-            if (single) IconButton(onClick = onProperties) { Icon(Icons.Default.Info, t.properties) }
-            IconButton(onClick = onCompress) { Icon(Icons.Default.Archive, t.compress) }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, t.delete) }
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 3.dp,
+            shadowElevation = 6.dp
+        ) {
+            Row(
+                Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PillAction(Icons.Default.ContentCopy, t.copy, onCopy)
+                PillAction(
+                    Icons.Default.Unarchive, t.extract, onExtract,
+                    enabled = canExtract, highlighted = canExtract
+                )
+                PillAction(Icons.Default.Archive, t.compress, onCompress)
+                PillAction(Icons.Default.Delete, t.delete, onDelete)
+                Box {
+                    PillAction(Icons.Default.MoreVert, t.more, { menuOpen = true })
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(t.cut) },
+                            leadingIcon = { Icon(Icons.Default.ContentCut, null) },
+                            onClick = { menuOpen = false; onCut() }
+                        )
+                        if (single) {
+                            DropdownMenuItem(
+                                text = { Text(t.rename) },
+                                leadingIcon = { Icon(Icons.Default.Edit, null) },
+                                onClick = { menuOpen = false; onRename() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(t.share) },
+                                leadingIcon = { Icon(Icons.Default.Share, null) },
+                                onClick = { menuOpen = false; onShare() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(t.properties) },
+                                leadingIcon = { Icon(Icons.Default.Info, null) },
+                                onClick = { menuOpen = false; onProperties() }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text(t.selectAll) },
+                            leadingIcon = { Icon(Icons.Default.DoneAll, null) },
+                            onClick = { menuOpen = false; onSelectAll() }
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+/** Satu tombol berikon + berlabel di pill pilihan (gaya hibrida pilihan Achmad). */
+@Composable
+private fun PillAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    highlighted: Boolean = false
+) {
+    val contentColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        highlighted -> Color.White
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (highlighted) Color(0xFF3D4B63) else Color.Transparent)
+            .clickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 13.dp, vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Icon(icon, label, tint = contentColor, modifier = Modifier.size(22.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = contentColor, maxLines = 1)
     }
 }
 

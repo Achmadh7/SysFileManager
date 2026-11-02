@@ -686,13 +686,41 @@ fun SysFileApp() {
                                     SelectionBar(
                                         single = selected.size == 1,
                                         singleEntry = entries.firstOrNull { it.path == selected.first() },
+                                        canExtract = entries.any { selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null },
                                         onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
                                         onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
                                         onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
                                         onShare = { entries.firstOrNull { it.path == selected.first() }?.let { shareFile(it.file) } },
                                         onRename = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Rename(it) } },
                                         onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
-                                        onProperties = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Properties(it) } }
+                                        onProperties = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Properties(it) } },
+                                        onExtract = {
+                                            val targets = entries.filter {
+                                                selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null
+                                            }
+                                            val only = targets.singleOrNull()
+                                            if (only != null && ArchiveOps.kindOf(only.name) == "zip") {
+                                                working = true
+                                                scope.launch {
+                                                    val enc = withContext(Dispatchers.IO) { ArchiveOps.isZipEncrypted(only.file) }
+                                                    working = false
+                                                    if (enc) {
+                                                        dialog = DialogKind.ZipPassword(only)
+                                                    } else {
+                                                        runOp(t.extractDone) {
+                                                            ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
+                                                        }
+                                                    }
+                                                }
+                                            } else if (targets.isNotEmpty()) {
+                                                runOp(t.extractDone) {
+                                                    targets.count {
+                                                        ArchiveOps.extract(it.file, it.file.parentFile ?: it.file)
+                                                    } > 0
+                                                }
+                                            }
+                                        },
+                                        onSelectAll = { selected = entries.map { it.path }.toSet() }
                                     )
                                 } else if (clipboard != null && currentPath != null) {
                                     ClipboardBar(
