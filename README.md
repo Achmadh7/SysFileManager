@@ -1,4 +1,4 @@
-# SysFileManager — File Manager for Android
+# SysFile — File Manager for Android
 
 An Android file manager written in Kotlin with Jetpack Compose and Material 3 Expressive. Browse internal storage, SD cards, and USB drives; copy, move, rename, delete, compress, and extract files; preview photos and text; search the whole storage; and see what is taking up space — all on-device, no account, no ads.
 
@@ -18,7 +18,7 @@ An Android file manager written in Kotlin with Jetpack Compose and Material 3 Ex
 
 ## Permissions
 
-SysFileManager needs **All files access** (Android 11+) so it can work outside its own sandbox: the first launch shows a card that sends you to the system settings screen where the permission is granted. On Android 8–10 it asks for the classic storage permission instead. Some folders (notably `Android/data` on newer Android versions) stay locked by the system even with this permission — SysFileManager shows an "inaccessible" message there instead of failing silently.
+SysFile needs **All files access** (Android 11+) so it can work outside its own sandbox: the first launch shows a card that sends you to the system settings screen where the permission is granted. On Android 8–10 it asks for the classic storage permission instead. Some folders (notably `Android/data` on newer Android versions) stay locked by the system even with this permission — SysFile shows an "inaccessible" message there instead of failing silently.
 
 ## Tech stack
 
@@ -29,7 +29,7 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 | Thumbnails | Coil 2.7.0 (image + video frame decoder) |
 | Build | AGP 8.11.1, Gradle 8.13, JDK 17 |
 | Android | minSdk 26 (Android 8.0), targetSdk 34, compileSdk 36 |
-| Package | `id.sysfile.manager` |
+| Package | `id.sysfile` |
 | Version | 1.0.0 |
 | Signing | Fixed keystore committed in this repo (`sysfile.p12`, PKCS12) — every CI build carries the same signature, so updates install in place |
 | R8 | Minify + resource shrinking enabled on the **debug** build (the APK installed day to day), using the default optimize rules |
@@ -44,12 +44,12 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 
 ## Project structure
 
-- `app/src/main/java/id/sysfile/manager/MainActivity.kt` — the entry point and main screens: Home dashboard, folder browser, search, storage analysis, all dialogs (operations, properties, sort, settings, about), and the selection/clipboard bars.
-- `app/src/main/java/id/sysfile/manager/FileOps.kt` — the file engine: directory listing and sorting, storage volumes, recursive copy/move/delete, name de-duplication, search, ZIP compress/extract, and the category/largest-files analysis.
-- `app/src/main/java/id/sysfile/manager/Components.kt` — reusable UI pieces: section cards, file rows and grid cells, thumbnails (Coil), category icons and colours, and the storage usage bar.
-- `app/src/main/java/id/sysfile/manager/Viewers.kt` — the full-screen photo viewer (pinch zoom) and the text viewer/editor.
-- `app/src/main/java/id/sysfile/manager/Theme.kt` — the hand-written light/dark colour schemes, typography, and shapes.
-- `app/src/main/java/id/sysfile/manager/Strings.kt` — the two-language text table (Indonesian/English) for the whole interface.
+- `app/src/main/java/id/sysfile/MainActivity.kt` — the entry point and main screens: Home dashboard, folder browser, search, storage analysis, all dialogs (operations, properties, sort, settings, about), and the selection/clipboard bars.
+- `app/src/main/java/id/sysfile/FileOps.kt` — the file engine: directory listing and sorting, storage volumes, recursive copy/move/delete, name de-duplication, search, ZIP compress/extract, and the category/largest-files analysis.
+- `app/src/main/java/id/sysfile/Components.kt` — reusable UI pieces: section cards, file rows and grid cells, thumbnails (Coil), category icons and colours, and the storage usage bar.
+- `app/src/main/java/id/sysfile/Viewers.kt` — the full-screen photo viewer (pinch zoom) and the text viewer/editor.
+- `app/src/main/java/id/sysfile/Theme.kt` — the hand-written light/dark colour schemes, typography, and shapes.
+- `app/src/main/java/id/sysfile/Strings.kt` — the two-language text table (Indonesian/English) for the whole interface.
 
 ## Notes
 
