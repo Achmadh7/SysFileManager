@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "id.sysfile"
+    namespace = "id.sysfile.manager"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "id.sysfile"
+        applicationId = "id.sysfile.manager"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

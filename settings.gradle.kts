@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "SysFile"
+rootProject.name = "SysFileManager"
 include(":app")
