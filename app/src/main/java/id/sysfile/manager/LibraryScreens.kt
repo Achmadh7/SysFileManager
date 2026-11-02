@@ -15,6 +15,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -229,27 +230,40 @@ fun CategoryScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             val loaded = files
-            when {
-                loaded == null -> {
-                    Column(
-                        Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        LoadingIndicator()
-                        Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+            val contentState = when {
+                loaded == null -> 0
+                loaded.isEmpty() -> 1
+                else -> 2
+            }
+            AnimatedContent(
+                targetState = contentState,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
+                        fadeOut(animationSpec = tween(durationMillis = 300))
+                },
+                modifier = Modifier.fillMaxSize(),
+                label = "categoryContentFade"
+            ) { state ->
+                when (state) {
+                    0 -> Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            LoadingIndicator()
+                            Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
                     }
-                }
-                loaded.isEmpty() -> {
-                    Text(
-                        t.categoryEmpty,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                else -> {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(loaded, key = { it.path }) { entry ->
+                    1 -> Box(Modifier.fillMaxSize()) {
+                        Text(
+                            t.categoryEmpty,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    else -> LazyColumn(Modifier.fillMaxSize()) {
+                        items(loaded.orEmpty(), key = { it.path }) { entry ->
                             FileRow(
                                 entry = entry,
                                 selectionMode = false,
