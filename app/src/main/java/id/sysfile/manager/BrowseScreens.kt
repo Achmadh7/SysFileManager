@@ -221,7 +221,9 @@ fun BrowseScreen(
     onNewFolder: () -> Unit,
     onNewFile: () -> Unit,
     counts: Map<String, Int>,
-    lockedPaths: Set<String> = emptySet()
+    lockedPaths: Set<String> = emptySet(),
+    safHasGrant: Boolean = false,
+    onSafAction: (() -> Unit)? = null
 ) {
     val t = txt()
     Column(Modifier.fillMaxSize()) {
@@ -240,12 +242,23 @@ fun BrowseScreen(
         Box(Modifier.fillMaxSize()) {
             when {
                 !loaded -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
-                entries.isEmpty() -> Text(
-                    if (File(currentPath).canRead()) t.emptyFolder else t.folderInaccessible,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center).padding(24.dp)
-                )
+                entries.isEmpty() -> Column(
+                    Modifier.align(Alignment.Center).padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val readable = File(currentPath).canRead()
+                    Text(
+                        if (readable) t.emptyFolder else t.folderInaccessible,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!readable && onSafAction != null) {
+                        Spacer(Modifier.height(14.dp))
+                        Button(onClick = onSafAction) {
+                            Text(if (safHasGrant) t.safOpen else t.safGrant)
+                        }
+                    }
+                }
                 gridView -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -205,6 +206,8 @@ fun SysFileApp() {
     var showApps by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showSpecs by remember { mutableStateOf(false) }
+    var safTreeUri by remember { mutableStateOf<String?>(null) }
+    var safRelPath by remember { mutableStateOf("") }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -301,6 +304,45 @@ fun SysFileApp() {
     val legacyPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         accessGranted = context.hasFileAccess()
         refreshRoots()
+    }
+
+    // Izin SAF tersimpan: entri "jalur<0x01>uriPohon" di set pref saf_grants.
+    fun safGrantFor(path: String): Pair<String, String>? {
+        val set = prefs.getStringSet("saf_grants", emptySet()) ?: emptySet()
+        for (e in set) {
+            val p = e.substringBefore('\u0001')
+            val u = e.substringAfter('\u0001', "")
+            if (u.isEmpty()) continue
+            if (path == p) return u to ""
+            if (path.startsWith("$p/")) return u to path.removePrefix("$p/")
+        }
+        return null
+    }
+
+    val safLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                // Izin tidak persisten pun tetap bisa dipakai selama sesi ini.
+            }
+            val p = SafOps.pathOfTree(uri)
+            if (p.isNotEmpty()) {
+                val old = prefs.getStringSet("saf_grants", emptySet()) ?: emptySet()
+                val kept = old.filter { it.substringBefore('\u0001') != p }
+                prefs.edit()
+                    .putStringSet("saf_grants", (kept + "$p\u0001$uri").toSet())
+                    .apply()
+            }
+            safRelPath = ""
+            safTreeUri = uri.toString()
+        }
     }
 
     fun requestAccess() {
@@ -514,12 +556,19 @@ fun SysFileApp() {
     BackHandler(enabled = showAbout && !showFormats && !showSpecs) { showAbout = false }
     BackHandler(enabled = showSpecs) { showSpecs = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
-    BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
+    BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty() && safTreeUri == null) {
         browseStack = browseStack.dropLast(1)
     }
 
     SysFileTheme(themeMode, dynamicColor) {
-        if (showTrash) {
+        if (safTreeUri != null) {
+            SafBrowseScreen(
+                treeUri = safTreeUri!!,
+                relPath = safRelPath,
+                onExit = { safTreeUri = null },
+                notify = { notify(it) }
+            )
+        } else if (showTrash) {
             TrashScreen(onBack = { showTrash = false }, notify = { notify(it) })
         } else if (showFormats) {
             FormatsScreen(onBack = { showFormats = false })
@@ -1060,7 +1109,17 @@ fun SysFileApp() {
                                         onNewFolder = { dialog = DialogKind.NewFolder },
                                         onNewFile = { dialog = DialogKind.NewFile },
                                         counts = entryCounts,
-                                        lockedPaths = lockedFolders
+                                        lockedPaths = lockedFolders,
+                                        safHasGrant = safGrantFor(animatedPath) != null,
+                                        onSafAction = {
+                                            val g = safGrantFor(animatedPath)
+                                            if (g != null) {
+                                                safRelPath = g.second
+                                                safTreeUri = g.first
+                                            } else {
+                                                safLauncher.launch(SafOps.initialUriFor(animatedPath))
+                                            }
+                                        }
                                         )
                                     }
                                 }

@@ -835,6 +835,7 @@ fun SpecScreen(onBack: () -> Unit) {
                     color = Color(0xFFB39DDB),
                     title = t.specGroupUiStorage,
                     rows = listOf(
+                        t.specStorageEngine to "All Files Access, SAF & Java NIO",
                         "Toolkit UI" to "Jetpack Compose",
                         t.specDesignLabel to "Material 3 Expressive",
                         t.minAndroidLabel to "8.0 (API 26)",
