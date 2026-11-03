@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -678,8 +679,43 @@ fun SysFileApp() {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
-                                        title = { Text("SysFile") },
+                                        title = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
+                                                        .background(Color(0xFF2E5A88)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Folder, null,
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(25.dp)
+                                                    )
+                                                    Icon(
+                                                        Icons.Default.ArrowUpward, null,
+                                                        tint = Color(0xFF2E5A88),
+                                                        modifier = Modifier.size(13.dp).offset(y = 3.dp)
+                                                    )
+                                                }
+                                                Spacer(Modifier.width(12.dp))
+                                                Column {
+                                                    Text("SysFile")
+                                                    Text(
+                                                        t.appTagline,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        },
                                         actions = {
+                                            val searchRoot = roots.firstOrNull { it.kind == "internal" }?.path
+                                                ?: roots.firstOrNull()?.path
+                                            if (searchRoot != null) {
+                                                IconButton(onClick = { overlay = Overlay.Search(searchRoot) }) {
+                                                    Icon(Icons.Default.Search, t.search)
+                                                }
+                                            }
                                             IconButton(onClick = { showSettings = true }) {
                                                 Icon(Icons.Default.Settings, t.settings)
                                             }
