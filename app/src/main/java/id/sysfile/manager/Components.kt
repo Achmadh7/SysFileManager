@@ -206,14 +206,21 @@ fun FileRow(
 ) {
     Row(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                if (isSelected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                }
+            )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box {
-            FileThumb(entry, 46)
+            FileThumbTile(entry, 54)
             if (locked) {
                 Box(
                     Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape)
@@ -231,12 +238,53 @@ fun FileRow(
                 listOfNotNull(itemCount?.let { txt().items(it) }, formatDate(entry.modified))
                     .joinToString(" • ")
             } else {
-                FileOps.formatSize(entry.size) + " • " + formatDate(entry.modified)
+                formatDate(entry.modified)
             }
             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (selectionMode) {
             Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+        } else if (entry.isDir) {
+            Icon(
+                Icons.Default.ChevronRight, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Text(
+                FileOps.formatSize(entry.size),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+/** Ubin kotak membulat untuk kartu daftar: foto/video memenuhi ubin, lainnya ikon berwarna. */
+@Composable
+fun FileThumbTile(entry: FEntry, sizeDp: Int) {
+    val isMedia = entry.category == Category.IMAGE || entry.category == Category.VIDEO
+    if (isMedia && !entry.isDir) {
+        AsyncImage(
+            model = File(entry.path),
+            contentDescription = null,
+            imageLoader = rememberThumbLoader(),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+    } else {
+        val color = entryColor(entry)
+        Box(
+            Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
+                .background(color.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
+                null,
+                tint = color,
+                modifier = Modifier.size((sizeDp * 0.52f).dp)
+            )
         }
     }
 }
