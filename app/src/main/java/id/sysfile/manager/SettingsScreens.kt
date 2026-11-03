@@ -197,7 +197,6 @@ fun SettingsScreen(
                         else -> Icons.Default.BrightnessAuto
                     },
                     circleColor = Color(0xFFFFB020),
-                    glyphTint = Color(0xFF1A1A1A),
                     title = t.theme,
                     subtitle = themeOptions.firstOrNull { it.first == themeMode }?.second,
                     onClick = { themeDialog = true }
@@ -207,7 +206,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Translate,
                     circleColor = Color(0xFF4DA3FF),
-                    glyphTint = Color.White,
                     title = t.language,
                     subtitle = langOptions.firstOrNull { it.first == language }?.second,
                     onClick = { langDialog = true }
@@ -217,7 +215,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Palette,
                     circleColor = Color(0xFF2DD4BF),
-                    glyphTint = Color(0xFF10201C),
                     title = t.dynamicColor,
                     subtitle = t.dynamicColorDesc,
                     trailing = { Switch(checked = dynamicColor, onCheckedChange = onDynamicColor) }
@@ -228,7 +225,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Folder,
                     circleColor = Color(0xFFF06292),
-                    glyphTint = Color.White,
                     title = t.showHidden,
                     trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
                 )
@@ -241,7 +237,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Delete,
                     circleColor = Color(0xFFEF5350),
-                    glyphTint = Color.White,
                     title = t.trash,
                     subtitle = trashCount?.takeIf { it > 0 }?.let { t.items(it) },
                     onClick = onTrash
@@ -252,7 +247,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Security,
                     circleColor = Color(0xFFC62828),
-                    glyphTint = Color.White,
                     title = t.rootAccessTitle,
                     subtitle = t.rootAccessDesc,
                     trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
@@ -262,7 +256,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Archive,
                     circleColor = Color(0xFF8B7CFF),
-                    glyphTint = Color.White,
                     title = t.formatsTitle,
                     onClick = onFormats
                 )
@@ -271,7 +264,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Apps,
                     circleColor = Color(0xFF7ED957),
-                    glyphTint = Color(0xFF14240C),
                     title = t.appsTitle,
                     onClick = onApps
                 )
@@ -279,8 +271,7 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Default.Info,
-                    circleColor = Color(0xFFE3C8F5),
-                    glyphTint = Color(0xFF3B2B4D),
+                    circleColor = Color(0xFFB39DDB),
                     title = t.about,
                     onClick = onAbout
                 )
@@ -321,7 +312,6 @@ private fun SettingsSectionLabel(text: String, topPadding: Dp = 6.dp) {
 private fun SettingsRow(
     icon: ImageVector,
     circleColor: Color,
-    glyphTint: Color,
     title: String,
     subtitle: String? = null,
     onClick: (() -> Unit)? = null,
@@ -335,10 +325,11 @@ private fun SettingsRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(circleColor),
+            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                .background(circleColor.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = glyphTint, modifier = Modifier.size(22.dp))
+            Icon(icon, null, tint = circleColor, modifier = Modifier.size(22.dp))
         }
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
