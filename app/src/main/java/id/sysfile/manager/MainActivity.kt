@@ -217,6 +217,7 @@ fun SysFileApp() {
     val allRoots = roots + rootFs
     var browseStack by remember { mutableStateOf<List<String>>(emptyList()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
+    var overlayReturn by remember { mutableStateOf<Overlay?>(null) }
     var entries by remember { mutableStateOf<List<FEntry>>(emptyList()) }
     var entryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var entriesLoaded by remember { mutableStateOf(true) }
@@ -504,7 +505,7 @@ fun SysFileApp() {
     }
 
     BackHandler(enabled = showSettings) { showSettings = false }
-    BackHandler(enabled = !showSettings && overlay != null) { overlay = null }
+    BackHandler(enabled = !showSettings && overlay != null) { overlay = overlayReturn; overlayReturn = null }
     BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab != 0) { homeTab = 0 }
     BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = showTrash) { showTrash = false }
@@ -573,18 +574,19 @@ fun SysFileApp() {
                 when (ov) {
                     is Overlay.ImageView -> ImageViewerScreen(
                         path = ov.path,
-                        onBack = { overlay = null },
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
                         onShare = { shareFile(File(ov.path)) },
                         onInfo = { dialog = DialogKind.Properties(FileOps.entryOf(File(ov.path))) },
                         onDelete = { dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(ov.path)))) }
                     )
-                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
-                    is Overlay.VideoView -> VideoViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
+                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
+                    is Overlay.VideoView -> VideoViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
                     is Overlay.Search -> SearchScreen(
                         rootPath = ov.rootPath,
-                        onBack = { overlay = null },
+                        onBack = { overlay = null; overlayReturn = null },
                         onOpenEntry = { entry ->
                             overlay = null
+                            overlayReturn = null
                             if (entry.isDir) {
                                 openFolderGuarded(entry.path) { browseStack = listOf(entry.path) }
                             } else {
@@ -600,21 +602,21 @@ fun SysFileApp() {
                         roots = roots,
                         showHidden = showHidden,
                         accessGranted = accessGranted,
-                        onBack = { overlay = null },
+                        onBack = { overlay = null; overlayReturn = null },
                         onOpenEntry = { entry ->
-                            entry.parentPath()?.let { parent ->
-                                if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
-                            }
+                            val before = overlay
                             openEntry(entry)
+                            overlayReturn = if (overlay !== before) ov else null
                         }
                     )
                     is Overlay.ArchiveView -> ArchiveScreen(
                         path = ov.path,
-                        onBack = { overlay = null },
-                        onError = { overlay = null; notify(t.opFailed) },
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed) },
                         onExtractAll = {
                             val archiveFile = File(ov.path)
                             overlay = null
+                            overlayReturn = null
                             runOp(t.extractDone) { ArchiveOps.extract(archiveFile, archiveFile.parentFile ?: archiveFile) }
                         },
                         onOpenFile = { itemName ->
@@ -636,12 +638,13 @@ fun SysFileApp() {
                     )
                     is Overlay.PayloadView -> PayloadScreen(
                         path = ov.path,
-                        onBack = { overlay = null },
-                        onError = { overlay = null; notify(t.opFailed) },
-                        onUnsupported = { overlay = null; notify(t.payloadUnsupported) },
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed) },
+                        onUnsupported = { overlay = overlayReturn; overlayReturn = null; notify(t.payloadUnsupported) },
                         onExtractAll = {
                             val payloadFile = File(ov.path)
                             overlay = null
+                            overlayReturn = null
                             working = true
                             scope.launch {
                                 val outcome = withContext(Dispatchers.IO) {
@@ -1128,6 +1131,7 @@ fun SysFileApp() {
                         }
                         if (viewingPath != null && d.entries.any { it.path == viewingPath }) {
                             overlay = null
+                            overlayReturn = null
                         }
                     }) { Text(t.delete) }
                 },
