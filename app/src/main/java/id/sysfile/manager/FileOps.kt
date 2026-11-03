@@ -136,7 +136,15 @@ object FileOps {
         return try { dir.listFiles()?.size ?: 0 } catch (e: Exception) { 0 }
     }
 
-    /** Volume semu untuk direktori root "/" (di luar penyimpanan bersama). */
+    /** Info dasar dari dalam berkas APK: nama aplikasi, paket, dan versi. */
+data class ApkInfo(
+    val appName: String,
+    val packageName: String,
+    val versionName: String,
+    val versionCode: Long
+)
+
+/** Volume semu untuk direktori root "/" (di luar penyimpanan bersama). */
     fun rootFilesystem(): RootInfo {
         return try {
             val stat = StatFs("/")
@@ -260,6 +268,47 @@ object FileOps {
             }
         }
         return ok
+    }
+
+    /** Baca info dari dalam berkas APK (tanpa memasangnya); null bila bukan APK valid. */
+    fun apkInfo(context: Context, file: File): ApkInfo? {
+        return try {
+            val pm = context.packageManager
+            val pkg = pm.getPackageArchiveInfo(file.absolutePath, 0) ?: return null
+            val appInfo = pkg.applicationInfo ?: return null
+            appInfo.sourceDir = file.absolutePath
+            appInfo.publicSourceDir = file.absolutePath
+            val label = pm.getApplicationLabel(appInfo).toString()
+            ApkInfo(
+                appName = label.ifBlank { file.name },
+                packageName = pkg.packageName ?: "",
+                versionName = pkg.versionName ?: "",
+                versionCode = pkg.longVersionCode
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Ikon aplikasi dari dalam berkas APK sebagai Bitmap; null bila gagal. */
+    fun apkIcon(context: Context, file: File): android.graphics.Bitmap? {
+        return try {
+            val pm = context.packageManager
+            val pkg = pm.getPackageArchiveInfo(file.absolutePath, 0) ?: return null
+            val appInfo = pkg.applicationInfo ?: return null
+            appInfo.sourceDir = file.absolutePath
+            appInfo.publicSourceDir = file.absolutePath
+            val drawable = pm.getApplicationIcon(appInfo)
+            val width = drawable.intrinsicWidth.coerceAtLeast(1)
+            val height = drawable.intrinsicHeight.coerceAtLeast(1)
+            val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            drawable.setBounds(0, 0, width, height)
+            drawable.draw(canvas)
+            bitmap
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /** MD5 + SHA-256 sebuah berkas dalam satu kali baca; null bila gagal. */

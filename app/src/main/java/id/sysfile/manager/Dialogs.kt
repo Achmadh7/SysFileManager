@@ -22,6 +22,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -131,6 +132,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -547,10 +549,51 @@ fun ApkActionsDialog(
     onInstall: () -> Unit
 ) {
     val t = txt()
+    val context = LocalContext.current
+    var info by remember(entry.path) { mutableStateOf<ApkInfo?>(null) }
+    var iconBmp by remember(entry.path) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(entry.path) {
+        val loaded = withContext(Dispatchers.IO) {
+            FileOps.apkInfo(context, entry.file) to FileOps.apkIcon(context, entry.file)?.asImageBitmap()
+        }
+        info = loaded.first
+        iconBmp = loaded.second
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Archive, null) },
-        title = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val bmp = iconBmp
+                if (bmp != null) {
+                    Image(
+                        bitmap = bmp,
+                        contentDescription = null,
+                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
+                    )
+                } else {
+                    Icon(Icons.Default.Archive, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text(info?.appName ?: entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    val inf = info
+                    if (inf != null) {
+                        Text(
+                            t.version(inf.versionName) + " (" + inf.versionCode + ")",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            inf.packageName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        },
         text = {
             Column {
                 ApkActionRow(Icons.Default.Search, t.apkInspect, onInspect)
