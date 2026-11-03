@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
@@ -133,6 +134,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -219,6 +221,48 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     leadingContent = { Icon(Icons.Default.Storage, null) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
+                if (!entry.isDir) {
+                    var sums by remember(entry.path) { mutableStateOf<Pair<String, String>?>(null) }
+                    var computing by remember(entry.path) { mutableStateOf(false) }
+                    val scope = rememberCoroutineScope()
+                    if (sums == null) {
+                        ListItem(
+                            headlineContent = { Text(t.checksum) },
+                            leadingContent = { Icon(Icons.Default.Fingerprint, null) },
+                            trailingContent = {
+                                TextButton(
+                                    enabled = !computing,
+                                    onClick = {
+                                        computing = true
+                                        scope.launch {
+                                            sums = withContext(Dispatchers.IO) { FileOps.checksums(entry.file) }
+                                            computing = false
+                                            if (sums == null) onNotify(t.opFailed)
+                                        }
+                                    }
+                                ) { Text(if (computing) t.scanning else t.computeChecksum) }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                    } else {
+                        listOf("MD5" to sums!!.first, "SHA-256" to sums!!.second).forEach { (label, hash) ->
+                            ListItem(
+                                headlineContent = { Text(label) },
+                                supportingContent = {
+                                    Text(hash, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                                },
+                                leadingContent = { Icon(Icons.Default.Fingerprint, null) },
+                                trailingContent = {
+                                    IconButton(onClick = {
+                                        clipboard.setText(AnnotatedString(hash))
+                                        onNotify(t.copiedDone)
+                                    }) { Icon(Icons.Default.ContentCopy, t.copy) }
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        }
+                    }
+                }
                 ListItem(
                     headlineContent = { Text(t.propModified) },
                     supportingContent = {

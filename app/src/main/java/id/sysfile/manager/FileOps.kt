@@ -262,6 +262,31 @@ object FileOps {
         return ok
     }
 
+    /** MD5 + SHA-256 sebuah berkas dalam satu kali baca; null bila gagal. */
+    fun checksums(file: File): Pair<String, String>? {
+        return try {
+            val md5 = java.security.MessageDigest.getInstance("MD5")
+            val sha = java.security.MessageDigest.getInstance("SHA-256")
+            file.inputStream().buffered().use { input ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    md5.update(buffer, 0, read)
+                    sha.update(buffer, 0, read)
+                }
+            }
+            fun hex(bytes: ByteArray): String {
+                val sb = StringBuilder(bytes.size * 2)
+                for (b in bytes) sb.append(String.format("%02x", b.toInt() and 0xFF))
+                return sb.toString()
+            }
+            hex(md5.digest()) to hex(sha.digest())
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun deleteRecursively(file: File): Boolean {
         return try {
             if (file.isDirectory) {
