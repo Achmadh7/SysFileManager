@@ -71,6 +71,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Share
@@ -370,6 +371,125 @@ private fun ApkActionRow(icon: ImageVector, label: String, onClick: () -> Unit) 
         Spacer(Modifier.width(16.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge)
     }
+}
+
+
+/** Satu baris pilihan berikon + judul + subjudul pada dialog aksi arsip. */
+@Composable
+private fun ArchiveActionRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(16.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/**
+ * Pilihan saat berkas ZIP diketuk (meniru referensi yang dipilih Achmad):
+ * Ekstrak Di Sini (ke folder bernama seperti arsip), Buka Arsip (lihat isi
+ * dulu), atau Ekstrak ke Jalur Kustom.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ArchiveActionsDialog(
+    entry: FEntry,
+    folderName: String,
+    onDismiss: () -> Unit,
+    onExtractHere: () -> Unit,
+    onOpenArchive: () -> Unit,
+    onCustomPath: () -> Unit
+) {
+    val t = txt()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Unarchive, null) },
+        title = { Text(t.extractArchive) },
+        text = {
+            Column {
+                Text(
+                    entry.name,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                ArchiveActionRow(Icons.Default.Unarchive, t.extract, "$folderName/", onExtractHere)
+                ArchiveActionRow(Icons.Default.Folder, t.openArchive, t.browseFirst, onOpenArchive)
+                ArchiveActionRow(Icons.Default.CreateNewFolder, t.extractCustom, t.pickLocation, onCustomPath)
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
+}
+
+/** Pemilih folder tujuan (untuk "Ekstrak ke Jalur Kustom"): telusuri folder, lalu pilih yang sedang dibuka. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FolderPickerDialog(
+    startPath: String,
+    title: String,
+    onPick: (String) -> Unit,
+    onCancel: () -> Unit
+) {
+    val t = txt()
+    var current by remember { mutableStateOf(startPath) }
+    var dirs by remember { mutableStateOf<List<FEntry>>(emptyList()) }
+    LaunchedEffect(current) {
+        dirs = withContext(Dispatchers.IO) {
+            FileOps.listDir(File(current), true, SortKey.NAME, true)?.filter { it.isDir } ?: emptyList()
+        }
+    }
+    val parent = remember(current) { File(current).parent }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(
+                    current,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                LazyColumn(Modifier.heightIn(max = 320.dp)) {
+                    if (parent != null) {
+                        item {
+                            Row(
+                                Modifier.fillMaxWidth().clickable { current = parent }.padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.ArrowUpward, null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(12.dp))
+                                Text("..", style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                    items(dirs, key = { it.path }) { dir ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable { current = dir.path }.padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Folder, null, tint = Color(0xFFFFA000))
+                            Spacer(Modifier.width(12.dp))
+                            Text(dir.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onPick(current) }) { Text(t.selectFolder) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(t.cancel) } }
+    )
 }
 
 /** Pilihan aksi saat berkas APK/APKS/XAPK/AAB diketuk: Inspeksi, Ekstrak, atau Instal. */

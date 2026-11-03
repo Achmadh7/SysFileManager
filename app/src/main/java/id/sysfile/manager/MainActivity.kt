@@ -164,6 +164,8 @@ private sealed interface DialogKind {
     data class Compress(val entries: List<FEntry>) : DialogKind
     data class ZipPassword(val entry: FEntry) : DialogKind
     data class ApkActions(val entry: FEntry) : DialogKind
+    data class ArchiveActions(val entry: FEntry) : DialogKind
+    data class PickExtractFolder(val entry: FEntry) : DialogKind
     data class ArchiveContents(val entry: FEntry, val items: List<Pair<String, Long>>) : DialogKind
     data object Sort : DialogKind
     data object About : DialogKind
@@ -433,7 +435,7 @@ fun SysFileApp() {
                             if (encrypted) {
                                 dialog = DialogKind.ZipPassword(entry)
                             } else {
-                                overlay = Overlay.ArchiveView(entry.path)
+                                dialog = DialogKind.ArchiveActions(entry)
                             }
                         }
                     }
@@ -1002,6 +1004,31 @@ fun SysFileApp() {
                 title = { Text("SysFile") },
                 text = { Text(t.slogan + "\n\n" + t.version("1.0.0")) },
                 confirmButton = { TextButton(onClick = { dialog = null }) { Text(t.close) } }
+            )
+            is DialogKind.ArchiveActions -> ArchiveActionsDialog(
+                entry = d.entry,
+                folderName = ArchiveOps.archiveBaseName(d.entry.name),
+                onDismiss = { dialog = null },
+                onExtractHere = {
+                    dialog = null
+                    val f = d.entry.file
+                    runOp(t.extractDone) { ArchiveOps.extractToFolder(f, f.parentFile ?: f) }
+                },
+                onOpenArchive = {
+                    dialog = null
+                    overlay = Overlay.ArchiveView(d.entry.path)
+                },
+                onCustomPath = { dialog = DialogKind.PickExtractFolder(d.entry) }
+            )
+            is DialogKind.PickExtractFolder -> FolderPickerDialog(
+                startPath = d.entry.file.parent ?: d.entry.path,
+                title = t.extractCustom,
+                onPick = { picked ->
+                    dialog = null
+                    val f = d.entry.file
+                    runOp(t.extractDone) { ArchiveOps.extractToFolder(f, File(picked)) }
+                },
+                onCancel = { dialog = null }
             )
             is DialogKind.ApkActions -> ApkActionsDialog(
                 entry = d.entry,

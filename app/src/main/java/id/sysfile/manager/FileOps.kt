@@ -747,6 +747,30 @@ object ArchiveOps {
         return result
     }
 
+    /** Nama folder hasil "Ekstrak Di Sini": nama arsip tanpa akhiran arsipnya. */
+    fun archiveBaseName(name: String): String {
+        val lower = name.lowercase()
+        val suffixes = listOf(
+            ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz",
+            ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz",
+            ".apk", ".apks", ".xapk"
+        )
+        for (suffix in suffixes) {
+            if (lower.endsWith(suffix)) {
+                val base = name.dropLast(suffix.length)
+                return base.ifBlank { name }
+            }
+        }
+        return name
+    }
+
+    /** Ekstrak arsip ke folder BARU bernama seperti arsip di dalam [destParent]. */
+    fun extractToFolder(file: File, destParent: File): Boolean {
+        val dir = File(destParent, FileOps.uniqueName(destParent, archiveBaseName(file.name)))
+        if (!dir.mkdirs() && !dir.isDirectory) return false
+        return extract(file, dir)
+    }
+
     /** Ekstrak SATU entri [entryName] dari arsip ke [destDir]; berkas hasil atau null. */
     fun extractSingle(file: File, entryName: String, destDir: File): File? {
         val base = entryName.substringAfterLast('/')
