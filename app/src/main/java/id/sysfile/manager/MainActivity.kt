@@ -387,7 +387,7 @@ fun SysFileApp() {
             return@LaunchedEffect
         }
         recentFiles = withContext(Dispatchers.IO) {
-            FileOps.recentFiles(roots.map { File(it.path) }, showHidden, lockedFolders)
+            FileOps.recentFiles(roots.map { File(it.path) }, showHidden, lockedFolders, limit = 60)
         }
     }
 
@@ -936,6 +936,7 @@ fun SysFileApp() {
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
+                                                    roots = roots,
                                                     accessGranted = accessGranted,
                                                     onOpenEntry = { entry ->
                                                         if (entry.isDir) {
@@ -943,6 +944,9 @@ fun SysFileApp() {
                                                         } else {
                                                             openEntry(entry)
                                                         }
+                                                    },
+                                                    onOpenFolder = { path ->
+                                                        openFolderGuarded(path) { browseStack = listOf(path) }
                                                     }
                                                 )
                                                 2 -> AnalysisScreen(

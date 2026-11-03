@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.RestoreFromTrash
@@ -142,15 +143,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 
 // Layar Terbaru, Kategori, Pencarian, dan Analisis penyimpanan.
 
-/** Tab File Terbaru: daftar berkas terbaru lintas volume (dulu seksi di Beranda). */
+/** Tab File Terbaru: berkas terbaru dikelompokkan per folder induk (varian Grup Folder). */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecentScreen(
     files: List<FEntry>,
+    roots: List<RootInfo>,
     accessGranted: Boolean,
-    onOpenEntry: (FEntry) -> Unit
+    onOpenEntry: (FEntry) -> Unit,
+    onOpenFolder: (String) -> Unit
 ) {
     val t = txt()
     if (!accessGranted) {
@@ -175,17 +182,93 @@ fun RecentScreen(
         }
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(files, key = { it.path }) { entry ->
-            FileRow(
-                entry = entry,
-                selectionMode = false,
-                isSelected = false,
-                itemCount = null,
-                onClick = { onOpenEntry(entry) },
-                onLongClick = {}
-            )
+    val groups = remember(files) {
+        files.groupBy { it.file.parentFile?.absolutePath ?: "" }
+            .entries
+            .map { (parent, items) -> parent to items.sortedByDescending { it.modified } }
+            .sortedByDescending { (_, items) -> items.firstOrNull()?.modified ?: 0L }
+    }
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        items(groups, key = { it.first }) { (parentPath, items) ->
+            val root = roots.firstOrNull { it.path == parentPath }
+            val parentName = root?.let { rootLabel(it, t) } ?: File(parentPath).name
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                            .clickable { onOpenFolder(parentPath) }
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Folder, null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            parentName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                        Icon(
+                            Icons.Default.ChevronRight, null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    items.forEach { entry ->
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                Modifier.clickable { onOpenEntry(entry) }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                FileThumbTile(entry, 48)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        entry.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        recentWhen(entry.modified, t) + " \u00b7 " + FileOps.formatSize(entry.size),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+/** Label waktu relatif untuk baris Terbaru: "Hari ini 14.45", "Kemarin 09.12", atau tanggal penuh. */
+private fun recentWhen(modified: Long, t: Txt): String {
+    val time = SimpleDateFormat("HH:mm", appLocale()).format(Date(modified))
+    val cal = Calendar.getInstance().apply { timeInMillis = modified }
+    val now = Calendar.getInstance()
+    fun sameDay(c: Calendar) =
+        cal.get(Calendar.YEAR) == c.get(Calendar.YEAR) &&
+            cal.get(Calendar.DAY_OF_YEAR) == c.get(Calendar.DAY_OF_YEAR)
+    return when {
+        sameDay(now) -> t.today + " " + time
+        sameDay((now.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }) ->
+            t.yesterday + " " + time
+        else -> SimpleDateFormat("dd MMM yyyy", appLocale()).format(Date(modified)) + " " + time
     }
 }
 
