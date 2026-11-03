@@ -172,7 +172,6 @@ private sealed interface DialogKind {
     data class PickExtractFolder(val entry: FEntry) : DialogKind
     data class ArchiveContents(val entry: FEntry, val items: List<Pair<String, Long>>) : DialogKind
     data object Sort : DialogKind
-    data object About : DialogKind
 }
 
 class MainActivity : FragmentActivity() {
@@ -204,6 +203,7 @@ fun SysFileApp() {
     var showFormats by remember { mutableStateOf(false) }
     var showTrash by remember { mutableStateOf(false) }
     var showApps by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -510,6 +510,7 @@ fun SysFileApp() {
     BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = showTrash) { showTrash = false }
     BackHandler(enabled = showApps) { showApps = false }
+    BackHandler(enabled = showAbout) { showAbout = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
@@ -522,6 +523,12 @@ fun SysFileApp() {
             FormatsScreen(onBack = { showFormats = false })
         } else if (showApps) {
             AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
+        } else if (showAbout) {
+            AboutScreen(
+                onBack = { showAbout = false },
+                onFormats = { showFormats = true },
+                onOpenAnalysis = { showAbout = false; showSettings = false; homeTab = 2 }
+            )
         } else if (showSettings) {
             SettingsScreen(
                 themeMode = themeMode,
@@ -552,7 +559,7 @@ fun SysFileApp() {
                 },
                 onFormats = { showFormats = true },
                 onApps = { showApps = true },
-                onAbout = { dialog = DialogKind.About },
+                onAbout = { showAbout = true },
                 onBack = { showSettings = false }
             )
         } else {
@@ -1147,12 +1154,6 @@ fun SysFileApp() {
                     prefs.edit().putString("sort_key", key.name).putBoolean("sort_asc", asc).apply()
                     dialog = null
                 }
-            )
-            is DialogKind.About -> AlertDialog(
-                onDismissRequest = { dialog = null },
-                title = { Text("SysFile") },
-                text = { Text(t.slogan + "\n\n" + t.version("1.0.0")) },
-                confirmButton = { TextButton(onClick = { dialog = null }) { Text(t.close) } }
             )
             is DialogKind.ArchiveActions -> ArchiveActionsDialog(
                 entry = d.entry,

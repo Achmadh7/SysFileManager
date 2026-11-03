@@ -33,6 +33,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -74,6 +76,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
@@ -491,5 +494,248 @@ fun FormatsScreen(onBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Layar Tentang (halaman penuh, menggantikan dialog Tentang lama)
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenAnalysis: () -> Unit) {
+    val t = txt()
+    val context = LocalContext.current
+    val internal = remember { FileOps.storageRoots(context).firstOrNull { it.kind == "internal" } }
+    var showSpec by remember { mutableStateOf(false) }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(t.about, fontWeight = FontWeight.ExtraBold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 24.dp)
+        ) {
+            item {
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Ubin ikon aplikasi (sama seperti bilah atas Beranda, lebih besar).
+                    Box(
+                        Modifier
+                            .size(84.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(Color(0xFF2E5A88)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Folder, null,
+                            tint = Color.White, modifier = Modifier.size(50.dp)
+                        )
+                        Icon(
+                            Icons.Default.ArrowUpward, null,
+                            tint = Color(0xFF2E5A88),
+                            modifier = Modifier.size(26.dp).offset(y = 6.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "SysFile",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Surface(shape = RoundedCornerShape(50), color = Color(0xFF2E5A88)) {
+                        Text(
+                            t.version("1.0.0"),
+                            Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        t.appTagline,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+            item {
+                AboutCard(
+                    icon = Icons.Default.Storage,
+                    color = Color(0xFF4DA3FF),
+                    title = t.storage,
+                    subtitle = internal?.let {
+                        t.storageUsedLine(formatSize(it.total - it.free), formatSize(it.total))
+                    } ?: "",
+                    onClick = onOpenAnalysis
+                )
+            }
+            item {
+                AboutCard(
+                    icon = Icons.Default.Archive,
+                    color = Color(0xFFFFB020),
+                    title = t.supportedFormats,
+                    subtitle = t.formatsSummary,
+                    onClick = onFormats
+                )
+            }
+            item {
+                AboutCard(
+                    icon = Icons.Default.Info,
+                    color = Color(0xFFB39DDB),
+                    title = t.appSpecs,
+                    subtitle = "Kotlin • Jetpack Compose • Material 3",
+                    onClick = { showSpec = true }
+                )
+            }
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    Row(
+                        Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF7ED957).copy(alpha = 0.16f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Person, null,
+                                tint = Color(0xFF7ED957), modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                t.developer,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Reffan Lintang",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Text(
+                    "© 2026 Reffan Lintang",
+                    Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+    }
+    if (showSpec) {
+        AlertDialog(
+            onDismissRequest = { showSpec = false },
+            title = { Text(t.appSpecs) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SpecRow(t.packageLabel, "id.sysfile.manager")
+                    SpecRow(t.versionLabel, "1.0.0")
+                    SpecRow(t.minAndroidLabel, "8.0 (API 26)")
+                    SpecRow(t.targetAndroidLabel, "14 (API 34)")
+                    SpecRow(
+                        t.technologyLabel,
+                        "Kotlin, Jetpack Compose, Material 3 Expressive, " +
+                            "Apache Commons Compress, Zip4j, Junrar"
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSpec = false }) { Text(t.close) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun AboutCard(
+    icon: ImageVector,
+    color: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        onClick = onClick
+    ) {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(color.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun SpecRow(label: String, value: String) {
+    Column {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
