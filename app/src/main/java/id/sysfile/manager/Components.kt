@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
@@ -406,6 +408,9 @@ fun GradientStorageCard(
     statusText: String,
     statusDot: Color,
     fraction: Float,
+    fsType: String? = null,
+    openLabel: String? = null,
+    icon: ImageVector = Icons.Default.Storage,
     onClick: () -> Unit
 ) {
     val frac = fraction.coerceIn(0f, 1f)
@@ -415,23 +420,53 @@ fun GradientStorageCard(
             .clickable { onClick() }
             .padding(20.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                label.uppercase(),
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.85f)
-            )
-            Text(
-                usedText,
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                detailText,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.92f)
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(52.dp).clip(RoundedCornerShape(14.dp))
+                        .background(Color.White.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                if (fsType != null) {
+                    Box(
+                        Modifier.clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.18f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(fsType, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (openLabel != null) {
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.18f))
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Text(openLabel, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            }
+            Column {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    usedText + " " + detailText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.85f)
+                )
+            }
             LinearWavyProgressIndicator(
                 progress = { frac },
                 modifier = Modifier.fillMaxWidth(),
@@ -440,30 +475,14 @@ fun GradientStorageCard(
             )
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    percentText,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.alignByBaseline()
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    usedWord,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.alignByBaseline()
+                    percentText + " " + usedWord,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.92f)
                 )
                 Spacer(Modifier.weight(1f))
-                Row(
-                    Modifier.clip(RoundedCornerShape(50))
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
-                    Spacer(Modifier.width(8.dp))
-                    Text(statusText, style = MaterialTheme.typography.labelLarge, color = Color.White)
-                }
+                Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
+                Spacer(Modifier.width(8.dp))
+                Text(statusText, style = MaterialTheme.typography.labelLarge, color = Color.White)
             }
         }
     }

@@ -944,7 +944,7 @@ fun AnalysisScreen(
                         label = t.storageAnalysis,
                         usedText = FileOps.formatSize(usedStorage),
                         detailText = t.ofTotal(FileOps.formatSize(totalStorage)) + " · " + t.items(totalFilesAll),
-                        percentText = (if (totalStorage > 0) usedStorage * 100 / totalStorage else 0).toString() + "%",
+                        percentText = String.format(appLocale(), "%.1f%%", if (totalStorage > 0) usedStorage * 100.0 / totalStorage else 0.0),
                         usedWord = t.usedWord,
                         statusText = statusText,
                         statusDot = statusDot,

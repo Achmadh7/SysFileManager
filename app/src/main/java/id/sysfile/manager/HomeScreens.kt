@@ -74,6 +74,7 @@ import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Usb
@@ -243,12 +244,15 @@ fun HomeScreen(
                             GradientStorageCard(
                                 label = rootLabel(root, t),
                                 usedText = FileOps.formatSize(root.total - root.free),
-                                detailText = t.ofTotal(FileOps.formatSize(root.total)) + " · " + t.free(FileOps.formatSize(root.free)),
-                                percentText = ((root.total - root.free) * 100 / root.total).toString() + "%",
+                                detailText = t.ofTotal(FileOps.formatSize(root.total)),
+                                percentText = String.format(appLocale(), "%.1f%%", (root.total - root.free) * 100.0 / root.total),
                                 usedWord = t.usedWord,
                                 statusText = statusText,
                                 statusDot = statusDot,
                                 fraction = (root.total - root.free).toFloat() / root.total.toFloat(),
+                                fsType = remember(root.path) { FileOps.fsType(root.path) },
+                                openLabel = t.openWord,
+                                icon = Icons.Default.Smartphone,
                                 onClick = { onOpenRoot(root.path) }
                             )
                         } else {

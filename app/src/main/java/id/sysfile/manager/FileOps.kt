@@ -157,6 +157,28 @@ object FileOps {
     }
 
     /** Semua volume penyimpanan yang bisa dijangkau aplikasi. */
+    /** Jenis sistem berkas volume dari /proc/mounts ("F2FS", "VFAT", ...); null bila tak diketahui. */
+    fun fsType(path: String): String? {
+        return try {
+            val target = if (path.startsWith("/storage/emulated")) "/data" else path
+            var best: String? = null
+            var bestLen = -1
+            for (line in File("/proc/mounts").readLines()) {
+                val parts = line.split(' ')
+                if (parts.size >= 3) {
+                    val mp = parts[1].replace("\\040", " ")
+                    if ((target == mp || target.startsWith("$mp/")) && mp.length > bestLen) {
+                        best = parts[2]
+                        bestLen = mp.length
+                    }
+                }
+            }
+            best?.uppercase()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun storageRoots(context: Context): List<RootInfo> {
         val roots = mutableListOf<RootInfo>()
         val internal = Environment.getExternalStorageDirectory()
