@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,12 +41,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -118,6 +126,27 @@ fun entryColor(entry: FEntry): Color {
     return categoryColor(entry.category)
 }
 
+/** Cache ikon APK agar daftar tidak mengurai ulang berkas yang sama. */
+private val apkIconCache = android.util.LruCache<String, android.graphics.Bitmap>(64)
+
+/** Ikon asli aplikasi dari berkas APK, dimuat di latar; null untuk non-APK atau gagal urai. */
+@Composable
+fun rememberApkIcon(entry: FEntry): android.graphics.Bitmap? {
+    val context = LocalContext.current
+    val key = entry.path + ":" + entry.modified
+    var icon by remember(key) { mutableStateOf(apkIconCache.get(key)) }
+    LaunchedEffect(key) {
+        if (icon == null && entry.category == Category.APP && !entry.isDir) {
+            val bmp = withContext(Dispatchers.IO) { FileOps.apkIcon(context, entry.file) }
+            if (bmp != null) {
+                apkIconCache.put(key, bmp)
+                icon = bmp
+            }
+        }
+    }
+    return icon
+}
+
 @Composable
 fun rememberThumbLoader(): ImageLoader {
     val context = LocalContext.current
@@ -162,7 +191,16 @@ fun FileThumb(entry: FEntry, sizeDp: Int) {
 @Composable
 fun FileThumbLarge(entry: FEntry) {
     val isMedia = (entry.category == Category.IMAGE || entry.category == Category.VIDEO) && !entry.isDir
-    if (isMedia) {
+    val apkIcon = rememberApkIcon(entry)
+    if (apkIcon != null) {
+        Image(
+            bitmap = apkIcon.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+    } else if (isMedia) {
         AsyncImage(
             model = File(entry.path),
             contentDescription = null,
@@ -264,7 +302,16 @@ fun FileRow(
 @Composable
 fun FileThumbTile(entry: FEntry, sizeDp: Int) {
     val isMedia = entry.category == Category.IMAGE || entry.category == Category.VIDEO
-    if (isMedia && !entry.isDir) {
+    val apkIcon = rememberApkIcon(entry)
+    if (apkIcon != null) {
+        Image(
+            bitmap = apkIcon.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+    } else if (isMedia && !entry.isDir) {
         AsyncImage(
             model = File(entry.path),
             contentDescription = null,
