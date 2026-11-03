@@ -59,6 +59,8 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
@@ -342,6 +344,141 @@ private fun ArchiveItemRow(item: ArchiveItem, count: Int?, onClick: () -> Unit) 
  * Folder di dalam arsip bisa dimasuki; mengetuk berkas mengekstrak berkas itu
  * saja lalu membukanya; tombol Ekstrak Semua mengekstrak seluruh isi.
  */
+
+/**
+ * Layar Tempat Sampah: berkas yang dihapus (dipindah ke .SysFileTrash) bisa
+ * dipulihkan ke jalur asalnya atau dihapus permanen; ada juga Kosongkan.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TrashScreen(onBack: () -> Unit, notify: (String) -> Unit) {
+    val t = txt()
+    val scope = rememberCoroutineScope()
+    var items by remember { mutableStateOf<List<TrashItem>?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var reloadTick by remember { mutableStateOf(0) }
+    var confirmEmpty by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf<TrashItem?>(null) }
+    LaunchedEffect(reloadTick) {
+        items = withContext(Dispatchers.IO) { TrashOps.listTrash() }
+    }
+    fun runAction(successMsg: String, block: () -> Boolean) {
+        busy = true
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) { block() }
+            busy = false
+            if (ok) {
+                notify(successMsg)
+                reloadTick++
+            } else {
+                notify(t.opFailed)
+            }
+        }
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(t.trash) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
+                actions = {
+                    if (!items.isNullOrEmpty()) {
+                        TextButton(enabled = !busy, onClick = { confirmEmpty = true }) { Text(t.emptyTrash) }
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        val loaded = items
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when {
+                loaded == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                loaded.isEmpty() -> Text(
+                    t.trashEmpty,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                else -> LazyColumn(Modifier.fillMaxSize()) {
+                    items(loaded, key = { it.trashName }) { item ->
+                        TrashItemRow(
+                            item = item,
+                            busy = busy,
+                            onRestore = { runAction(t.restoredDone) { TrashOps.restore(item) } },
+                            onDelete = { confirmDelete = item }
+                        )
+                    }
+                }
+            }
+        }
+    }
+    if (confirmEmpty) {
+        AlertDialog(
+            onDismissRequest = { confirmEmpty = false },
+            title = { Text(t.emptyTrash) },
+            text = { Text(t.emptyTrashConfirm) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmEmpty = false
+                    runAction(t.deletedDone) { TrashOps.emptyTrash() }
+                }) { Text(t.deleteForever) }
+            },
+            dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text(t.cancel) } }
+        )
+    }
+    confirmDelete?.let { item ->
+        AlertDialog(
+            onDismissRequest = { confirmDelete = null },
+            title = { Text(t.deleteForever) },
+            text = { Text(t.deleteForeverConfirm(item.name)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = null
+                    runAction(t.deletedDone) { TrashOps.deleteForever(item) }
+                }) { Text(t.deleteForever) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(t.cancel) } }
+        )
+    }
+}
+
+@Composable
+private fun TrashItemRow(item: TrashItem, busy: Boolean, onRestore: () -> Unit, onDelete: () -> Unit) {
+    val t = txt()
+    val category = if (item.isDir) Category.OTHER else FileOps.categoryOf(item.name)
+    val color = entryColor(
+        FEntry(item.file.absolutePath, item.name, item.isDir, if (item.size < 0L) 0L else item.size, item.deletedAt, category)
+    )
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(46.dp).clip(CircleShape).background(color.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (item.isDir) Icons.Default.Folder else categoryIcon(category, item.name),
+                null,
+                tint = color,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(item.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val parent = File(item.originalPath).parent ?: item.originalPath
+            Text(parent, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val date = java.text.DateFormat.getDateTimeInstance(
+                java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, appLocale()
+            ).format(java.util.Date(item.deletedAt))
+            val sub = if (item.size >= 0L) date + " • " + FileOps.formatSize(item.size) else date
+            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(enabled = !busy, onClick = onRestore) { Icon(Icons.Default.RestoreFromTrash, t.restore) }
+        IconButton(enabled = !busy, onClick = onDelete) { Icon(Icons.Default.DeleteForever, t.deleteForever) }
+    }
+}
+
 /**
  * Layar isi payload.bin: daftar partisi di dalamnya, dibuka TANPA mengekstrak.
  * "Ekstrak Semua" mengekstrak semua partisi ke folder "payload"; mengetuk satu

@@ -56,6 +56,8 @@ data class AnalysisResult(
  * dispatcher latar oleh UI. Tidak ada status global di sini.
  */
 object FileOps {
+    /** Nama folder Tempat Sampah di akar penyimpanan internal; selalu dikecualikan dari pemindaian. */
+    const val TRASH_DIR_NAME = ".SysFileTrash"
 
     private val IMAGE_EXT = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "svg", "avif")
     private val VIDEO_EXT = setOf("mp4", "mkv", "avi", "mov", "webm", "3gp", "m4v", "wmv")
@@ -374,7 +376,7 @@ data class ApkInfo(
         if (q.isEmpty() || !root.isDirectory) return emptyList()
         val results = mutableListOf<FEntry>()
         root.walkTopDown()
-            .onEnter { dir -> showHidden || !dir.name.startsWith(".") || dir == root }
+            .onEnter { dir -> dir.name != TRASH_DIR_NAME && (showHidden || !dir.name.startsWith(".") || dir == root) }
             .forEach { f ->
                 if (results.size >= limit) return results
                 if (f == root) return@forEach
@@ -391,7 +393,7 @@ data class ApkInfo(
         for (root in roots) {
             if (!root.isDirectory || visited >= cap) continue
             root.walkTopDown()
-                .onEnter { dir -> dir.canRead() && (showHidden || !dir.name.startsWith(".") || dir == root) }
+                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && (showHidden || !dir.name.startsWith(".") || dir == root) }
                 .forEach { f ->
                     if (visited >= cap) return@forEach
                     if (f.isFile) {
@@ -410,7 +412,7 @@ data class ApkInfo(
         for (root in roots) {
             if (!root.isDirectory || visited >= cap) continue
             root.walkTopDown()
-                .onEnter { dir -> dir.canRead() && (showHidden || !dir.name.startsWith(".") || dir == root) }
+                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && (showHidden || !dir.name.startsWith(".") || dir == root) }
                 .forEach { f ->
                     if (visited >= cap) return@forEach
                     if (f.isFile) {
@@ -488,7 +490,7 @@ data class ApkInfo(
         val largest = mutableListOf<FEntry>()
         var total = 0
         root.walkTopDown()
-            .onEnter { dir -> dir.canRead() }
+            .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME }
             .forEach { f ->
                 if (!f.isFile) return@forEach
                 total++

@@ -198,6 +198,7 @@ fun SysFileApp() {
     var homeTab by remember { mutableStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
     var showFormats by remember { mutableStateOf(false) }
+    var showTrash by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -465,13 +466,16 @@ fun SysFileApp() {
     BackHandler(enabled = !showSettings && overlay != null) { overlay = null }
     BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab != 0) { homeTab = 0 }
     BackHandler(enabled = showFormats) { showFormats = false }
+    BackHandler(enabled = showTrash) { showTrash = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
     }
 
     SysFileTheme(themeMode, dynamicColor) {
-        if (showFormats) {
+        if (showTrash) {
+            TrashScreen(onBack = { showTrash = false }, notify = { notify(it) })
+        } else if (showFormats) {
             FormatsScreen(onBack = { showFormats = false })
         } else if (showSettings) {
             SettingsScreen(
@@ -502,6 +506,7 @@ fun SysFileApp() {
                     prefs.edit().putBoolean("root_entry", v).apply()
                 },
                 onFormats = { showFormats = true },
+                onTrash = { showTrash = true },
                 onAbout = { dialog = DialogKind.About },
                 onBack = { showSettings = false }
             )
@@ -977,8 +982,8 @@ fun SysFileApp() {
                 confirmButton = {
                     TextButton(onClick = {
                         dialog = null
-                        runOp(t.deletedDone) {
-                            d.entries.all { FileOps.deleteRecursively(it.file) }
+                        runOp(t.movedToTrash) {
+                            d.entries.all { TrashOps.moveToTrash(it.file) }
                         }
                         val viewing = overlay as? Overlay.ImageView
                         if (viewing != null && d.entries.any { it.path == viewing.path }) {
