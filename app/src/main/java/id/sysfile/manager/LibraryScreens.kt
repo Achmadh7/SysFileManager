@@ -108,7 +108,9 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -883,23 +885,56 @@ fun AnalysisScreen(
             displayRoots.forEach { root ->
                 val res = results[root.path]
                 item(key = "root-" + root.path) {
-                    SectionCard(
-                        icon = when (root.kind) {
-                            "sd" -> Icons.Default.SdStorage
-                            "usb" -> Icons.Default.Usb
-                            else -> Icons.Default.Storage
-                        },
-                        title = rootLabel(root, t)
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Surface(shape = RoundedCornerShape(24.dp), color = Color(0xFF2E5A88)) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    when (root.kind) {
+                                        "sd" -> Icons.Default.SdStorage
+                                        "usb" -> Icons.Default.Usb
+                                        else -> Icons.Default.Storage
+                                    },
+                                    null, tint = Color.White, modifier = Modifier.size(26.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        rootLabel(root, t),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        if (res != null) {
+                                            t.items(res.totalFiles) + " \u00b7 " +
+                                                FileOps.formatSize(res.byCategory.values.sum())
+                                        } else {
+                                            t.scanning
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFFC8DCF5)
+                                    )
+                                }
+                            }
+                        }
                         if (res == null) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                LoadingIndicator(Modifier.size(30.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text(if (scanningPath == root.path) t.scanning else t.scanFailed)
+                            Surface(
+                                shape = RoundedCornerShape(22.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    LoadingIndicator(Modifier.size(30.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(if (scanningPath == root.path) t.scanning else t.scanFailed)
+                                }
                             }
                         } else {
-                            Text(t.items(res.totalFiles), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            val totalCat = res.byCategory.values.sum().coerceAtLeast(1)
                             val labels = mapOf(
                                 Category.IMAGE to t.catImages,
                                 Category.VIDEO to t.catVideos,
@@ -909,37 +944,95 @@ fun AnalysisScreen(
                                 Category.ARCHIVE to t.catArchives,
                                 Category.OTHER to t.catOther
                             )
+                            val maxCat = (res.byCategory.values.maxOrNull() ?: 1).coerceAtLeast(1)
                             res.byCategory.entries.sortedByDescending { it.value }.forEach { (cat, size) ->
-                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(categoryIcon(cat, ""), null, tint = categoryColor(cat), modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(labels[cat] ?: cat.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                                        Text(FileOps.formatSize(size), style = MaterialTheme.typography.bodyMedium)
+                                Surface(
+                                    shape = RoundedCornerShape(22.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                ) {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            Modifier.size(54.dp).clip(RoundedCornerShape(16.dp))
+                                                .background(categoryColor(cat).copy(alpha = 0.16f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                categoryIcon(cat, ""), null,
+                                                tint = categoryColor(cat),
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    labels[cat] ?: cat.name,
+                                                    Modifier.weight(1f),
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1
+                                                )
+                                                Text(
+                                                    FileOps.formatSize(size),
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            Spacer(Modifier.height(7.dp))
+                                            LinearProgressIndicator(
+                                                progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                color = categoryColor(cat),
+                                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                            )
+                                        }
                                     }
-                                    LinearWavyProgressIndicator(
-                                        progress = { (size.toFloat() / totalCat.toFloat()).coerceIn(0f, 1f) },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
                                 }
                             }
                             if (res.largest.isNotEmpty()) {
-                                Text(t.largestFiles, style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    t.largestFiles,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(start = 4.dp, top = 6.dp)
+                                )
                                 val shownLargest = if (expandedLargest.contains(root.path)) res.largest else res.largest.take(5)
                                 shownLargest.forEach { entry ->
-                                    Row(
-                                        Modifier.fillMaxWidth()
-                                            .clickable { onOpenFile(entry) }
-                                            .padding(vertical = 5.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Surface(
+                                        shape = RoundedCornerShape(22.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh
                                     ) {
-                                        FileThumb(entry, 36)
-                                        Spacer(Modifier.width(10.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text(entry.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text(entry.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Row(
+                                            Modifier.fillMaxWidth()
+                                                .clickable { onOpenFile(entry) }
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            FileThumbTile(entry, 48)
+                                            Spacer(Modifier.width(12.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(
+                                                    entry.name,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    entry.path,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            Spacer(Modifier.width(10.dp))
+                                            Text(
+                                                FileOps.formatSize(entry.size),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Bold
+                                            )
                                         }
-                                        Text(FileOps.formatSize(entry.size), style = MaterialTheme.typography.bodyMedium)
                                     }
                                 }
                                 if (res.largest.size > 5) {
