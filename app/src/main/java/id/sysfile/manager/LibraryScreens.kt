@@ -354,7 +354,7 @@ private fun ArchiveItemRow(item: ArchiveItem, count: Int?, onClick: () -> Unit) 
  * Layar Tempat Sampah: berkas yang dihapus (dipindah ke .SysFileTrash) bisa
  * dipulihkan ke jalur asalnya atau dihapus permanen; ada juga Kosongkan.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TrashScreen(onBack: () -> Unit, notify: (String) -> Unit) {
     val t = txt()
