@@ -16,7 +16,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -337,12 +336,12 @@ fun SelectionBar(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PillIconAction(Icons.Default.ContentCopy, t.copy, onCopy)
-                PillExtractAction(canExtract, t.extract, onExtract)
-                PillIconAction(Icons.Default.Archive, t.compress, onCompress)
-                PillIconAction(Icons.Default.Delete, t.delete, onDelete)
+                PillMicroAction(Icons.Default.ContentCopy, t.copy, onCopy)
+                PillExtractAction(canExtract, t.extractShort, onExtract)
+                PillMicroAction(Icons.Default.Archive, t.compressShort, onCompress)
+                PillMicroAction(Icons.Default.Delete, t.delete, onDelete)
                 Box {
-                    PillIconAction(Icons.Default.MoreVert, t.more, { menuOpen = true })
+                    PillMicroAction(Icons.Default.MoreVert, t.more, { menuOpen = true })
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text(t.cut) },
@@ -387,17 +386,26 @@ fun SelectionBar(
     }
 }
 
-/** Aksi ikon-saja di pill seleksi (varian Ekspansi Aktif). */
+/** Aksi berlabel mikro di pill seleksi: ikon dengan label kecil di bawahnya. */
 @Composable
-private fun PillIconAction(icon: ImageVector, label: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(icon, label, modifier = Modifier.size(24.dp))
+private fun PillMicroAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 11.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Icon(icon, label, modifier = Modifier.size(22.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
     }
 }
 
 /**
- * Aksi Ekstrak di pill seleksi: melebar jadi segmen berlabel slate saat pilihan
- * berisi arsip; selain itu ikon saja dalam keadaan nonaktif.
+ * Aksi Ekstrak di pill seleksi: segmen slate berlabel mikro saat pilihan berisi
+ * arsip; selain itu polos dan nonaktif. Labelnya pendek ("Ekstrak") sesuai
+ * varian Label Mikro — teks panjang "Ekstrak di Sini" tidak dipakai di sini.
  */
 @Composable
 private fun PillExtractAction(enabled: Boolean, label: String, onClick: () -> Unit) {
@@ -410,19 +418,16 @@ private fun PillExtractAction(enabled: Boolean, label: String, onClick: () -> Un
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
     }
-    Surface(shape = RoundedCornerShape(50), color = bg, contentColor = fg) {
-        Row(
+    Surface(shape = RoundedCornerShape(18.dp), color = bg, contentColor = fg) {
+        Column(
             Modifier
                 .clickable(enabled = enabled) { onClick() }
-                .animateContentSize()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 13.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Icon(Icons.Default.Unarchive, label, modifier = Modifier.size(22.dp))
-            if (enabled) {
-                Spacer(Modifier.width(8.dp))
-                Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
-            }
+            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
     }
 }
