@@ -513,7 +513,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenAnalysis: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenStorage: () -> Unit) {
     val t = txt()
     val context = LocalContext.current
     val internal = remember { FileOps.storageRoots(context).firstOrNull { it.kind == "internal" } }
@@ -593,7 +593,7 @@ fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenAnalysis: () ->
                     subtitle = internal?.let {
                         t.storageUsedLine(FileOps.formatSize(it.total - it.free), FileOps.formatSize(it.total))
                     } ?: "",
-                    onClick = onOpenAnalysis
+                    onClick = onOpenStorage
                 )
             }
             item {

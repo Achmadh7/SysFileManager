@@ -510,7 +510,7 @@ fun SysFileApp() {
     BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = showTrash) { showTrash = false }
     BackHandler(enabled = showApps) { showApps = false }
-    BackHandler(enabled = showAbout) { showAbout = false }
+    BackHandler(enabled = showAbout && !showFormats) { showAbout = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
@@ -527,7 +527,14 @@ fun SysFileApp() {
             AboutScreen(
                 onBack = { showAbout = false },
                 onFormats = { showFormats = true },
-                onOpenAnalysis = { showAbout = false; showSettings = false; homeTab = 2 }
+                onOpenStorage = {
+                    showAbout = false
+                    showSettings = false
+                    homeTab = 0
+                    val root = FileOps.storageRoots(context)
+                        .firstOrNull { it.kind == "internal" }?.path
+                    if (root != null) openFolderGuarded(root) { browseStack = listOf(root) }
+                }
             )
         } else if (showSettings) {
             SettingsScreen(
