@@ -16,6 +16,7 @@ import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -308,90 +311,124 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
     actionApp?.let { app ->
         AlertDialog(
             onDismissRequest = { actionApp = null },
-            title = { Text(app.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val bmp = app.icon
+                    if (bmp != null) {
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Apps, null,
+                            modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(app.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "v" + app.versionName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
             text = {
                 Column {
-                    ListItem(
-                        headlineContent = { Text(t.appOpen) },
-                        leadingContent = { Icon(Icons.Default.PlayArrow, null) },
-                        modifier = Modifier.clickable {
-                            actionApp = null
-                            val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
-                            if (intent != null) {
-                                try {
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    notify(t.opFailed)
-                                }
-                            } else {
-                                notify(t.opFailed)
-                            }
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    Text(
+                        app.packageName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    ListItem(
-                        headlineContent = { Text(t.appCopyApk) },
-                        leadingContent = { Icon(Icons.Default.ContentCopy, null) },
-                        modifier = Modifier.clickable {
-                            actionApp = null
-                            copyTarget = app
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
-                    ListItem(
-                        headlineContent = { Text(t.appShareApk) },
-                        leadingContent = { Icon(Icons.Default.Share, null) },
-                        modifier = Modifier.clickable {
-                            actionApp = null
-                            scope.launch {
-                                val staged = withContext(Dispatchers.IO) {
-                                    try {
-                                        val dir = File(context.cacheDir, "apkshare").apply { mkdirs() }
-                                        val out = File(dir, app.packageName + ".apk")
-                                        File(app.apkPath).copyTo(out, overwrite = true)
-                                        out
-                                    } catch (e: Exception) {
-                                        null
-                                    }
-                                }
-                                if (staged == null) {
-                                    notify(t.opFailed)
-                                } else {
-                                    try {
-                                        val uri = FileProvider.getUriForFile(
-                                            context, context.packageName + ".fileprovider", staged
-                                        )
-                                        val intent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "application/vnd.android.package-archive"
-                                            putExtra(Intent.EXTRA_STREAM, uri)
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        context.startActivity(Intent.createChooser(intent, t.share))
-                                    } catch (e: Exception) {
-                                        notify(t.opFailed)
-                                    }
-                                }
-                            }
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
-                    ListItem(
-                        headlineContent = { Text(t.appInfo) },
-                        leadingContent = { Icon(Icons.Default.Info, null) },
-                        modifier = Modifier.clickable {
-                            actionApp = null
-                            try {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.parse("package:" + app.packageName)
-                                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (app.totalSize != null) {
+                            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                                Text(
+                                    t.totalWord + " " + FileOps.formatSize(app.totalSize),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 )
+                            }
+                        }
+                        Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                            Text(
+                                "APK " + FileOps.formatSize(app.apkSize),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                    AppActionRow(Icons.Default.PlayArrow, t.appOpen, t.appOpenDesc) {
+                        actionApp = null
+                        val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
+                        if (intent != null) {
+                            try {
+                                context.startActivity(intent)
                             } catch (e: Exception) {
                                 notify(t.opFailed)
                             }
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
+                        } else {
+                            notify(t.opFailed)
+                        }
+                    }
+                    AppActionRow(Icons.Default.ContentCopy, t.appCopyApk, t.appCopyDesc) {
+                        actionApp = null
+                        copyTarget = app
+                    }
+                    AppActionRow(Icons.Default.Share, t.appShareApk, t.appShareDesc) {
+                        actionApp = null
+                        scope.launch {
+                            val staged = withContext(Dispatchers.IO) {
+                                try {
+                                    val dir = File(context.cacheDir, "apkshare").apply { mkdirs() }
+                                    val out = File(dir, app.packageName + ".apk")
+                                    File(app.apkPath).copyTo(out, overwrite = true)
+                                    out
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                            if (staged == null) {
+                                notify(t.opFailed)
+                            } else {
+                                try {
+                                    val uri = FileProvider.getUriForFile(
+                                        context, context.packageName + ".fileprovider", staged
+                                    )
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/vnd.android.package-archive"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, t.share))
+                                } catch (e: Exception) {
+                                    notify(t.opFailed)
+                                }
+                            }
+                        }
+                    }
+                    AppActionRow(Icons.Default.Info, t.appInfo, t.appInfoDesc) {
+                        actionApp = null
+                        try {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.parse("package:" + app.packageName)
+                                }
+                            )
+                        } catch (e: Exception) {
+                            notify(t.opFailed)
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -414,4 +451,21 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
             onCancel = { copyTarget = null }
         )
     }
+}
+
+/** Satu baris aksi di dialog aplikasi: ikon + label + keterangan singkat. */
+@Composable
+private fun AppActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    desc: String,
+    onClick: () -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(label) },
+        supportingContent = { Text(desc) },
+        leadingContent = { Icon(icon, null) },
+        modifier = Modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 }
