@@ -260,32 +260,47 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(visible, key = { it.packageName }) { app ->
-                        ListItem(
-                            headlineContent = {
-                                Text(app.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            },
-                            supportingContent = {
-                                Text(
-                                    listOfNotNull(
-                                        app.versionName.takeIf { it.isNotEmpty() }?.let { "v$it" },
-                                        app.packageName
-                                    ).joinToString(" · "),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            },
-                            leadingContent = {
+                        Surface(
+                            shape = RoundedCornerShape(22.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 5.dp)
+                                .clickable { actionApp = app }
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 if (app.icon != null) {
                                     Image(
                                         bitmap = app.icon.asImageBitmap(),
                                         contentDescription = null,
-                                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
+                                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
                                     )
                                 } else {
-                                    Icon(Icons.Default.Info, null, Modifier.size(44.dp))
+                                    Icon(Icons.Default.Info, null, Modifier.size(48.dp))
                                 }
-                            },
-                            trailingContent = {
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        app.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        listOfNotNull(
+                                            app.versionName.takeIf { it.isNotEmpty() }?.let { "v$it" },
+                                            app.packageName
+                                        ).joinToString(" · "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
                                         FileOps.formatSize(app.totalSize ?: app.apkSize),
@@ -300,10 +315,8 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                         )
                                     }
                                 }
-                            },
-                            modifier = Modifier.clickable { actionApp = app },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                        )
+                            }
+                        }
                     }
                 }
             }
