@@ -166,7 +166,6 @@ fun SettingsScreen(
     onDynamicColor: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
     onFormats: () -> Unit,
-    onTrash: () -> Unit,
     onApps: () -> Unit,
     onAbout: () -> Unit,
     onBack: () -> Unit
@@ -228,19 +227,6 @@ fun SettingsScreen(
                     circleColor = Color(0xFFF06292),
                     title = t.showHidden,
                     trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
-                )
-            }
-            item {
-                var trashCount by remember { mutableStateOf<Int?>(null) }
-                LaunchedEffect(Unit) {
-                    trashCount = withContext(Dispatchers.IO) { TrashOps.listTrash().size }
-                }
-                SettingsRow(
-                    icon = Icons.Default.Delete,
-                    circleColor = Color(0xFFEF5350),
-                    title = t.trash,
-                    subtitle = trashCount?.takeIf { it > 0 }?.let { t.items(it) },
-                    onClick = onTrash
                 )
             }
             item { SettingsSectionLabel(t.otherSection, topPadding = 22.dp) }

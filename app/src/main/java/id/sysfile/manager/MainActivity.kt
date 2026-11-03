@@ -551,7 +551,6 @@ fun SysFileApp() {
                     prefs.edit().putBoolean("root_entry", v).apply()
                 },
                 onFormats = { showFormats = true },
-                onTrash = { showTrash = true },
                 onApps = { showApps = true },
                 onAbout = { dialog = DialogKind.About },
                 onBack = { showSettings = false }
@@ -1009,7 +1008,8 @@ fun SysFileApp() {
                                                     rootActive = rootActive,
                                                     onRequestAccess = { requestAccess() },
                                                     onOpenRoot = { browseStack = listOf(it) },
-                                                    onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) }
+                                                    onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
+                                                    onOpenTrash = { showTrash = true }
                                                 )
                                             }
                                         }

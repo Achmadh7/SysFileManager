@@ -165,6 +165,7 @@ fun HomeScreen(
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
+    onOpenTrash: () -> Unit,
 ) {
     val t = txt()
     LazyColumn(
@@ -306,7 +307,34 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        repeat(2 - rowCats.size) { Spacer(Modifier.weight(1f)) }
+                        if (rowCats.size == 1) {
+                            val trashColor = Color(0xFFEF5350)
+                            Row(
+                                Modifier.weight(1f).height(76.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(trashColor.copy(alpha = 0.15f))
+                                    .clickable { onOpenTrash() }
+                                    .padding(horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier.size(44.dp).clip(CircleShape).background(trashColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(23.dp))
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    t.trash,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        } else {
+                            repeat(2 - rowCats.size) { Spacer(Modifier.weight(1f)) }
+                        }
                     }
                 }
             }
