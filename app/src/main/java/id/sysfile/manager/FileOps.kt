@@ -196,6 +196,43 @@ data class ApkInfo(
         return total
     }
 
+    /** Statistik isi folder untuk Properti lengkap: total ukuran, jumlah berkas dan
+     *  subfolder (rekursif), serta berkas terbesar di dalamnya. */
+    data class FolderStats(
+        val totalSize: Long,
+        val fileCount: Int,
+        val dirCount: Int,
+        val largestName: String?,
+        val largestSize: Long
+    )
+
+    fun folderStats(dir: File): FolderStats {
+        var total = 0L
+        var files = 0
+        var dirs = 0
+        var largestName: String? = null
+        var largestSize = 0L
+        if (!dir.isDirectory) return FolderStats(0L, 0, 0, null, 0L)
+        dir.walkTopDown()
+            .onEnter { it.name != TRASH_DIR_NAME || it == dir }
+            .forEach { f ->
+                when {
+                    f == dir -> Unit
+                    f.isDirectory -> dirs++
+                    f.isFile -> {
+                        files++
+                        val len = f.length()
+                        total += len
+                        if (len > largestSize) {
+                            largestSize = len
+                            largestName = f.name
+                        }
+                    }
+                }
+            }
+        return FolderStats(total, files, dirs, largestName, largestSize)
+    }
+
     /** Nama unik di dalam folder tujuan: "nama (1).ext", "nama (2).ext", dst. */
     fun uniqueName(dir: File, name: String): String {
         if (!File(dir, name).exists()) return name

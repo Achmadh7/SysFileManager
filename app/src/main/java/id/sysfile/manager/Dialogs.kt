@@ -22,6 +22,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -185,17 +187,17 @@ fun NameDialog(
 fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
     val t = txt()
     val clipboard = LocalClipboardManager.current
-    var dirSize by remember { mutableStateOf<Long?>(if (entry.isDir) null else entry.size) }
+    var stats by remember { mutableStateOf<FileOps.FolderStats?>(null) }
     LaunchedEffect(entry.path) {
         if (entry.isDir) {
-            dirSize = withContext(Dispatchers.IO) { FileOps.sizeOf(entry.file) }
+            stats = withContext(Dispatchers.IO) { FileOps.folderStats(entry.file) }
         }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 ListItem(
                     headlineContent = { Text(if (entry.isDir) t.propFolder else t.propFile) },
                     leadingContent = {
@@ -219,10 +221,42 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                 )
                 ListItem(
                     headlineContent = { Text(t.propSize) },
-                    supportingContent = { Text(dirSize?.let { FileOps.formatSize(it) } ?: "…") },
+                    supportingContent = {
+                        Text(
+                            if (entry.isDir) {
+                                stats?.let { FileOps.formatSize(it.totalSize) } ?: "…"
+                            } else {
+                                FileOps.formatSize(entry.size)
+                            }
+                        )
+                    },
                     leadingContent = { Icon(Icons.Default.Storage, null) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
+                if (entry.isDir) {
+                    ListItem(
+                        headlineContent = { Text(t.propFileCount) },
+                        supportingContent = { Text(stats?.fileCount?.toString() ?: "…") },
+                        leadingContent = { Icon(Icons.Default.Description, null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                    ListItem(
+                        headlineContent = { Text(t.propFolderCount) },
+                        supportingContent = { Text(stats?.dirCount?.toString() ?: "…") },
+                        leadingContent = { Icon(Icons.Default.Folder, null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                    if (stats?.largestName != null) {
+                        ListItem(
+                            headlineContent = { Text(t.propLargest) },
+                            supportingContent = {
+                                Text(stats!!.largestName + " · " + FileOps.formatSize(stats!!.largestSize))
+                            },
+                            leadingContent = { Icon(Icons.Default.Star, null) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                    }
+                }
                 if (!entry.isDir) {
                     var sums by remember(entry.path) { mutableStateOf<Pair<String, String>?>(null) }
                     var computing by remember(entry.path) { mutableStateOf(false) }

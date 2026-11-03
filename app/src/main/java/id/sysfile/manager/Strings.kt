@@ -183,7 +183,10 @@ class Txt(
     val payloadUnsupported: String,
     val payloadInvalid: String,
     val fileSection: String,
-    val otherSection: String
+    val otherSection: String,
+    val propFileCount: String,
+    val propFolderCount: String,
+    val propLargest: String
 )
 
 val TxtId = Txt(
@@ -366,7 +369,10 @@ val TxtId = Txt(
     payloadUnsupported = "Payload delta/parsial tidak didukung; gunakan payload OTA penuh.",
     payloadInvalid = "Berkas payload.bin tidak valid.",
     fileSection = "Berkas",
-    otherSection = "Lainnya"
+    otherSection = "Lainnya",
+    propFileCount = "Berkas di dalamnya",
+    propFolderCount = "Folder di dalamnya",
+    propLargest = "Isi terbesar"
 )
 
 val TxtEn = Txt(
@@ -549,7 +555,10 @@ val TxtEn = Txt(
     payloadUnsupported = "Delta/partial payloads are not supported; use a full OTA payload.",
     payloadInvalid = "Not a valid payload.bin file.",
     fileSection = "Files",
-    otherSection = "Other"
+    otherSection = "Other",
+    propFileCount = "Files inside",
+    propFolderCount = "Folders inside",
+    propLargest = "Largest item"
 )
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */
