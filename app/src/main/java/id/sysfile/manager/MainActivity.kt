@@ -400,11 +400,16 @@ fun SysFileApp() {
                     ?: FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
             } else {
                 // Folder penyimpanan yang dikunci sistem (mis. Android/data,
-                // Android/obb): jalur berkas biasa gagal, jadi coba shell
-                // root bila akses root sudah diberikan; bila belum, null
-                // seperti biasa dan UI menawarkan akses SAF.
+                // Android/obb): jalur berkas biasa gagal. Bila fitur root
+                // aktif, minta/pakai akses root lalu baca lewat shell —
+                // status root di-cache per sesi, jadi prompt su hanya muncul
+                // sekali dan tidak harus memanaskan akses lewat volume Root
+                // dulu. Tanpa fitur root, null seperti biasa dan UI
+                // menawarkan akses SAF.
                 FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
-                    ?: if (RootShell.state == RootShell.GRANTED) {
+                    ?: if (showRootEntry &&
+                        (RootShell.state == RootShell.GRANTED || RootShell.ensureRoot())
+                    ) {
                         RootShell.listDir(File(path), showHidden, sortKey, sortAsc)
                     } else {
                         null
@@ -426,6 +431,14 @@ fun SysFileApp() {
             if (missing.isNotEmpty()) {
                 // Hitungan isi folder dihitung paralel, bukan satu per satu.
                 val fresh = withContext(Dispatchers.IO) {
+                    // Siapkan akses root sekali di depan (bila fitur root
+                    // aktif) agar hitungan folder terkunci tidak berlomba
+                    // memicu prompt su dari banyak async sekaligus.
+                    if (showRootEntry && RootShell.state == RootShell.UNKNOWN &&
+                        missing.any { it.file.listFiles() == null }
+                    ) {
+                        RootShell.ensureRoot()
+                    }
                     coroutineScope {
                         missing.map { entry ->
                             async {
