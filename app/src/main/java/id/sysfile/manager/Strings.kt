@@ -193,7 +193,20 @@ class Txt(
     val unlockPrompt: (String) -> String,
     val unlockFailed: String,
     val folderLockedDone: String,
-    val folderUnlockedDone: String
+    val folderUnlockedDone: String,
+    val appsTitle: String,
+    val appsUser: String,
+    val appsSystem: String,
+    val appOpen: String,
+    val appCopyApk: String,
+    val appShareApk: String,
+    val appInfo: String,
+    val appChooseFolder: String,
+    val appCopiedDone: String,
+    val usageAccessTitle: String,
+    val usageAccessBody: String,
+    val usageAccessButton: String,
+    val appsEmpty: String
 )
 
 val TxtId = Txt(
@@ -386,7 +399,20 @@ val TxtId = Txt(
     unlockPrompt = { name -> "Buka \"$name\" dengan sidik jari atau PIN layar kunci." },
     unlockFailed = "Gagal membuka kunci folder.",
     folderLockedDone = "Folder dikunci.",
-    folderUnlockedDone = "Kunci folder dibuka."
+    folderUnlockedDone = "Kunci folder dibuka.",
+    appsTitle = "Pengelola Aplikasi",
+    appsUser = "Pengguna",
+    appsSystem = "Sistem",
+    appOpen = "Buka Aplikasi",
+    appCopyApk = "Salin APK",
+    appShareApk = "Bagikan APK",
+    appInfo = "Info Aplikasi",
+    appChooseFolder = "Pilih Folder Tujuan APK",
+    appCopiedDone = "APK berhasil disalin.",
+    usageAccessTitle = "Ukuran Total Belum Akurat",
+    usageAccessBody = "Aktifkan Akses Penggunaan untuk SysFile agar ukuran aplikasi mencakup data dan cache, bukan hanya berkas APK.",
+    usageAccessButton = "Aktifkan",
+    appsEmpty = "Tidak ada aplikasi pada saringan ini."
 )
 
 val TxtEn = Txt(
@@ -579,7 +605,20 @@ val TxtEn = Txt(
     unlockPrompt = { name -> "Open \"$name\" with your fingerprint or lock-screen PIN." },
     unlockFailed = "Could not unlock the folder.",
     folderLockedDone = "Folder locked.",
-    folderUnlockedDone = "Folder unlocked."
+    folderUnlockedDone = "Folder unlocked.",
+    appsTitle = "App Manager",
+    appsUser = "User",
+    appsSystem = "System",
+    appOpen = "Open App",
+    appCopyApk = "Copy APK",
+    appShareApk = "Share APK",
+    appInfo = "App Info",
+    appChooseFolder = "Choose the APK Destination Folder",
+    appCopiedDone = "APK copied.",
+    usageAccessTitle = "Total Sizes Not Exact Yet",
+    usageAccessBody = "Enable Usage Access for SysFile so app sizes include data and cache, not just the APK file.",
+    usageAccessButton = "Enable",
+    appsEmpty = "No apps in this filter."
 )
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */

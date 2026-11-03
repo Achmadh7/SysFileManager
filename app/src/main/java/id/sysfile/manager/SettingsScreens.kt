@@ -44,6 +44,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Compress
@@ -165,6 +166,7 @@ fun SettingsScreen(
     onRootEntry: (Boolean) -> Unit,
     onFormats: () -> Unit,
     onTrash: () -> Unit,
+    onApps: () -> Unit,
     onAbout: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -263,6 +265,15 @@ fun SettingsScreen(
                     glyphTint = Color.White,
                     title = t.formatsTitle,
                     onClick = onFormats
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = Icons.Default.Apps,
+                    circleColor = Color(0xFF7ED957),
+                    glyphTint = Color(0xFF14240C),
+                    title = t.appsTitle,
+                    onClick = onApps
                 )
             }
             item {

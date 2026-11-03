@@ -199,6 +199,7 @@ fun SysFileApp() {
     var showSettings by remember { mutableStateOf(false) }
     var showFormats by remember { mutableStateOf(false) }
     var showTrash by remember { mutableStateOf(false) }
+    var showApps by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -502,6 +503,7 @@ fun SysFileApp() {
     BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab != 0) { homeTab = 0 }
     BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = showTrash) { showTrash = false }
+    BackHandler(enabled = showApps) { showApps = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
@@ -512,6 +514,8 @@ fun SysFileApp() {
             TrashScreen(onBack = { showTrash = false }, notify = { notify(it) })
         } else if (showFormats) {
             FormatsScreen(onBack = { showFormats = false })
+        } else if (showApps) {
+            AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
         } else if (showSettings) {
             SettingsScreen(
                 themeMode = themeMode,
@@ -542,6 +546,7 @@ fun SysFileApp() {
                 },
                 onFormats = { showFormats = true },
                 onTrash = { showTrash = true },
+                onApps = { showApps = true },
                 onAbout = { dialog = DialogKind.About },
                 onBack = { showSettings = false }
             )
