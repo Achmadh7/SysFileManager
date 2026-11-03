@@ -61,8 +61,37 @@ object RootShell {
     fun shouldUseShell(path: String): Boolean =
         state == GRANTED && path != "/storage" && !path.startsWith("/storage/") && !path.startsWith("/sdcard")
 
-    /** Daftar isi satu folder lewat shell root; null bila gagal. Urutan sama seperti FileOps.listDir. */
+    /**
+     * Padanan jalur media nyata untuk jalur emulasi: /storage/emulated/0
+     * adalah tampilan FUSE; sumber aslinya /data/media/0. Khusus Android/obb
+     * berupa bind mount per-namespace — dari namespace shell root, jalur
+     * emulasinya tampak KOSONG padahal isinya ada, sedangkan jalur media
+     * selalu terbaca root. Null bila bukan jalur emulasi internal.
+     */
+    private fun mediaDirOf(dir: File): File? {
+        val p = dir.absolutePath
+        val prefix = "/storage/emulated/0"
+        return if (p == prefix || p.startsWith("$prefix/")) {
+            File("/data/media/0" + p.removePrefix(prefix))
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Daftar isi satu folder lewat shell root; null bila gagal. Urutan sama
+     * seperti FileOps.listDir. Bila hasil jalur emulasi kosong/null, dicoba
+     * ulang lewat jalur media (/data/media/0) — kasus Android/obb di atas.
+     */
     fun listDir(dir: File, showHidden: Boolean, sort: SortKey, ascending: Boolean): List<FEntry>? {
+        val primary = listDirRaw(dir, showHidden, sort, ascending)
+        if (primary != null && primary.isNotEmpty()) return primary
+        val media = mediaDirOf(dir) ?: return primary
+        val viaMedia = listDirRaw(media, showHidden, sort, ascending)
+        return if (viaMedia != null && viaMedia.isNotEmpty()) viaMedia else primary
+    }
+
+    private fun listDirRaw(dir: File, showHidden: Boolean, sort: SortKey, ascending: Boolean): List<FEntry>? {
         val q = quote(dir.absolutePath)
         val script = "for f in $q/* $q/.[!.]*; do " +
             "[ -e \"\$f\" ] || [ -L \"\$f\" ] || continue; " +
@@ -99,6 +128,14 @@ object RootShell {
 
     /** Jumlah isi langsung sebuah folder lewat shell root; null bila gagal. */
     fun childCount(dir: File): Int? {
+        val direct = childCountRaw(dir)
+        if (direct != null && direct > 0) return direct
+        val media = mediaDirOf(dir) ?: return direct
+        val viaMedia = childCountRaw(media)
+        return if (viaMedia != null && viaMedia > 0) viaMedia else direct
+    }
+
+    private fun childCountRaw(dir: File): Int? {
         if (state != GRANTED) return null
         val q = quote(dir.absolutePath)
         val script = "n=0; for f in $q/* $q/.[!.]*; do " +
