@@ -399,7 +399,16 @@ fun SysFileApp() {
                 RootShell.listDir(File(path), showHidden, sortKey, sortAsc)
                     ?: FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
             } else {
+                // Folder penyimpanan yang dikunci sistem (mis. Android/data,
+                // Android/obb): jalur berkas biasa gagal, jadi coba shell
+                // root bila akses root sudah diberikan; bila belum, null
+                // seperti biasa dan UI menawarkan akses SAF.
                 FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
+                    ?: if (RootShell.state == RootShell.GRANTED) {
+                        RootShell.listDir(File(path), showHidden, sortKey, sortAsc)
+                    } else {
+                        null
+                    }
             }
         }
         entries = loaded ?: emptyList()
@@ -419,7 +428,21 @@ fun SysFileApp() {
                 val fresh = withContext(Dispatchers.IO) {
                     coroutineScope {
                         missing.map { entry ->
-                            async { entry.path to FileOps.childCount(entry.file) }
+                            async {
+                                val direct = FileOps.childCount(entry.file)
+                                // Angka 0 karena folder tak terbaca langsung
+                                // (wilayah root atau Android/data): hitung
+                                // lewat shell root bila aksesnya sudah ada.
+                                val count = if (direct == 0 &&
+                                    RootShell.state == RootShell.GRANTED &&
+                                    entry.file.listFiles() == null
+                                ) {
+                                    RootShell.childCount(entry.file) ?: direct
+                                } else {
+                                    direct
+                                }
+                                entry.path to count
+                            }
                         }.awaitAll()
                     }
                 }

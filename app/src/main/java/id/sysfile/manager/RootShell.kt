@@ -97,6 +97,16 @@ object RootShell {
         return ordered.filter { it.isDir } + ordered.filter { !it.isDir }
     }
 
+    /** Jumlah isi langsung sebuah folder lewat shell root; null bila gagal. */
+    fun childCount(dir: File): Int? {
+        if (state != GRANTED) return null
+        val q = quote(dir.absolutePath)
+        val script = "n=0; for f in $q/* $q/.[!.]*; do " +
+            "[ -e \"\$f\" ] || [ -L \"\$f\" ] || continue; n=\$((n+1)); done; echo \$n"
+        val lines = runSu(script, 20) ?: return null
+        return lines.firstOrNull()?.trim()?.toIntOrNull()
+    }
+
     /** Salin berkas yang tak terbaca langsung ke cache aplikasi lewat root; null bila gagal. */
     fun stageToCache(file: File, cacheDir: File): File? {
         if (state != GRANTED) return null
