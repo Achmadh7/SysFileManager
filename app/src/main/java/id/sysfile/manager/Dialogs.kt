@@ -502,22 +502,6 @@ private fun ApkActionRow(icon: ImageVector, color: Color, label: String, desc: S
 }
 
 
-/** Satu baris pilihan berikon + judul + subjudul pada dialog aksi arsip. */
-@Composable
-private fun ArchiveActionRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(16.dp))
-        Column {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
 /**
  * Pilihan saat berkas ZIP diketuk (meniru referensi yang dipilih Achmad):
  * Ekstrak Di Sini (ke folder bernama seperti arsip), Buka Arsip (lihat isi
@@ -536,21 +520,44 @@ fun ArchiveActionsDialog(
     val t = txt()
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Unarchive, null) },
+        icon = {
+            Box(
+                Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(Color(0xFF8B7CFF).copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Unarchive, null,
+                    tint = Color(0xFF8B7CFF), modifier = Modifier.size(26.dp)
+                )
+            }
+        },
         title = { Text(t.extractArchive) },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     entry.name,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp)
                 )
-                ArchiveActionRow(Icons.Default.Unarchive, t.extract, "$folderName/", onExtractHere)
-                ArchiveActionRow(Icons.Default.Folder, t.openArchive, t.browseFirst, onOpenArchive)
-                ArchiveActionRow(Icons.Default.CreateNewFolder, t.extractCustom, t.pickLocation, onCustomPath)
+                ApkActionRow(
+                    Icons.Default.Unarchive, Color(0xFFFF9E45),
+                    t.extract, "$folderName/", onExtractHere
+                )
+                ApkActionRow(
+                    Icons.Default.Folder, Color(0xFF8B7CFF),
+                    t.openArchive, t.browseFirst, onOpenArchive
+                )
+                ApkActionRow(
+                    Icons.Default.CreateNewFolder, Color(0xFF4DA3FF),
+                    t.extractCustom, t.pickLocation, onCustomPath
+                )
             }
         },
         confirmButton = {},
