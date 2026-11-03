@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import android.webkit.WebView
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.key
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -264,6 +265,9 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
 fun VideoViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit) {
     val t = txt()
     val file = remember(path) { File(path) }
+    // Back ditangani di layar ini juga: jendela melayang MediaController bisa
+    // menelan tombol Back sistem selama video diputar.
+    BackHandler { onBack() }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -286,18 +290,33 @@ fun VideoViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit
         ) {
             AndroidView(
                 factory = { ctx ->
-                    android.widget.VideoView(ctx).apply {
-                        setMediaController(
-                            android.widget.MediaController(ctx).apply { setAnchorView(this@apply) }
-                        )
-                        setVideoURI(android.net.Uri.fromFile(file))
-                        setOnErrorListener { _, _, _ ->
-                            notify(t.opFailed)
+                    val videoView = android.widget.VideoView(ctx)
+                    val controller = android.widget.MediaController(ctx)
+                    // Jangkar controller HARUS VideoView-nya. Versi sebelumnya
+                    // memakai apply bersarang sehingga this@apply terikat ke
+                    // MediaController (controller menjangkar ke dirinya sendiri)
+                    // dan jendela kontrolnya bisa menelan tombol Back & sentuhan
+                    // selama video diputar - kembali baru bisa setelah video selesai.
+                    controller.setAnchorView(videoView)
+                    videoView.setMediaController(controller)
+                    videoView.setVideoURI(android.net.Uri.fromFile(file))
+                    videoView.setOnKeyListener { _, keyCode, event ->
+                        if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
+                            event.action == android.view.KeyEvent.ACTION_UP
+                        ) {
                             onBack()
                             true
+                        } else {
+                            false
                         }
-                        setOnPreparedListener { it.start() }
                     }
+                    videoView.setOnErrorListener { _, _, _ ->
+                        notify(t.opFailed)
+                        onBack()
+                        true
+                    }
+                    videoView.setOnPreparedListener { it.start() }
+                    videoView
                 },
                 onRelease = { it.stopPlayback() },
                 modifier = Modifier.fillMaxSize()
