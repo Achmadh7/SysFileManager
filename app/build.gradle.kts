@@ -72,6 +72,9 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-compose")
+    // Folder Terkunci: prompt sidik jari / kredensial layar kunci (perlu FragmentActivity).
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.fragment:fragment:1.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
 
     val composeBom = platform("androidx.compose:compose-bom:2025.10.00")

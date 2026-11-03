@@ -9,7 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -171,7 +171,7 @@ private sealed interface DialogKind {
     data object About : DialogKind
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { SysFileApp() }
@@ -225,6 +225,12 @@ fun SysFileApp() {
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var favorites by remember { mutableStateOf(prefs.getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
+    var lockedFolders by remember {
+        mutableStateOf(
+            prefs.getStringSet("locked_folders", emptySet())?.filter { File(it).isDirectory }?.toSet() ?: emptySet()
+        )
+    }
+    var unlockedSession by remember { mutableStateOf<Set<String>>(emptySet()) }
     var recentFiles by remember { mutableStateOf<List<FEntry>>(emptyList()) }
 
     var showHidden by remember { mutableStateOf(prefs.getBoolean("show_hidden", false)) }
@@ -246,6 +252,35 @@ fun SysFileApp() {
 
     fun notify(msg: String) {
         scope.launch { snackbar.showSnackbar(msg) }
+    }
+
+    /** Minta verifikasi biometrik/PIN untuk membuka folder terkunci [path]. */
+    fun requestUnlock(path: String, onGranted: () -> Unit) {
+        val activity = context as? FragmentActivity
+        if (activity == null) {
+            notify(t.unlockFailed)
+            return
+        }
+        BiometricGate.authenticate(
+            activity = activity,
+            title = t.unlockTitle,
+            subtitle = t.unlockPrompt(File(path).name),
+            onSuccess = {
+                unlockedSession = unlockedSession + path
+                onGranted()
+            },
+            onError = { notify(t.unlockFailed) }
+        )
+    }
+
+    /** Masuk ke folder dengan gerbang kunci: folder terkunci yang belum dibuka pada
+     *  sesi ini harus lolos biometrik terlebih dahulu, baru [land] dijalankan. */
+    fun openFolderGuarded(path: String, land: () -> Unit) {
+        if (path in lockedFolders && path !in unlockedSession) {
+            requestUnlock(path, land)
+        } else {
+            land()
+        }
     }
 
     fun refreshRoots() {
@@ -345,13 +380,13 @@ fun SysFileApp() {
         selected = emptySet()
     }
 
-    LaunchedEffect(accessGranted, roots, showHidden, reloadKey) {
+    LaunchedEffect(accessGranted, roots, showHidden, reloadKey, lockedFolders) {
         if (!accessGranted || roots.isEmpty()) {
             recentFiles = emptyList()
             return@LaunchedEffect
         }
         recentFiles = withContext(Dispatchers.IO) {
-            FileOps.recentFiles(roots.map { File(it.path) }, showHidden)
+            FileOps.recentFiles(roots.map { File(it.path) }, showHidden, lockedFolders)
         }
     }
 
@@ -384,7 +419,7 @@ fun SysFileApp() {
 
     fun openEntry(entry: FEntry) {
         if (entry.isDir) {
-            browseStack = browseStack + entry.path
+            openFolderGuarded(entry.path) { browseStack = browseStack + entry.path }
             return
         }
         val f = entry.file
@@ -540,7 +575,7 @@ fun SysFileApp() {
                         onOpenEntry = { entry ->
                             overlay = null
                             if (entry.isDir) {
-                                browseStack = listOf(entry.path)
+                                openFolderGuarded(entry.path) { browseStack = listOf(entry.path) }
                             } else {
                                 entry.parentPath()?.let { parent ->
                                     if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
@@ -797,7 +832,29 @@ fun SysFileApp() {
                                                 }
                                             }
                                         },
-                                        onSelectAll = { selected = entries.map { it.path }.toSet() }
+                                        onSelectAll = { selected = entries.map { it.path }.toSet() },
+                                        singleIsDir = entries.firstOrNull { it.path == selected.first() }?.isDir == true,
+                                        singleLocked = selected.singleOrNull()?.let { it in lockedFolders } == true,
+                                        onToggleLock = {
+                                            entries.firstOrNull { it.path == selected.first() }?.let { entry ->
+                                                if (entry.path in lockedFolders) {
+                                                    requestUnlock(entry.path) {
+                                                        val updated = lockedFolders - entry.path
+                                                        lockedFolders = updated
+                                                        prefs.edit().putStringSet("locked_folders", updated).apply()
+                                                        unlockedSession = unlockedSession - entry.path
+                                                        selected = emptySet()
+                                                        notify(t.folderUnlockedDone)
+                                                    }
+                                                } else if (entry.name != FileOps.TRASH_DIR_NAME) {
+                                                    val updated = lockedFolders + entry.path
+                                                    lockedFolders = updated
+                                                    prefs.edit().putStringSet("locked_folders", updated).apply()
+                                                    selected = emptySet()
+                                                    notify(t.folderLockedDone)
+                                                }
+                                            }
+                                        }
                                     )
                                 } else if (clipboard != null && currentPath != null) {
                                     ClipboardBar(
@@ -854,7 +911,11 @@ fun SysFileApp() {
                                                     files = recentFiles,
                                                     accessGranted = accessGranted,
                                                     onOpenEntry = { entry ->
-                                                        if (entry.isDir) browseStack = listOf(entry.path) else openEntry(entry)
+                                                        if (entry.isDir) {
+                                                            openFolderGuarded(entry.path) { browseStack = listOf(entry.path) }
+                                                        } else {
+                                                            openEntry(entry)
+                                                        }
                                                     }
                                                 )
                                                 2 -> AnalysisScreen(
@@ -869,7 +930,9 @@ fun SysFileApp() {
                                                     favorites = favorites,
                                                     onRequestAccess = { requestAccess() },
                                                     onOpenRoot = { browseStack = listOf(it) },
-                                                    onOpenFavorite = { browseStack = listOf(it) },
+                                                    onOpenFavorite = { path ->
+                                                        openFolderGuarded(path) { browseStack = listOf(path) }
+                                                    },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) }
                                                 )
                                             }
@@ -911,7 +974,8 @@ fun SysFileApp() {
                                             gridView = !gridView
                                             prefs.edit().putBoolean("grid_view", gridView).apply()
                                         },
-                                        counts = entryCounts
+                                        counts = entryCounts,
+                                        lockedPaths = lockedFolders
                                         )
                                     }
                                 }

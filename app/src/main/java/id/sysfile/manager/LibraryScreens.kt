@@ -199,12 +199,17 @@ fun CategoryScreen(
     onOpenEntry: (FEntry) -> Unit
 ) {
     val t = txt()
+    val context = LocalContext.current
+    val lockedFolders = remember {
+        context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
+            .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+    }
     var files by remember { mutableStateOf<List<FEntry>?>(null) }
     LaunchedEffect(category, accessGranted) {
         files = null
         files = if (accessGranted) {
             withContext(Dispatchers.IO) {
-                FileOps.categoryFiles(roots.map { File(it.path) }, category, showHidden)
+                FileOps.categoryFiles(roots.map { File(it.path) }, category, showHidden, lockedFolders)
             }
         } else {
             emptyList()
@@ -675,9 +680,10 @@ fun SearchScreen(
         }
         delay(350)
         searching = true
-        val showHidden = context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
-            .getBoolean("show_hidden", false)
-        results = withContext(Dispatchers.IO) { FileOps.search(File(rootPath), q, showHidden) }
+        val prefs = context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
+        val showHidden = prefs.getBoolean("show_hidden", false)
+        val lockedFolders = prefs.getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+        results = withContext(Dispatchers.IO) { FileOps.search(File(rootPath), q, showHidden, lockedFolders) }
         searching = false
     }
 
@@ -812,6 +818,11 @@ fun AnalysisScreen(
     onOpenFile: (FEntry) -> Unit
 ) {
     val t = txt()
+    val context = LocalContext.current
+    val lockedFolders = remember {
+        context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
+            .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+    }
     var results by remember { mutableStateOf<Map<String, AnalysisResult>>(emptyMap()) }
     var scanningPath by remember { mutableStateOf<String?>(null) }
     var selectedRootPath by remember { mutableStateOf<String?>(null) }
@@ -822,7 +833,7 @@ fun AnalysisScreen(
             if (results.containsKey(root.path)) continue
             scanningPath = root.path
             val res = withContext(Dispatchers.IO) {
-                try { FileOps.analyze(File(root.path)) } catch (e: Exception) { null }
+                try { FileOps.analyze(File(root.path), lockedFolders) } catch (e: Exception) { null }
             }
             if (res != null) results = results + (root.path to res)
         }

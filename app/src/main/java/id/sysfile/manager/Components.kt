@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -200,7 +201,8 @@ fun FileRow(
     isSelected: Boolean,
     itemCount: Int?,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    locked: Boolean = false
 ) {
     Row(
         Modifier.fillMaxWidth()
@@ -210,7 +212,18 @@ fun FileRow(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FileThumb(entry, 46)
+        Box {
+            FileThumb(entry, 46)
+            if (locked) {
+                Box(
+                    Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                }
+            }
+        }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(entry.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -236,7 +249,8 @@ fun FileCell(
     selectionMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    locked: Boolean = false
 ) {
     Column(
         Modifier.clip(RoundedCornerShape(16.dp))
@@ -246,7 +260,18 @@ fun FileCell(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        FileThumbLarge(entry)
+        Box {
+            FileThumbLarge(entry)
+            if (locked) {
+                Box(
+                    Modifier.align(Alignment.BottomEnd).padding(6.dp).size(22.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                }
+            }
+        }
         Text(
             entry.name,
             style = MaterialTheme.typography.bodySmall,

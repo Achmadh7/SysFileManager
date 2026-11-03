@@ -186,7 +186,14 @@ class Txt(
     val otherSection: String,
     val propFileCount: String,
     val propFolderCount: String,
-    val propLargest: String
+    val propLargest: String,
+    val lockFolder: String,
+    val unlockFolder: String,
+    val unlockTitle: String,
+    val unlockPrompt: (String) -> String,
+    val unlockFailed: String,
+    val folderLockedDone: String,
+    val folderUnlockedDone: String
 )
 
 val TxtId = Txt(
@@ -372,7 +379,14 @@ val TxtId = Txt(
     otherSection = "Lainnya",
     propFileCount = "Berkas di dalamnya",
     propFolderCount = "Folder di dalamnya",
-    propLargest = "Isi terbesar"
+    propLargest = "Isi terbesar",
+    lockFolder = "Kunci Folder",
+    unlockFolder = "Buka Kunci Folder",
+    unlockTitle = "Folder Terkunci",
+    unlockPrompt = { name -> "Buka \"$name\" dengan sidik jari atau PIN layar kunci." },
+    unlockFailed = "Gagal membuka kunci folder.",
+    folderLockedDone = "Folder dikunci.",
+    folderUnlockedDone = "Kunci folder dibuka."
 )
 
 val TxtEn = Txt(
@@ -558,7 +572,14 @@ val TxtEn = Txt(
     otherSection = "Other",
     propFileCount = "Files inside",
     propFolderCount = "Folders inside",
-    propLargest = "Largest item"
+    propLargest = "Largest item",
+    lockFolder = "Lock Folder",
+    unlockFolder = "Unlock Folder",
+    unlockTitle = "Locked Folder",
+    unlockPrompt = { name -> "Open \"$name\" with your fingerprint or lock-screen PIN." },
+    unlockFailed = "Could not unlock the folder.",
+    folderLockedDone = "Folder locked.",
+    folderUnlockedDone = "Folder unlocked."
 )
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */

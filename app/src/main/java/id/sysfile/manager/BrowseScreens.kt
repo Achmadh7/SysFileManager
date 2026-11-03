@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
@@ -197,7 +198,8 @@ fun BrowseScreen(
     sortLabel: String,
     onSortClick: () -> Unit,
     onToggleView: () -> Unit,
-    counts: Map<String, Int>
+    counts: Map<String, Int>,
+    lockedPaths: Set<String> = emptySet()
 ) {
     val t = txt()
     Column(Modifier.fillMaxSize()) {
@@ -262,7 +264,8 @@ fun BrowseScreen(
                             selectionMode = selected.isNotEmpty(),
                             isSelected = selected.contains(entry.path),
                             onClick = { onOpenEntry(entry) },
-                            onLongClick = { onLongPress(entry) }
+                            onLongClick = { onLongPress(entry) },
+                            locked = entry.path in lockedPaths
                         )
                     }
                 }
@@ -274,7 +277,8 @@ fun BrowseScreen(
                             isSelected = selected.contains(entry.path),
                             itemCount = counts[entry.path],
                             onClick = { onOpenEntry(entry) },
-                            onLongClick = { onLongPress(entry) }
+                            onLongClick = { onLongPress(entry) },
+                            locked = entry.path in lockedPaths
                         )
                     }
                 }
@@ -309,7 +313,10 @@ fun SelectionBar(
     onCompress: () -> Unit,
     onExtract: () -> Unit,
     onProperties: () -> Unit,
-    onSelectAll: () -> Unit
+    onSelectAll: () -> Unit,
+    singleIsDir: Boolean = false,
+    singleLocked: Boolean = false,
+    onToggleLock: () -> Unit = {}
 ) {
     val t = txt()
     var menuOpen by remember { mutableStateOf(false) }
@@ -359,6 +366,15 @@ fun SelectionBar(
                                 leadingIcon = { Icon(Icons.Default.Info, null) },
                                 onClick = { menuOpen = false; onProperties() }
                             )
+                            if (singleIsDir) {
+                                DropdownMenuItem(
+                                    text = { Text(if (singleLocked) t.unlockFolder else t.lockFolder) },
+                                    leadingIcon = {
+                                        Icon(if (singleLocked) Icons.Default.LockOpen else Icons.Default.Lock, null)
+                                    },
+                                    onClick = { menuOpen = false; onToggleLock() }
+                                )
+                            }
                         }
                         DropdownMenuItem(
                             text = { Text(t.selectAll) },
