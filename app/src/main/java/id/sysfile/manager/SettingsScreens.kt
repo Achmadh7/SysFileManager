@@ -134,6 +134,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -398,20 +399,31 @@ fun FormatChip(text: String, container: Color, content: Color) {
 }
 
 @Composable
-fun FormatRow(name: String, desc: String, chips: List<Triple<String, Color, Color>>) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(name, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                chips.forEach { (label, bg, fg) -> FormatChip(label, bg, fg) }
-            }
+fun FormatCard(name: String, desc: String, chips: List<Triple<String, Color, Color>>) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            chips.forEach { (label, bg, fg) -> FormatChip(label, bg, fg) }
         }
         Text(
             desc,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun FormatGroupHeader(icon: ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -461,39 +473,35 @@ fun FormatsScreen(onBack: () -> Unit) {
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
             item {
-                SectionCard(icon = Icons.Default.Archive, title = t.formatGroupStandard) {
-                    FormatRow("ZIP (.zip)", t.fmtZipDesc, listOf(chipCreate, chipExtract, chipEncrypt))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("7Z (.7z)", t.fmt7zDesc, listOf(chipExtract, chipRatio))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("TAR (.tar)", t.fmtTarDesc, listOf(chipCreate, chipExtract))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
+                    FormatCard("ZIP (.zip)", t.fmtZipDesc, listOf(chipCreate, chipExtract, chipEncrypt))
+                    FormatCard("7Z (.7z)", t.fmt7zDesc, listOf(chipExtract, chipRatio))
+                    FormatCard("TAR (.tar)", t.fmtTarDesc, listOf(chipCreate, chipExtract))
                 }
             }
             item {
-                SectionCard(icon = Icons.Default.Inventory2, title = t.formatGroupTarball) {
-                    FormatRow("TAR.GZ (.tar.gz, .tgz)", t.fmtTarGzDesc, listOf(chipCreate, chipExtract))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("TAR.BZ2 (.tar.bz2, .tbz2)", t.fmtTarBz2Desc, listOf(chipCreate, chipExtract))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("TAR.XZ (.tar.xz, .txz)", t.fmtTarXzDesc, listOf(chipCreate, chipExtract))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Inventory2, t.formatGroupTarball)
+                    FormatCard("TAR.GZ (.tar.gz, .tgz)", t.fmtTarGzDesc, listOf(chipCreate, chipExtract))
+                    FormatCard("TAR.BZ2 (.tar.bz2, .tbz2)", t.fmtTarBz2Desc, listOf(chipCreate, chipExtract))
+                    FormatCard("TAR.XZ (.tar.xz, .txz)", t.fmtTarXzDesc, listOf(chipCreate, chipExtract))
                 }
             }
             item {
-                SectionCard(icon = Icons.Default.Compress, title = t.formatGroupSingle) {
-                    FormatRow("GZIP (.gz)", t.fmtGzipDesc, listOf(chipDecompress))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("BZIP2 (.bz2)", t.fmtBzip2Desc, listOf(chipDecompress))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("XZ (.xz)", t.fmtXzDesc, listOf(chipDecompress))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Compress, t.formatGroupSingle)
+                    FormatCard("GZIP (.gz)", t.fmtGzipDesc, listOf(chipDecompress))
+                    FormatCard("BZIP2 (.bz2)", t.fmtBzip2Desc, listOf(chipDecompress))
+                    FormatCard("XZ (.xz)", t.fmtXzDesc, listOf(chipDecompress))
                 }
             }
             item {
-                SectionCard(icon = Icons.Default.Android, title = t.formatGroupSpecial) {
-                    FormatRow("RAR (.rar)", t.fmtRarDesc, listOf(chipExtract))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("APK / APKS / XAPK", t.fmtApkDesc, listOf(chipExtract, chipInspect))
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                    FormatRow("PAYLOAD.BIN", t.fmtPayloadDesc, listOf(chipExtract, chipNative))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
+                    FormatCard("RAR (.rar)", t.fmtRarDesc, listOf(chipExtract))
+                    FormatCard("APK / APKS / XAPK", t.fmtApkDesc, listOf(chipExtract, chipInspect))
+                    FormatCard("PAYLOAD.BIN", t.fmtPayloadDesc, listOf(chipExtract, chipNative))
                 }
             }
         }
