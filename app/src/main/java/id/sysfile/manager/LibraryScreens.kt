@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -131,8 +130,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
@@ -358,39 +355,16 @@ fun CategoryScreen(
                             modifier = Modifier.align(Alignment.Center)
                         )
                     }
-                    else -> if (category == Category.IMAGE) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            contentPadding = PaddingValues(vertical = 12.dp)
-                        ) {
-                            items(loaded.orEmpty(), key = { it.path }) { entry ->
-                                AsyncImage(
-                                    model = File(entry.path),
-                                    contentDescription = entry.name,
-                                    imageLoader = rememberThumbLoader(),
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.aspectRatio(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .clickable { onOpenEntry(entry) }
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
-                            items(loaded.orEmpty(), key = { it.path }) { entry ->
-                                FileRow(
-                                    entry = entry,
-                                    selectionMode = false,
-                                    isSelected = false,
-                                    itemCount = null,
-                                    onClick = { onOpenEntry(entry) },
-                                    onLongClick = {}
-                                )
-                            }
+                    else -> LazyColumn(Modifier.fillMaxSize()) {
+                        items(loaded.orEmpty(), key = { it.path }) { entry ->
+                            FileRow(
+                                entry = entry,
+                                selectionMode = false,
+                                isSelected = false,
+                                itemCount = null,
+                                onClick = { onOpenEntry(entry) },
+                                onLongClick = {}
+                            )
                         }
                     }
                 }
