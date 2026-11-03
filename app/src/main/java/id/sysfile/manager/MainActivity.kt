@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Folder
@@ -159,6 +160,7 @@ private enum class ClipMode { COPY, CUT }
 
 private sealed interface DialogKind {
     data object NewFolder : DialogKind
+    data object NewFile : DialogKind
     data class Rename(val entry: FEntry) : DialogKind
     data class Delete(val entries: List<FEntry>) : DialogKind
     data class Properties(val entry: FEntry) : DialogKind
@@ -790,6 +792,11 @@ fun SysFileApp() {
                                                         leadingIcon = { Icon(Icons.Default.CreateNewFolder, null) },
                                                         onClick = { menuOpen = false; dialog = DialogKind.NewFolder }
                                                     )
+                                                    DropdownMenuItem(
+                                                        text = { Text(t.newFile) },
+                                                        leadingIcon = { Icon(Icons.Default.NoteAdd, null) },
+                                                        onClick = { menuOpen = false; dialog = DialogKind.NewFile }
+                                                    )
                                                     if (clipboard != null) {
                                                         DropdownMenuItem(
                                                             text = { Text(t.paste) },
@@ -1026,6 +1033,7 @@ fun SysFileApp() {
                                         },
                                         canGoUp = currentRoot != null && animatedPath != currentRoot.path,
                                         onNewFolder = { dialog = DialogKind.NewFolder },
+                                        onNewFile = { dialog = DialogKind.NewFile },
                                         counts = entryCounts,
                                         lockedPaths = lockedFolders
                                         )
@@ -1060,6 +1068,15 @@ fun SysFileApp() {
                     dialog = null
                     val dir = currentPath?.let { File(it) } ?: return@NameDialog
                     runOp(t.folderCreated) { FileOps.newFolder(dir, name) != null }
+                }
+            )
+            is DialogKind.NewFile -> NameDialog(
+                title = t.newFile, label = t.fileName, initial = "",
+                onDismiss = { dialog = null },
+                onConfirm = { name ->
+                    dialog = null
+                    val dir = currentPath?.let { File(it) } ?: return@NameDialog
+                    runOp(t.fileCreated) { FileOps.newFile(dir, name) != null }
                 }
             )
             is DialogKind.Rename -> NameDialog(

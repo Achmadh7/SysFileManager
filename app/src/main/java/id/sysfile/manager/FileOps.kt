@@ -407,6 +407,18 @@ object FileOps {
         return if (dest.mkdirs()) dest else null
     }
 
+    /** Membuat file kosong baru di [dir]; nama duplikat otomatis diberi akhiran angka. */
+    fun newFile(dir: File, name: String): File? {
+        val clean = name.trim()
+        if (clean.isEmpty() || clean.contains('/') || clean.contains('\\')) return null
+        val dest = uniqueName(File(dir, clean))
+        return try {
+            if (dest.createNewFile()) dest else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     /** Pencarian rekursif berdasarkan nama, dibatasi jumlah hasil.
      *  Isi folder terkunci ([locked]) tidak pernah muncul di hasil. */
     fun search(root: File, query: String, showHidden: Boolean, locked: Set<String> = emptySet(), limit: Int = 500): List<FEntry> {

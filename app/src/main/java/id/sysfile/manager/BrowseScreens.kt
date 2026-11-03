@@ -15,6 +15,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -56,7 +59,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
@@ -211,6 +217,7 @@ fun BrowseScreen(
     onGoUp: () -> Unit,
     canGoUp: Boolean,
     onNewFolder: () -> Unit,
+    onNewFile: () -> Unit,
     counts: Map<String, Int>,
     lockedPaths: Set<String> = emptySet()
 ) {
@@ -269,14 +276,66 @@ fun BrowseScreen(
                 }
             }
             if (selected.isEmpty()) {
-                ExtendedFloatingActionButton(
-                    onClick = onNewFolder,
-                    icon = { Icon(Icons.Default.CreateNewFolder, null) },
-                    text = { Text(t.newFolder) },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-                )
+                var fabOpen by remember { mutableStateOf(false) }
+                if (fabOpen) {
+                    Box(
+                        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { fabOpen = false }
+                    )
+                }
+                Column(
+                    Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AnimatedVisibility(
+                        visible = fabOpen,
+                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            FabPill(Icons.Default.CreateNewFolder, t.newFolder) {
+                                fabOpen = false; onNewFolder()
+                            }
+                            FabPill(Icons.Default.NoteAdd, t.newFile) {
+                                fabOpen = false; onNewFile()
+                            }
+                        }
+                    }
+                    Box(
+                        Modifier.size(56.dp).clip(CircleShape).background(Color(0xFF55688C))
+                            .clickable { fabOpen = !fabOpen },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (fabOpen) Icons.Default.Close else Icons.Default.Add,
+                            null, tint = Color(0xFFE8ECF4), modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+/** Pil aksi pada FAB meluas: kapsul slate berisi ikon + label. */
+@Composable
+private fun FabPill(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF3D4B63))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 22.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color(0xFFE8ECF4), modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(label, color = Color(0xFFE8ECF4), style = MaterialTheme.typography.titleMedium)
     }
 }
 
