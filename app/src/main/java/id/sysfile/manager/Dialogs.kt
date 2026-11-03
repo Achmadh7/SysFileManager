@@ -135,6 +135,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -479,14 +480,24 @@ fun ZipPasswordDialog(
 }
 
 @Composable
-private fun ApkActionRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun ApkActionRow(icon: ImageVector, color: Color, label: String, desc: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable { onClick() }.padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(16.dp))
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Box(
+            Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -666,10 +677,10 @@ fun ApkActionsDialog(
             }
         },
         text = {
-            Column {
-                ApkActionRow(Icons.Default.Search, t.apkInspect, onInspect)
-                ApkActionRow(Icons.Default.Archive, t.apkExtract, onExtract)
-                ApkActionRow(Icons.Default.InstallMobile, t.apkInstall, onInstall)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ApkActionRow(Icons.Default.Search, Color(0xFFFF9E45), t.apkInspect, t.apkInspectDesc, onInspect)
+                ApkActionRow(Icons.Default.Archive, Color(0xFF8B7CFF), t.apkExtract, t.apkExtractDesc, onExtract)
+                ApkActionRow(Icons.Default.InstallMobile, Color(0xFF7ED957), t.apkInstall, t.apkInstallDesc, onInstall)
             }
         },
         confirmButton = {},
