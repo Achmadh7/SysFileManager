@@ -82,7 +82,7 @@ object SafOps {
             }
             else -> return null
         }
-        val docId = DocumentsContract.buildTreeDocumentId(vol, rel)
+        val docId = if (rel.isEmpty()) "$vol:" else "$vol:$rel"
         val treeUri = DocumentsContract.buildTreeDocumentUri(
             "com.android.externalstorage.documents", docId
         )
@@ -119,15 +119,21 @@ fun SafBrowseScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val root = remember(treeUri) { DocumentFile.fromTreeUri(context, Uri.parse(treeUri)) }
-    var stack by remember(treeUri) { mutableStateOf(listOf(root)) }
+    var stack by remember(treeUri) { mutableStateOf(listOfNotNull(root)) }
     var ready by remember(treeUri) { mutableStateOf(relPath.isEmpty()) }
+
+    if (root == null) {
+        LaunchedEffect(Unit) { onExit() }
+        return
+    }
 
     // Turun lebih dulu ke subfolder yang diminta (relPath dari folder terlarang).
     LaunchedEffect(treeUri) {
-        if (relPath.isNotEmpty() && root != null) {
+        if (relPath.isNotEmpty()) {
+            val r: DocumentFile = root
             val built = withContext(Dispatchers.IO) {
-                val acc = mutableListOf(root)
-                var cur = root
+                val acc = mutableListOf(r)
+                var cur = r
                 for (seg in relPath.split('/')) {
                     if (seg.isEmpty()) continue
                     val next = cur.listFiles()
@@ -142,7 +148,7 @@ fun SafBrowseScreen(
         }
     }
 
-    val current = stack.last()
+    val current = stack.lastOrNull() ?: root
     var children by remember { mutableStateOf<List<DocumentFile>?>(null) }
     LaunchedEffect(current.uri, ready) {
         if (ready) {
