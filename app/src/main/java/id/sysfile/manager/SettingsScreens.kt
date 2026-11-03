@@ -513,11 +513,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenStorage: () -> Unit) {
+fun AboutScreen(
+    onBack: () -> Unit,
+    onFormats: () -> Unit,
+    onOpenStorage: () -> Unit,
+    onOpenSpecs: () -> Unit
+) {
     val t = txt()
     val context = LocalContext.current
     val internal = remember { FileOps.storageRoots(context).firstOrNull { it.kind == "internal" } }
-    var showSpec by remember { mutableStateOf(false) }
     var showLicense by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
@@ -611,7 +615,7 @@ fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenStorage: () -> 
                     color = Color(0xFFB39DDB),
                     title = t.appSpecs,
                     subtitle = "Kotlin • Jetpack Compose • Material 3",
-                    onClick = { showSpec = true }
+                    onClick = onOpenSpecs
                 )
             }
             item {
@@ -727,28 +731,6 @@ fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenStorage: () -> 
             }
         }
     }
-    if (showSpec) {
-        AlertDialog(
-            onDismissRequest = { showSpec = false },
-            title = { Text(t.appSpecs) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SpecRow(t.packageLabel, "id.sysfile.manager")
-                    SpecRow(t.versionLabel, "1.0.0")
-                    SpecRow(t.minAndroidLabel, "8.0 (API 26)")
-                    SpecRow(t.targetAndroidLabel, "14 (API 34)")
-                    SpecRow(
-                        t.technologyLabel,
-                        "Kotlin, Jetpack Compose, Material 3 Expressive, " +
-                            "Apache Commons Compress, Zip4j, Junrar"
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSpec = false }) { Text(t.close) }
-            }
-        )
-    }
 }
 
 @Composable
@@ -799,18 +781,128 @@ private fun AboutCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SpecRow(label: String, value: String) {
-    Column {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold
-        )
+fun SpecScreen(onBack: () -> Unit) {
+    val t = txt()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(t.appSpecs, fontWeight = FontWeight.ExtraBold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            item {
+                SpecGroup(
+                    icon = Icons.Default.GridView,
+                    color = Color(0xFF4DA3FF),
+                    title = t.specGroupIdentity,
+                    rows = listOf(
+                        t.specAppName to "SysFile",
+                        t.packageLabel to "id.sysfile.manager",
+                        t.versionLabel to "1.0.0",
+                        t.specBuildEnv to "AGP 8.11.1"
+                    )
+                )
+            }
+            item {
+                SpecGroup(
+                    icon = Icons.Default.Archive,
+                    color = Color(0xFFFFB020),
+                    title = t.specGroupArchive,
+                    rows = listOf(
+                        t.specCompression to "Commons Compress 1.27.1",
+                        "ZIP AES" to "Zip4j 2.11.5",
+                        "RAR" to "Junrar 7.5.5",
+                        "Payload.bin" to t.payloadParserValue
+                    )
+                )
+            }
+            item {
+                SpecGroup(
+                    icon = Icons.Default.Storage,
+                    color = Color(0xFFB39DDB),
+                    title = t.specGroupUiStorage,
+                    rows = listOf(
+                        "Toolkit UI" to "Jetpack Compose",
+                        t.specDesignLabel to "Material 3 Expressive",
+                        t.minAndroidLabel to "8.0 (API 26)",
+                        t.targetAndroidLabel to "14 (API 34)"
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpecGroup(
+    icon: ImageVector,
+    color: Color,
+    title: String,
+    rows: List<Pair<String, String>>
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(color.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = color, modifier = Modifier.size(19.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            rows.forEachIndexed { i, (label, value) ->
+                if (i > 0) {
+                    HorizontalDivider(
+                        Modifier.padding(vertical = 5.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = if (i == 0) 12.dp else 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        label,
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                    )
+                }
+            }
+        }
     }
 }

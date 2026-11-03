@@ -204,6 +204,7 @@ fun SysFileApp() {
     var showTrash by remember { mutableStateOf(false) }
     var showApps by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showSpecs by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -510,7 +511,8 @@ fun SysFileApp() {
     BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = showTrash) { showTrash = false }
     BackHandler(enabled = showApps) { showApps = false }
-    BackHandler(enabled = showAbout && !showFormats) { showAbout = false }
+    BackHandler(enabled = showAbout && !showFormats && !showSpecs) { showAbout = false }
+    BackHandler(enabled = showSpecs) { showSpecs = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty()) {
         browseStack = browseStack.dropLast(1)
@@ -523,6 +525,8 @@ fun SysFileApp() {
             FormatsScreen(onBack = { showFormats = false })
         } else if (showApps) {
             AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
+        } else if (showSpecs) {
+            SpecScreen(onBack = { showSpecs = false })
         } else if (showAbout) {
             AboutScreen(
                 onBack = { showAbout = false },
@@ -534,7 +538,8 @@ fun SysFileApp() {
                     val root = FileOps.storageRoots(context)
                         .firstOrNull { it.kind == "internal" }?.path
                     if (root != null) openFolderGuarded(root) { browseStack = listOf(root) }
-                }
+                },
+                onOpenSpecs = { showSpecs = true }
             )
         } else if (showSettings) {
             SettingsScreen(
