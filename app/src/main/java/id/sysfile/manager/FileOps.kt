@@ -411,7 +411,7 @@ object FileOps {
     fun newFile(dir: File, name: String): File? {
         val clean = name.trim()
         if (clean.isEmpty() || clean.contains('/') || clean.contains('\\')) return null
-        val dest = uniqueName(File(dir, clean))
+        val dest = File(dir, uniqueName(dir, clean))
         return try {
             if (dest.createNewFile()) dest else null
         } catch (e: Exception) {
