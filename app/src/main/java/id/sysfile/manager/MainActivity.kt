@@ -400,20 +400,30 @@ fun SysFileApp() {
                     ?: FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
             } else {
                 // Folder penyimpanan yang dikunci sistem (mis. Android/data,
-                // Android/obb): jalur berkas biasa gagal. Bila fitur root
-                // aktif, minta/pakai akses root lalu baca lewat shell —
-                // status root di-cache per sesi, jadi prompt su hanya muncul
-                // sekali dan tidak harus memanaskan akses lewat volume Root
-                // dulu. Tanpa fitur root, null seperti biasa dan UI
-                // menawarkan akses SAF.
-                FileOps.listDir(File(path), showHidden, sortKey, sortAsc)
-                    ?: if (showRootEntry &&
-                        (RootShell.state == RootShell.GRANTED || RootShell.ensureRoot())
-                    ) {
-                        RootShell.listDir(File(path), showHidden, sortKey, sortAsc)
+                // Android/obb): jalur berkas biasa gagal (null) atau mengaku
+                // kosong padahal foldernya tak terbaca (sebagian ROM menjawab
+                // array kosong untuk folder terkunci). Bila fitur root aktif,
+                // minta/pakai akses root lalu baca lewat shell — status root
+                // di-cache per sesi, jadi prompt su hanya muncul sekali.
+                // Tanpa fitur root, hasil biasa dipakai dan UI menawarkan SAF.
+                val dirFile = File(path)
+                val plain = FileOps.listDir(dirFile, showHidden, sortKey, sortAsc)
+                if (plain != null && (plain.isNotEmpty() || dirFile.canRead())) {
+                    plain
+                } else if (showRootEntry) {
+                    val showedWorking = RootShell.state == RootShell.UNKNOWN
+                    if (showedWorking) working = true
+                    val granted = RootShell.state == RootShell.GRANTED ||
+                        RootShell.ensureRoot()
+                    if (showedWorking) working = false
+                    if (granted) {
+                        RootShell.listDir(dirFile, showHidden, sortKey, sortAsc) ?: plain
                     } else {
-                        null
+                        plain
                     }
+                } else {
+                    plain
+                }
             }
         }
         entries = loaded ?: emptyList()
@@ -431,11 +441,18 @@ fun SysFileApp() {
             if (missing.isNotEmpty()) {
                 // Hitungan isi folder dihitung paralel, bukan satu per satu.
                 val fresh = withContext(Dispatchers.IO) {
+                    // Folder dianggap tak terbaca bila listFiles null, atau
+                    // kosong padahal canRead false (sebagian ROM menjawab
+                    // array kosong untuk folder terkunci).
+                    fun unreadable(f: File): Boolean {
+                        val lf = f.listFiles()
+                        return lf == null || (lf.isEmpty() && !f.canRead())
+                    }
                     // Siapkan akses root sekali di depan (bila fitur root
                     // aktif) agar hitungan folder terkunci tidak berlomba
                     // memicu prompt su dari banyak async sekaligus.
                     if (showRootEntry && RootShell.state == RootShell.UNKNOWN &&
-                        missing.any { it.file.listFiles() == null }
+                        missing.any { unreadable(it.file) }
                     ) {
                         RootShell.ensureRoot()
                     }
@@ -448,7 +465,7 @@ fun SysFileApp() {
                                 // lewat shell root bila aksesnya sudah ada.
                                 val count = if (direct == 0 &&
                                     RootShell.state == RootShell.GRANTED &&
-                                    entry.file.listFiles() == null
+                                    unreadable(entry.file)
                                 ) {
                                     RootShell.childCount(entry.file) ?: direct
                                 } else {
