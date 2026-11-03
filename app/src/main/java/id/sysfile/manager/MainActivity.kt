@@ -150,6 +150,7 @@ import java.io.File
 private sealed interface Overlay {
     data class Search(val rootPath: String) : Overlay
     data class ImageView(val path: String) : Overlay
+    data class VideoView(val path: String) : Overlay
     data class TextView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
     data class ArchiveView(val path: String) : Overlay
@@ -462,6 +463,7 @@ fun SysFileApp() {
         }
         when {
             entry.category == Category.IMAGE -> overlay = Overlay.ImageView(entry.path)
+            entry.category == Category.VIDEO -> overlay = Overlay.VideoView(entry.path)
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
             entry.category == Category.ARCHIVE -> {
                 val kind = ArchiveOps.kindOf(f.name)
@@ -577,6 +579,7 @@ fun SysFileApp() {
                         onDelete = { dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(ov.path)))) }
                     )
                     is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
+                    is Overlay.VideoView -> VideoViewerScreen(ov.path, onBack = { overlay = null }, notify = { notify(it) })
                     is Overlay.Search -> SearchScreen(
                         rootPath = ov.rootPath,
                         onBack = { overlay = null },
@@ -1118,8 +1121,12 @@ fun SysFileApp() {
                         runOp(t.movedToTrash) {
                             d.entries.all { TrashOps.moveToTrash(it.file) }
                         }
-                        val viewing = overlay as? Overlay.ImageView
-                        if (viewing != null && d.entries.any { it.path == viewing.path }) {
+                        val viewingPath = when (val ov = overlay) {
+                            is Overlay.ImageView -> ov.path
+                            is Overlay.VideoView -> ov.path
+                            else -> null
+                        }
+                        if (viewingPath != null && d.entries.any { it.path == viewingPath }) {
                             overlay = null
                         }
                     }) { Text(t.delete) }

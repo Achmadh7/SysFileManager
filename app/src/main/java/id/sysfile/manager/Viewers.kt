@@ -35,6 +35,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -252,6 +254,54 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                     }
                 }
             }
+        }
+    }
+}
+
+/** Pemutar video bawaan: VideoView dengan kontrol media, langsung putar di dalam aplikasi. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VideoViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit) {
+    val t = txt()
+    val file = remember(path) { File(path) }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Black,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
+            )
+        },
+        containerColor = Color.Black
+    ) { padding ->
+        Box(
+            Modifier.fillMaxSize().padding(padding).background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    android.widget.VideoView(ctx).apply {
+                        setMediaController(
+                            android.widget.MediaController(ctx).apply { setAnchorView(this@apply) }
+                        )
+                        setVideoURI(android.net.Uri.fromFile(file))
+                        setOnErrorListener { _, _, _ ->
+                            notify(t.opFailed)
+                            onBack()
+                            true
+                        }
+                        setOnPreparedListener { it.start() }
+                    }
+                },
+                onRelease = { it.stopPlayback() },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
