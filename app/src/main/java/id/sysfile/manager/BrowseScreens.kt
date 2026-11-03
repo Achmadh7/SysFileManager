@@ -15,6 +15,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -335,15 +337,12 @@ fun SelectionBar(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PillAction(Icons.Default.ContentCopy, t.copy, onCopy)
-                PillAction(
-                    Icons.Default.Unarchive, t.extract, onExtract,
-                    enabled = canExtract, highlighted = canExtract
-                )
-                PillAction(Icons.Default.Archive, t.compress, onCompress)
-                PillAction(Icons.Default.Delete, t.delete, onDelete)
+                PillIconAction(Icons.Default.ContentCopy, t.copy, onCopy)
+                PillExtractAction(canExtract, t.extract, onExtract)
+                PillIconAction(Icons.Default.Archive, t.compress, onCompress)
+                PillIconAction(Icons.Default.Delete, t.delete, onDelete)
                 Box {
-                    PillAction(Icons.Default.MoreVert, t.more, { menuOpen = true })
+                    PillIconAction(Icons.Default.MoreVert, t.more, { menuOpen = true })
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text(t.cut) },
@@ -388,31 +387,43 @@ fun SelectionBar(
     }
 }
 
-/** Satu tombol berikon + berlabel di pill pilihan (gaya hibrida pilihan Achmad). */
+/** Aksi ikon-saja di pill seleksi (varian Ekspansi Aktif). */
 @Composable
-private fun PillAction(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    highlighted: Boolean = false
-) {
-    val contentColor = when {
-        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-        highlighted -> Color.White
-        else -> MaterialTheme.colorScheme.onSurface
+private fun PillIconAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(icon, label, modifier = Modifier.size(24.dp))
     }
-    Column(
-        Modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(if (highlighted) Color(0xFF3D4B63) else Color.Transparent)
-            .clickable(enabled = enabled) { onClick() }
-            .padding(horizontal = 13.dp, vertical = 7.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp)
-    ) {
-        Icon(icon, label, tint = contentColor, modifier = Modifier.size(22.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = contentColor, maxLines = 1)
+}
+
+/**
+ * Aksi Ekstrak di pill seleksi: melebar jadi segmen berlabel slate saat pilihan
+ * berisi arsip; selain itu ikon saja dalam keadaan nonaktif.
+ */
+@Composable
+private fun PillExtractAction(enabled: Boolean, label: String, onClick: () -> Unit) {
+    val bg by animateColorAsState(
+        if (enabled) Color(0xFF3D4B63) else Color.Transparent,
+        label = "extractBg"
+    )
+    val fg = if (enabled) {
+        Color.White
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+    Surface(shape = RoundedCornerShape(50), color = bg, contentColor = fg) {
+        Row(
+            Modifier
+                .clickable(enabled = enabled) { onClick() }
+                .animateContentSize()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Unarchive, label, modifier = Modifier.size(22.dp))
+            if (enabled) {
+                Spacer(Modifier.width(8.dp))
+                Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            }
+        }
     }
 }
 
