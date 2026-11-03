@@ -270,8 +270,10 @@ fun storageStatus(freeFraction: Float): Pair<String, Color> {
     }
 }
 
-/** Kartu penyimpanan "Gradasi Ringkas": biru baja solid (pilihan pemilik), angka terpakai
- *  besar, persen raksasa di kanan, garis gelombang putih, chip status kesehatan. */
+/** Kartu penyimpanan biru baja solid: label, angka terpakai besar, detail total/kosong,
+ *  garis gelombang putih selebar kartu, lalu baris bawah berisi persen sedang + kata
+ *  "terpakai" di kiri dan chip status kesehatan di kanan (desain "Ekspresif Konsisten"
+ *  varian B pilihan pemilik). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GradientStorageCard(
@@ -293,54 +295,54 @@ fun GradientStorageCard(
             .padding(20.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        label.uppercase(),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color.White.copy(alpha = 0.85f)
-                    )
-                    Text(
-                        usedText,
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        detailText,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.92f)
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        percentText,
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        usedWord,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                }
-            }
+            Text(
+                label.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.85f)
+            )
+            Text(
+                usedText,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                detailText,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.92f)
+            )
             LinearWavyProgressIndicator(
                 progress = { frac },
                 modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
                 trackColor = Color.White.copy(alpha = 0.35f)
             )
-            Row(
-                Modifier.clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    percentText,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.alignByBaseline()
+                )
                 Spacer(Modifier.width(8.dp))
-                Text(statusText, style = MaterialTheme.typography.labelLarge, color = Color.White)
+                Text(
+                    usedWord,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.alignByBaseline()
+                )
+                Spacer(Modifier.weight(1f))
+                Row(
+                    Modifier.clip(RoundedCornerShape(50))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
+                    Spacer(Modifier.width(8.dp))
+                    Text(statusText, style = MaterialTheme.typography.labelLarge, color = Color.White)
+                }
             }
         }
     }

@@ -126,6 +126,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -189,7 +190,7 @@ fun HomeScreen(
                         if (root.kind != "internal" && root.total > 0) {
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                                    .background(Color(0xFF182636))
                                     .clickable { onOpenRoot(root.path) }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -201,23 +202,39 @@ fun HomeScreen(
                                         "usb" -> Icons.Default.Usb
                                         else -> Icons.Default.Storage
                                     },
-                                    null, tint = MaterialTheme.colorScheme.primary
+                                    null, tint = Color(0xFFAAC8F0), modifier = Modifier.size(26.dp)
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
+                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall, color = Color.White)
                                     LinearWavyProgressIndicator(
                                         progress = { ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f) },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = Color.White,
+                                        trackColor = Color.White.copy(alpha = 0.35f)
                                     )
                                     Text(
                                         if (root.kind == "root") {
-                                            (if (rootActive) t.rootActive else t.rootLimited) + " · " + t.free(FileOps.formatSize(root.free))
+                                            if (rootActive) t.rootActive else t.rootLimited
                                         } else {
-                                            t.free(FileOps.formatSize(root.free))
+                                            FileOps.formatSize(root.total - root.free) + " " + t.usedWord
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = Color(0xFFAABED7)
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                    Text(
+                                        FileOps.formatSize(root.free),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        t.freeWord,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFFAABED7)
                                     )
                                 }
                             }
