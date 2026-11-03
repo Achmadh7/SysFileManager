@@ -700,14 +700,26 @@ fun SysFileApp() {
                                 } else {
                                     TopAppBar(
                                         title = {
-                                            Text(
-                                                if (currentRoot != null && currentPath == currentRoot.path) {
-                                                    rootLabel(currentRoot, t)
-                                                } else {
-                                                    File(currentPath).name
-                                                },
-                                                maxLines = 1, overflow = TextOverflow.Ellipsis
-                                            )
+                                            Column {
+                                                Text(
+                                                    if (currentRoot != null && currentPath == currentRoot.path) {
+                                                        rootLabel(currentRoot, t)
+                                                    } else {
+                                                        File(currentPath).name
+                                                    },
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    if (currentRoot != null && currentPath == currentRoot.path) {
+                                                        currentPath
+                                                    } else {
+                                                        currentRoot?.let { rootLabel(it, t) } ?: ""
+                                                    },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
                                         },
                                         navigationIcon = {
                                             IconButton(onClick = { browseStack = browseStack.dropLast(1) }) {
@@ -716,23 +728,27 @@ fun SysFileApp() {
                                         },
                                         actions = {
                                             val isFav = favorites.contains(currentPath)
-                                            IconButton(onClick = {
-                                                val updated = if (isFav) favorites - currentPath else favorites + currentPath
-                                                favorites = updated
-                                                prefs.edit().putStringSet("favorites", updated).apply()
-                                                notify(if (isFav) t.removeFavorite else t.addFavorite)
-                                            }) {
-                                                Icon(if (isFav) Icons.Default.Star else Icons.Default.StarBorder, t.favorites)
-                                            }
-                                            IconButton(onClick = { overlay = Overlay.Search(currentPath) }) {
-                                                Icon(Icons.Default.Search, t.search)
-                                            }
-                                            IconButton(onClick = { browseStack = emptyList() }) {
-                                                Icon(Icons.Default.Home, t.home)
-                                            }
                                             Box {
                                                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
                                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                                    DropdownMenuItem(
+                                                        text = { Text(if (isFav) t.removeFavorite else t.addFavorite) },
+                                                        leadingIcon = {
+                                                            Icon(if (isFav) Icons.Default.Star else Icons.Default.StarBorder, null)
+                                                        },
+                                                        onClick = {
+                                                            menuOpen = false
+                                                            val updated = if (isFav) favorites - currentPath else favorites + currentPath
+                                                            favorites = updated
+                                                            prefs.edit().putStringSet("favorites", updated).apply()
+                                                            notify(if (isFav) t.removeFavorite else t.addFavorite)
+                                                        }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text(t.home) },
+                                                        leadingIcon = { Icon(Icons.Default.Home, null) },
+                                                        onClick = { menuOpen = false; browseStack = emptyList() }
+                                                    )
                                                     DropdownMenuItem(
                                                         text = { Text(t.newFolder) },
                                                         leadingIcon = { Icon(Icons.Default.CreateNewFolder, null) },
@@ -790,10 +806,16 @@ fun SysFileApp() {
                                     )
                                 }
                                 if (currentPath != null && selected.isEmpty()) {
-                                    BreadcrumbBar(
+                                    BrowseHeaderBar(
                                         currentPath = currentPath,
                                         currentRoot = currentRoot,
-                                        onNavigate = { browseStack = it }
+                                        gridView = gridView,
+                                        onSearch = { overlay = Overlay.Search(currentPath) },
+                                        onSortClick = { dialog = DialogKind.Sort },
+                                        onToggleView = {
+                                            gridView = !gridView
+                                            prefs.edit().putBoolean("grid_view", gridView).apply()
+                                        }
                                     )
                                 }
                                 }
@@ -945,7 +967,6 @@ fun SysFileApp() {
                                     } else {
                                         BrowseScreen(
                                         currentPath = animatedPath,
-                                        currentRoot = currentRoot,
                                         entries = entries,
                                         loaded = entriesLoaded,
                                         gridView = gridView,
@@ -969,16 +990,6 @@ fun SysFileApp() {
                                         },
                                         canGoUp = currentRoot != null && animatedPath != currentRoot.path,
                                         onNewFolder = { dialog = DialogKind.NewFolder },
-                                        sortLabel = when (sortKey) {
-                                            SortKey.NAME -> t.sortName
-                                            SortKey.DATE -> t.sortDate
-                                            SortKey.SIZE -> t.sortSize
-                                        },
-                                        onSortClick = { dialog = DialogKind.Sort },
-                                        onToggleView = {
-                                            gridView = !gridView
-                                            prefs.edit().putBoolean("grid_view", gridView).apply()
-                                        },
                                         counts = entryCounts,
                                         lockedPaths = lockedFolders
                                         )

@@ -145,39 +145,55 @@ import java.io.File
 
 // Layar penjelajah berkas: breadcrumb, daftar/grid, bilah pilihan dan papan klip.
 
-/** Baris chip jalur folder, kini menempel di bawah bilah judul atas. */
+/** Kepala jelajah: bar pencarian menyatu (urut + tampilan di ujungnya) dan baris jalur teks. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BreadcrumbBar(
+fun BrowseHeaderBar(
     currentPath: String,
     currentRoot: RootInfo?,
-    onNavigate: (List<String>) -> Unit
+    gridView: Boolean,
+    onSearch: () -> Unit,
+    onSortClick: () -> Unit,
+    onToggleView: () -> Unit
 ) {
     val t = txt()
     val rootPath = currentRoot?.path ?: currentPath
     val relative = currentPath.removePrefix(rootPath).trim('/')
     val segments = if (relative.isEmpty()) emptyList() else relative.split('/')
-    val crumbPaths = segments.scan(rootPath) { acc, seg -> "$acc/$seg" }
-    LazyRow(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        item {
-            FilterChip(
-                selected = segments.isEmpty(),
-                onClick = { onNavigate(listOf(rootPath)) },
-                label = { Text(currentRoot?.let { rootLabel(it, t) } ?: rootPath) }
-            )
+    val pathText = (listOf(currentRoot?.let { rootLabel(it, t) } ?: rootPath) + segments)
+        .joinToString(" \u203a ")
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+            Row(
+                Modifier.fillMaxWidth().clickable { onSearch() }
+                    .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    t.searchInFolder,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                IconButton(onClick = onSortClick) { Icon(Icons.Default.Sort, t.sortBy) }
+                IconButton(onClick = onToggleView) {
+                    Icon(
+                        if (gridView) Icons.Default.ViewList else Icons.Default.GridView,
+                        if (gridView) t.listView else t.gridView
+                    )
+                }
+            }
         }
-        itemsIndexed(segments) { index, seg ->
-            Text("/", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FilterChip(
-                selected = index == segments.lastIndex,
-                onClick = { onNavigate(crumbPaths.drop(1).take(index + 1).let { listOf(rootPath) + it }) },
-                label = { Text(seg) }
-            )
-        }
+        Text(
+            pathText,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
     }
 }
 
@@ -185,7 +201,6 @@ fun BreadcrumbBar(
 @Composable
 fun BrowseScreen(
     currentPath: String,
-    currentRoot: RootInfo?,
     entries: List<FEntry>,
     loaded: Boolean,
     gridView: Boolean,
@@ -196,42 +211,11 @@ fun BrowseScreen(
     onGoUp: () -> Unit,
     canGoUp: Boolean,
     onNewFolder: () -> Unit,
-    sortLabel: String,
-    onSortClick: () -> Unit,
-    onToggleView: () -> Unit,
     counts: Map<String, Int>,
     lockedPaths: Set<String> = emptySet()
 ) {
     val t = txt()
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            AssistChip(
-                onClick = onSortClick,
-                label = { Text(t.sortBy + ": " + sortLabel) },
-                leadingIcon = { Icon(Icons.Default.Sort, null, Modifier.size(18.dp)) }
-            )
-            FilterChip(
-                selected = gridView,
-                onClick = onToggleView,
-                label = { Text(if (gridView) t.gridView else t.listView) },
-                leadingIcon = {
-                    Icon(if (gridView) Icons.Default.GridView else Icons.Default.ViewList, null, Modifier.size(18.dp))
-                }
-            )
-            Spacer(Modifier.weight(1f))
-            if (currentRoot != null && currentRoot.total > 0) {
-                Text(
-                    rootLabel(currentRoot, t) + " · " + t.free(FileOps.formatSize(currentRoot.free)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-        }
         if (canGoUp) {
             Row(
                 Modifier.fillMaxWidth()
