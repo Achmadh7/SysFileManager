@@ -146,6 +146,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Layar tambahan yang menimpa layar utama (Beranda/peramban). */
 private sealed interface Overlay {
@@ -232,6 +233,8 @@ fun SysFileApp() {
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
     var clipboard by remember { mutableStateOf<Pair<List<String>, ClipMode>?>(null) }
     var working by remember { mutableStateOf(false) }
+    var workProgress by remember { mutableStateOf<Float?>(null) }
+    var workCancelFlag by remember { mutableStateOf<AtomicBoolean?>(null) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var favorites by remember { mutableStateOf(prefs.getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
@@ -712,14 +715,30 @@ fun SysFileApp() {
                             val payloadFile = File(ov.path)
                             overlay = null
                             overlayReturn = null
+                            val flag = AtomicBoolean(false)
+                            workCancelFlag = flag
+                            workProgress = 0f
                             working = true
                             scope.launch {
                                 val outcome = withContext(Dispatchers.IO) {
-                                    PayloadOps.extract(payloadFile, payloadFile.parentFile ?: payloadFile)
+                                    PayloadOps.extract(
+                                        payloadFile, payloadFile.parentFile ?: payloadFile,
+                                        onProgress = { done, total ->
+                                            if (total > 0L) {
+                                                workProgress =
+                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                            }
+                                        },
+                                        cancelFlag = flag
+                                    )
                                 }
                                 working = false
+                                workProgress = null
+                                workCancelFlag = null
                                 when {
                                     outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
                                     outcome.error != null -> notify(t.payloadInvalid)
                                     else -> {
                                         notify(t.payloadDone(outcome.partitions))
@@ -730,14 +749,30 @@ fun SysFileApp() {
                         },
                         onOpenPartition = { name ->
                             val payloadFile = File(ov.path)
+                            val flag = AtomicBoolean(false)
+                            workCancelFlag = flag
+                            workProgress = 0f
                             working = true
                             scope.launch {
                                 val outcome = withContext(Dispatchers.IO) {
-                                    PayloadOps.extractOne(payloadFile, name, payloadFile.parentFile ?: payloadFile)
+                                    PayloadOps.extractOne(
+                                        payloadFile, name, payloadFile.parentFile ?: payloadFile,
+                                        onProgress = { done, total ->
+                                            if (total > 0L) {
+                                                workProgress =
+                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                            }
+                                        },
+                                        cancelFlag = flag
+                                    )
                                 }
                                 working = false
+                                workProgress = null
+                                workCancelFlag = null
                                 when {
                                     outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
                                     outcome.error != null -> notify(t.opFailed)
                                     outcome.file != null -> {
                                         overlay = null
@@ -1134,13 +1169,34 @@ fun SysFileApp() {
             AlertDialog(
                 onDismissRequest = {},
                 text = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        LoadingIndicator(Modifier.size(52.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Text(t.working)
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LoadingIndicator(Modifier.size(52.dp))
+                            Spacer(Modifier.width(16.dp))
+                            Text(t.working)
+                        }
+                        val prog = workProgress
+                        if (prog != null) {
+                            LinearWavyProgressIndicator(
+                                progress = { prog },
+                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
+                            )
+                            Text(
+                                "${(prog * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
                     }
                 },
-                confirmButton = {}
+                confirmButton = {},
+                dismissButton = {
+                    val flag = workCancelFlag
+                    if (flag != null) {
+                        TextButton(onClick = { flag.set(true) }) { Text(t.cancel) }
+                    }
+                }
             )
         }
 
