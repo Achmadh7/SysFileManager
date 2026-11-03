@@ -250,8 +250,6 @@ fun HomeScreen(
                                 statusText = statusText,
                                 statusDot = statusDot,
                                 fraction = (root.total - root.free).toFloat() / root.total.toFloat(),
-                                fsType = remember(root.path) { FileOps.fsType(root.path) },
-                                openLabel = t.openWord,
                                 icon = Icons.Default.Smartphone,
                                 onClick = { onOpenRoot(root.path) }
                             )

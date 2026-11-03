@@ -408,8 +408,6 @@ fun GradientStorageCard(
     statusText: String,
     statusDot: Color,
     fraction: Float,
-    fsType: String? = null,
-    openLabel: String? = null,
     icon: ImageVector = Icons.Default.Storage,
     onClick: () -> Unit
 ) {
@@ -421,36 +419,12 @@ fun GradientStorageCard(
             .padding(20.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(52.dp).clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.18f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
-                }
-                Spacer(Modifier.weight(1f))
-                if (fsType != null) {
-                    Box(
-                        Modifier.clip(RoundedCornerShape(50))
-                            .background(Color.White.copy(alpha = 0.18f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(fsType, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                }
-                if (openLabel != null) {
-                    Row(
-                        Modifier.clip(RoundedCornerShape(50))
-                            .background(Color.White.copy(alpha = 0.18f))
-                            .padding(horizontal = 12.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Text(openLabel, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                }
+            Box(
+                Modifier.size(52.dp).clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
             }
             Column {
                 Text(
