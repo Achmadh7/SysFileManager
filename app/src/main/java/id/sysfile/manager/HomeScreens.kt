@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -161,10 +162,8 @@ fun HomeScreen(
     accessGranted: Boolean,
     roots: List<RootInfo>,
     rootActive: Boolean,
-    favorites: Set<String>,
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
-    onOpenFavorite: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
 ) {
     val t = txt()
@@ -261,7 +260,12 @@ fun HomeScreen(
             }
         }
         item {
-            SectionCard(icon = Icons.Default.Analytics, title = t.categories) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(t.categories, style = MaterialTheme.typography.titleMedium)
+                }
                 val cats = listOf(
                     Category.IMAGE to t.catImagesS,
                     Category.VIDEO to t.catVideosS,
@@ -271,60 +275,38 @@ fun HomeScreen(
                     Category.ARCHIVE to t.catArchivesS,
                     Category.OTHER to t.catOtherS
                 )
-                cats.chunked(3).forEach { rowCats ->
+                cats.chunked(2).forEach { rowCats ->
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         rowCats.forEach { (cat, label) ->
                             val color = categoryColor(cat)
-                            Column(
-                                Modifier.weight(1f)
+                            Row(
+                                Modifier.weight(1f).height(76.dp)
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(color.copy(alpha = 0.13f))
+                                    .background(color.copy(alpha = 0.15f))
                                     .clickable { onOpenCategory(cat) }
-                                    .padding(vertical = 12.dp, horizontal = 4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    .padding(horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
-                                    Modifier.size(42.dp).clip(CircleShape).background(color),
+                                    Modifier.size(44.dp).clip(CircleShape).background(color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = Color.White, modifier = Modifier.size(22.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = Color.White, modifier = Modifier.size(23.dp))
                                 }
+                                Spacer(Modifier.width(12.dp))
                                 Text(
                                     label,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
-                        repeat(3 - rowCats.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-            }
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(t.favorites, style = MaterialTheme.typography.titleMedium)
-                }
-                if (favorites.isEmpty()) {
-                    Text(t.noFavorites, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(favorites.sorted(), key = { it }) { path ->
-                            FilterChip(
-                                selected = false,
-                                onClick = { onOpenFavorite(path) },
-                                label = { Text(File(path).name.ifEmpty { path }, maxLines = 1) },
-                                leadingIcon = { Icon(Icons.Default.Folder, null, Modifier.size(18.dp)) }
-                            )
-                        }
+                        repeat(2 - rowCats.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }

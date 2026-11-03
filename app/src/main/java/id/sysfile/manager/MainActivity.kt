@@ -994,12 +994,8 @@ fun SysFileApp() {
                                                     accessGranted = accessGranted,
                                                     roots = if (showRootEntry) allRoots else roots,
                                                     rootActive = rootActive,
-                                                    favorites = favorites,
                                                     onRequestAccess = { requestAccess() },
                                                     onOpenRoot = { browseStack = listOf(it) },
-                                                    onOpenFavorite = { path ->
-                                                        openFolderGuarded(path) { browseStack = listOf(path) }
-                                                    },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) }
                                                 )
                                             }
