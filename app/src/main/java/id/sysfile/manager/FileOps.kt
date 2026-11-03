@@ -43,6 +43,14 @@ data class RootInfo(
 /** Satu entri di dalam arsip, untuk layar Isi Arsip (dibuka tanpa ekstrak). */
 data class ArchiveItem(val name: String, val isDir: Boolean, val size: Long)
 
+/** Info dasar dari dalam berkas APK: nama aplikasi, paket, dan versi. */
+data class ApkInfo(
+    val appName: String,
+    val packageName: String,
+    val versionName: String,
+    val versionCode: Long
+)
+
 /** Hasil analisis penyimpanan: ukuran per kategori + file terbesar. */
 data class AnalysisResult(
     val byCategory: Map<Category, Long>,
@@ -137,14 +145,6 @@ object FileOps {
     fun childCount(dir: File): Int {
         return try { dir.listFiles()?.size ?: 0 } catch (e: Exception) { 0 }
     }
-
-    /** Info dasar dari dalam berkas APK: nama aplikasi, paket, dan versi. */
-data class ApkInfo(
-    val appName: String,
-    val packageName: String,
-    val versionName: String,
-    val versionCode: Long
-)
 
 /** Volume semu untuk direktori root "/" (di luar penyimpanan bersama). */
     fun rootFilesystem(): RootInfo {
