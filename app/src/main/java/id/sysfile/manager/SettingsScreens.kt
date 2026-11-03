@@ -591,7 +591,7 @@ fun AboutScreen(onBack: () -> Unit, onFormats: () -> Unit, onOpenAnalysis: () ->
                     color = Color(0xFF4DA3FF),
                     title = t.storage,
                     subtitle = internal?.let {
-                        t.storageUsedLine(formatSize(it.total - it.free), formatSize(it.total))
+                        t.storageUsedLine(FileOps.formatSize(it.total - it.free), FileOps.formatSize(it.total))
                     } ?: "",
                     onClick = onOpenAnalysis
                 )
