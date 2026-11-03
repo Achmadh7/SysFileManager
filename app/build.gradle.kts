@@ -92,6 +92,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-tooling-preview")
 
+    // Unit test JVM untuk logika murni (routing arsip/kategori, formatSize, uniqueName).
+    testImplementation("junit:junit:4.13.2")
+
     // Thumbnail foto & video di daftar file.
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-video:2.7.0")
