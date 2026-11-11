@@ -53,7 +53,6 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -131,7 +130,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -617,6 +619,7 @@ fun SysFileApp() {
     }
 
     SysFileTheme(themeMode, dynamicColor) {
+        AuroraBackground {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -837,6 +840,7 @@ fun SysFileApp() {
                     )
                     null -> {
                         Scaffold(
+                            containerColor = Color.Transparent,
                             snackbarHost = { SnackbarHost(snackbar) },
                             topBar = {
                                 Column {
@@ -846,7 +850,7 @@ fun SysFileApp() {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
                                                     Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
-                                                        .background(Color(0xFF2E5A88)),
+                                                        .background(Brush.verticalGradient(listOf(Color(0xFF122844), Color(0xFF0B1526)))),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(
@@ -854,10 +858,12 @@ fun SysFileApp() {
                                                         tint = Color.White,
                                                         modifier = Modifier.size(25.dp)
                                                     )
-                                                    Icon(
-                                                        Icons.Default.ArrowUpward, null,
-                                                        tint = Color(0xFF2E5A88),
-                                                        modifier = Modifier.size(13.dp).offset(y = 3.dp)
+                                                    Text(
+                                                        "S",
+                                                        color = Color(0xFF2E5A88),
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        fontSize = 11.sp,
+                                                        modifier = Modifier.offset(y = 3.dp)
                                                     )
                                                 }
                                                 Spacer(Modifier.width(12.dp))
@@ -1393,6 +1399,7 @@ fun SysFileApp() {
                 onDismiss = { dialog = null }
             )
             null -> {}
+        }
         }
     }
 }
