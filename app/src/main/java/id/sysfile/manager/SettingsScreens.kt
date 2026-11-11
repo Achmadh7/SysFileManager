@@ -172,7 +172,6 @@ fun SettingsScreen(
     onHidden: (Boolean) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
-    onFormats: () -> Unit,
     onApps: () -> Unit,
     onAbout: () -> Unit,
     onBack: () -> Unit
@@ -256,16 +255,6 @@ fun SettingsScreen(
                             title = t.rootAccessTitle,
                             subtitle = t.rootAccessDesc,
                             trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
-                        )
-                        HorizontalDivider(
-                            Modifier.padding(start = 60.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                        )
-                        SettingsRow(
-                            icon = Icons.Default.Archive,
-                            circleColor = Color(0xFF8B7CFF),
-                            title = t.formatsTitle,
-                            onClick = onFormats
                         )
                         HorizontalDivider(
                             Modifier.padding(start = 60.dp),
@@ -449,128 +438,6 @@ private fun SettingsChoiceDialog(
     )
 }
 
-@Composable
-fun FormatChip(text: String, container: Color, content: Color) {
-    Surface(shape = RoundedCornerShape(8.dp), color = container) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelMedium,
-            color = content,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-        )
-    }
-}
-
-@Composable
-fun FormatCard(name: String, desc: String, chips: List<Triple<String, Color, Color>>) {
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            chips.forEach { (label, bg, fg) -> FormatChip(label, bg, fg) }
-        }
-        Text(
-            desc,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun FormatGroupHeader(icon: ImageVector, title: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FormatsScreen(onBack: () -> Unit) {
-    val t = txt()
-    val chipCreate = Triple(t.chipCreate, Color(0xFF2E5A88), Color.White)
-    val chipExtract = Triple(
-        t.chipExtract,
-        MaterialTheme.colorScheme.surfaceContainerHigh,
-        MaterialTheme.colorScheme.onSurface
-    )
-    val chipEncrypt = Triple(t.chipEncrypt, Color(0xFFE3C8F5), Color(0xFF3B2B4D))
-    val chipRatio = Triple(
-        t.chipHighRatio,
-        MaterialTheme.colorScheme.surfaceContainerHigh,
-        MaterialTheme.colorScheme.onSurface
-    )
-    val chipDecompress = Triple(
-        t.chipDecompress,
-        MaterialTheme.colorScheme.surfaceContainerHigh,
-        MaterialTheme.colorScheme.onSurface
-    )
-    val chipInspect = Triple(
-        t.chipInspect,
-        MaterialTheme.colorScheme.surfaceContainerHigh,
-        MaterialTheme.colorScheme.onSurface
-    )
-    val chipNative = Triple(t.chipNative, Color(0xFFB71C1C), Color.White)
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(t.formatsTitle) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                }
-            )
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
-        ) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
-                    FormatCard("ZIP (.zip)", t.fmtZipDesc, listOf(chipCreate, chipExtract, chipEncrypt))
-                    FormatCard("7Z (.7z)", t.fmt7zDesc, listOf(chipExtract, chipRatio))
-                    FormatCard("TAR (.tar)", t.fmtTarDesc, listOf(chipCreate, chipExtract))
-                }
-            }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FormatGroupHeader(Icons.Default.Inventory2, t.formatGroupTarball)
-                    FormatCard("TAR.GZ (.tar.gz, .tgz)", t.fmtTarGzDesc, listOf(chipCreate, chipExtract))
-                    FormatCard("TAR.BZ2 (.tar.bz2, .tbz2)", t.fmtTarBz2Desc, listOf(chipCreate, chipExtract))
-                    FormatCard("TAR.XZ (.tar.xz, .txz)", t.fmtTarXzDesc, listOf(chipCreate, chipExtract))
-                }
-            }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FormatGroupHeader(Icons.Default.Compress, t.formatGroupSingle)
-                    FormatCard("GZIP (.gz)", t.fmtGzipDesc, listOf(chipDecompress))
-                    FormatCard("BZIP2 (.bz2)", t.fmtBzip2Desc, listOf(chipDecompress))
-                    FormatCard("XZ (.xz)", t.fmtXzDesc, listOf(chipDecompress))
-                }
-            }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
-                    FormatCard("RAR (.rar)", t.fmtRarDesc, listOf(chipExtract))
-                    FormatCard("APK / APKS / XAPK", t.fmtApkDesc, listOf(chipExtract, chipInspect))
-                    FormatCard("PAYLOAD.BIN", t.fmtPayloadDesc, listOf(chipExtract, chipNative))
-                }
-            }
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Layar Tentang (halaman penuh, menggantikan dialog Tentang lama)
 // ---------------------------------------------------------------------------
@@ -579,7 +446,6 @@ fun FormatsScreen(onBack: () -> Unit) {
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
-    onFormats: () -> Unit,
     onOpenStorage: () -> Unit,
     onOpenSpecs: () -> Unit
 ) {
@@ -661,15 +527,6 @@ fun AboutScreen(
                         t.storageUsedLine(FileOps.formatSize(it.total - it.free), FileOps.formatSize(it.total))
                     } ?: "",
                     onClick = onOpenStorage
-                )
-            }
-            item {
-                AboutCard(
-                    icon = Icons.Default.Archive,
-                    color = Color(0xFFFFB020),
-                    title = t.supportedFormats,
-                    subtitle = t.formatsSummary,
-                    onClick = onFormats
                 )
             }
             item {

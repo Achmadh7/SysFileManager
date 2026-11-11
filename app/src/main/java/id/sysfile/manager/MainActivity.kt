@@ -204,7 +204,6 @@ fun SysFileApp() {
 
     var homeTab by remember { mutableStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
-    var showFormats by remember { mutableStateOf(false) }
     var showTrash by remember { mutableStateOf(false) }
     var showApps by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
@@ -608,10 +607,9 @@ fun SysFileApp() {
     BackHandler(enabled = showSettings) { showSettings = false }
     BackHandler(enabled = !showSettings && overlay != null) { overlay = overlayReturn; overlayReturn = null }
     BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab != 0) { homeTab = 0 }
-    BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = showTrash) { showTrash = false }
     BackHandler(enabled = showApps) { showApps = false }
-    BackHandler(enabled = showAbout && !showFormats && !showSpecs) { showAbout = false }
+    BackHandler(enabled = showAbout && !showSpecs) { showAbout = false }
     BackHandler(enabled = showSpecs) { showSpecs = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty() && safTreeUri == null) {
@@ -629,8 +627,6 @@ fun SysFileApp() {
             )
         } else if (showTrash) {
             TrashScreen(onBack = { showTrash = false }, notify = { notify(it) })
-        } else if (showFormats) {
-            FormatsScreen(onBack = { showFormats = false })
         } else if (showApps) {
             AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
         } else if (showSpecs) {
@@ -638,7 +634,6 @@ fun SysFileApp() {
         } else if (showAbout) {
             AboutScreen(
                 onBack = { showAbout = false },
-                onFormats = { showFormats = true },
                 onOpenStorage = {
                     showAbout = false
                     showSettings = false
@@ -677,7 +672,6 @@ fun SysFileApp() {
                     showRootEntry = v
                     prefs.edit().putBoolean("root_entry", v).apply()
                 },
-                onFormats = { showFormats = true },
                 onApps = { showApps = true },
                 onAbout = { showAbout = true },
                 onBack = { showSettings = false }
