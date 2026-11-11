@@ -175,12 +175,6 @@ fun HomeScreen(
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Column {
-                Text(t.greetingHello, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(t.greetingLine, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            }
-        }
         if (!accessGranted) {
             item {
                 SectionCard(icon = Icons.Default.Warning, title = t.permissionTitle) {
