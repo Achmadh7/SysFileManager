@@ -399,6 +399,20 @@ object FileOps {
             "(" + oktal + ")"
     }
 
+    /** Pratinjau izin untuk dialog editor: simbolik tanpa huruf jenis,
+     *  spasi, lalu oktal - "rw-rw---- (660)". */
+    fun permPreview(permBits: Int): String =
+        formatPerms(permBits and 0xFFF).drop(1).replace("(", " (")
+
+    /** Terapkan bit izin (chmod). false bila ditolak sistem
+     *  (mis. jalur FUSE / kartu SD yang tidak mendukung chmod). */
+    fun chmod(path: String, permBits: Int): Boolean = try {
+        android.system.Os.chmod(path, permBits and 0xFFF)
+        true
+    } catch (e: Exception) {
+        false
+    }
+
     /** Nama pemilik dari uid: nama bawaan Android untuk uid sistem,
      * pola "u<user>_a<app>" untuk uid aplikasi, angka mentah sisanya. */
     fun ownerName(uid: Int): String = when (uid) {

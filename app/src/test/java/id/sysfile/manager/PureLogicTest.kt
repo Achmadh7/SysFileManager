@@ -155,6 +155,15 @@ class PureLogicTest {
     }
 
     @Test
+    fun permPreview_editorCases() {
+        // Kasus tangkapan layar referensi: rw-rw---- (660).
+        assertEquals("rw-rw---- (660)", FileOps.permPreview(0x1B0))
+        assertEquals("rwsr-xr-x (4755)", FileOps.permPreview(0x9ED))
+        assertEquals("rwxrwxrwt (1777)", FileOps.permPreview(0x3FF))
+        assertEquals("--------- (0)", FileOps.permPreview(0))
+    }
+
+    @Test
     fun uniqueName_noExtension() {
         val dir = tmp.newFolder("noext")
         File(dir, "README").createNewFile()

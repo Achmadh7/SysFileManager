@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -87,6 +88,8 @@ import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -193,6 +196,8 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
     var stat by remember(entry.path) { mutableStateOf<FileOps.StatInfo?>(null) }
     var expanded by remember(entry.path) { mutableStateOf(false) }
     var showSums by remember(entry.path) { mutableStateOf(false) }
+    var showPerms by remember(entry.path) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var sums by remember(entry.path) { mutableStateOf<Pair<String, String>?>(null) }
     var computing by remember(entry.path) { mutableStateOf(false) }
     LaunchedEffect(entry.path) {
@@ -315,7 +320,11 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 2.dp)
                                 )
-                                PropGroupRow(t.propPerms, FileOps.formatPerms(stat!!.mode), monospace = true)
+                                PropGroupRow(t.propPerms, FileOps.formatPerms(stat!!.mode), monospace = true) {
+                                    IconButton(onClick = { showPerms = true }) {
+                                        Icon(Icons.Default.Edit, t.edit, modifier = Modifier.size(18.dp))
+                                    }
+                                }
                                 PropGroupDivider()
                                 PropGroupRow(t.propOwner, FileOps.ownerName(stat!!.uid))
                                 PropGroupDivider()
@@ -366,6 +375,129 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
             }
         }
     )
+    if (showPerms && stat != null) {
+        PermissionsDialog(
+            initialBits = stat!!.mode and 0xFFF,
+            onDismiss = { showPerms = false },
+            onApply = { bitsBaru ->
+                showPerms = false
+                scope.launch {
+                    val sukses = withContext(Dispatchers.IO) { FileOps.chmod(entry.path, bitsBaru) }
+                    if (sukses) {
+                        stat = withContext(Dispatchers.IO) { FileOps.statInfo(entry.path) }
+                        onNotify(t.permApplied)
+                    } else {
+                        onNotify(t.permFailed)
+                    }
+                }
+            }
+        )
+    }
+}
+
+/** Editor izin (chmod) ala pengelola berkas referensi: kotak centang
+ *  Baca/Tulis/Eksekutif untuk Pemilik/Kelompok/Lainnya, izin khusus
+ *  (setuid/setgid/lengket), dan pratinjau simbolik + oktal langsung. */
+@Composable
+private fun PermissionsDialog(
+    initialBits: Int,
+    onDismiss: () -> Unit,
+    onApply: (Int) -> Unit
+) {
+    val t = txt()
+    var bits by remember { mutableStateOf(initialBits and 0xFFF) }
+    fun ubah(bit: Int, on: Boolean) {
+        bits = if (on) bits or bit else bits and bit.inv()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(t.propPerms) },
+        text = {
+            Column {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.weight(1.1f))
+                    Text(t.permRead, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+                    Text(t.permWrite, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+                    Text(t.permExec, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+                }
+                BarisIzin(t.propOwner, 256, 128, 64, bits, ::ubah)
+                BarisIzin(t.propGroup, 32, 16, 8, bits, ::ubah)
+                BarisIzin(t.permOthers, 4, 2, 1, bits, ::ubah)
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(Modifier.weight(1f))
+                    Text(
+                        "  " + t.permSpecial + "  ",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    HorizontalDivider(Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth()) {
+                    KolomKhusus(t.permSetUid, 2048, bits, ::ubah)
+                    KolomKhusus(t.permSetGid, 1024, bits, ::ubah)
+                    KolomKhusus(t.permSticky, 512, bits, ::ubah)
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    FileOps.permPreview(bits),
+                    Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onApply(bits) }) { Text(t.okLabel.uppercase()) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(t.cancel.uppercase()) }
+        }
+    )
+}
+
+/** Satu baris kotak centang izin: label + Baca/Tulis/Eksekutif. */
+@Composable
+private fun BarisIzin(
+    label: String,
+    bitR: Int,
+    bitW: Int,
+    bitX: Int,
+    bits: Int,
+    onToggle: (Int, Boolean) -> Unit
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1.1f))
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Checkbox(checked = bits and bitR != 0, onCheckedChange = { onToggle(bitR, it) })
+        }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Checkbox(checked = bits and bitW != 0, onCheckedChange = { onToggle(bitW, it) })
+        }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Checkbox(checked = bits and bitX != 0, onCheckedChange = { onToggle(bitX, it) })
+        }
+    }
+}
+
+/** Satu kolom izin khusus di dalam Row: kotak centang + label di bawahnya. */
+@Composable
+private fun RowScope.KolomKhusus(
+    label: String,
+    bit: Int,
+    bits: Int,
+    onToggle: (Int, Boolean) -> Unit
+) {
+    Column(
+        Modifier.weight(1f),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Checkbox(checked = bits and bit != 0, onCheckedChange = { onToggle(bit, it) })
+        Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+    }
 }
 
 /** Satu baris label-nilai di dalam kartu grup Properti (nilai rata kanan). */
