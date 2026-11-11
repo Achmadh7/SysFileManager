@@ -193,14 +193,14 @@ fun SettingsScreen(
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
             // G3 Petak Cepat (pilihan Achmad 2026-11-11): empat
             // pengaturan yang paling sering disentuh jadi petak kaca
             // 2x2; sisanya berkumpul di kartu kaca Lainnya.
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SettingsQuickTile(
                         icon = when (themeMode) {
                             "light" -> Icons.Default.LightMode
@@ -224,7 +224,7 @@ fun SettingsScreen(
                 }
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SettingsQuickTile(
                         icon = Icons.Default.Palette,
                         circleColor = Color(0xFF2DD4BF),
@@ -243,14 +243,14 @@ fun SettingsScreen(
                     )
                 }
             }
-            item { SettingsSectionLabel(t.otherSection, topPadding = 14.dp) }
+            item { SettingsSectionLabel(t.otherSection, topPadding = 8.dp) }
             item {
                 Surface(
                     shape = RoundedCornerShape(22.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                         SettingsRow(
                             icon = Icons.Default.Security,
                             circleColor = Color(0xFFC62828),
