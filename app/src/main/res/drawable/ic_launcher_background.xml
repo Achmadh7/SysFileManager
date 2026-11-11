@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <!-- Logo L1 "Gradasi Premium" (pilihan Achmad 2026-11-11): latar gradasi
-         vertikal navy #1B3A5C di atas ke Biru Baja #2E5A88 di bawah,
-         menggantikan warna datar lama. -->
+    <!-- Logo L8 "S Negatif" (pilihan Achmad 2026-11-11): latar gradasi
+         vertikal navy gelap #122844 di atas ke #0B1526 di bawah,
+         menggantikan gradasi L1. -->
     <gradient
         android:type="linear"
         android:angle="270"
-        android:startColor="#1B3A5C"
-        android:endColor="#2E5A88" />
+        android:startColor="#122844"
+        android:endColor="#0B1526" />
 </shape>
