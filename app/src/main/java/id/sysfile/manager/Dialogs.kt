@@ -21,6 +21,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -138,6 +139,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -217,21 +219,37 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            // Kepala P1: petak ikon kategori + nama berkas (maks 2 baris).
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF3D4B63)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+            // Kepala P15 "Kaca Aurora" (pilihan Achmad 2026-11-11): pita
+            // sapuan gradien cyan -> violet di belakang petak ikon +
+            // nama berkas (maks 2 baris).
+            Box(
+                Modifier.clip(RoundedCornerShape(16.dp)).background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.22f)
+                        )
                     )
+                )
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF3D4B63)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
+                            null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Spacer(Modifier.width(12.dp))
-                Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         },
         text = {
@@ -272,9 +290,9 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         }
                     }
                 } else {
-                    // P1 Kartu Grup Expressive (pilihan Achmad 2026-11-11):
+                    // P15 Kaca Aurora (pilihan Achmad 2026-11-11, menggantikan P1):
                     // kartu 1 info berkas, kartu 2 izin & kepemilikan.
-                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                         Column {
                             PropGroupRow(
                                 t.propParent,
@@ -312,14 +330,30 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     }
                     if (stat != null) {
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                             Column {
-                                Text(
-                                    t.propPermsGroup.uppercase(),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 2.dp)
-                                )
+                                Row(
+                                    Modifier.padding(start = 20.dp, top = 16.dp, bottom = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(9.dp),
+                                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Lock, null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.padding(6.dp).size(15.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        t.propPermsGroup.uppercase(),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                                 PropGroupRow(t.propPerms, FileOps.formatPerms(stat!!.mode), monospace = true) {
                                     IconButton(onClick = { showPerms = true }) {
                                         Icon(Icons.Default.Edit, t.edit, modifier = Modifier.size(18.dp))
@@ -336,7 +370,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         // Isi tombol LAGI: jalur lengkap (dengan salin) +
                         // rincian stat lanjutan bila tersedia.
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                             Column {
                                 PropGroupRow(t.propPath, ellipsizeMiddle(entry.path)) {
                                     IconButton(onClick = {
@@ -361,17 +395,18 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
             }
         },
         confirmButton = {
-            Row(Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (showSums) {
-                    TextButton(onClick = { showSums = false }) { Text(t.back.uppercase()) }
+                    PropPillButton(t.back.uppercase()) { showSums = false }
                 } else {
-                    TextButton(onClick = { expanded = !expanded }) { Text(t.propMore.uppercase()) }
+                    PropPillButton(t.propMore.uppercase()) { expanded = !expanded }
                 }
                 Spacer(Modifier.weight(1f))
                 if (!entry.isDir && !showSums) {
-                    TextButton(onClick = { showSums = true }) { Text(t.checksumBtn.uppercase()) }
+                    PropPillButton(t.checksumBtn.uppercase()) { showSums = true }
                 }
-                TextButton(onClick = onDismiss) { Text(t.close.uppercase()) }
+                Spacer(Modifier.width(8.dp))
+                PropPillButton(t.close.uppercase()) { onDismiss() }
             }
         }
     )
@@ -500,7 +535,10 @@ private fun RowScope.KolomKhusus(
     }
 }
 
-/** Satu baris label-nilai di dalam kartu grup Properti (nilai rata kanan). */
+/** Satu blok label-nilai di dalam kartu grup Properti (P15): label
+ *  kapital kecil cyan di atas, nilai selebar kartu di bawahnya agar
+ *  nilai panjang (ukuran persis, izin) tidak terpotong. Nilai
+ *  monospace tampil di dalam chip timbul. */
 @Composable
 private fun PropGroupRow(
     label: String,
@@ -508,22 +546,41 @@ private fun PropGroupRow(
     monospace: Boolean = false,
     trailing: @Composable (() -> Unit)? = null
 ) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(104.dp))
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
         Text(
-            value,
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default
+            label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
         )
-        if (trailing != null) {
-            Spacer(Modifier.width(4.dp))
-            trailing()
+        Spacer(Modifier.height(3.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (monospace) {
+                Surface(
+                    shape = RoundedCornerShape(9.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest
+                ) {
+                    Text(
+                        value,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        maxLines = 1,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            } else {
+                Text(
+                    value,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            if (trailing != null) {
+                Spacer(Modifier.width(4.dp))
+                trailing()
+            }
         }
     }
 }
@@ -535,6 +592,25 @@ private fun PropGroupDivider() {
         Modifier.padding(horizontal = 20.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
     )
+}
+
+/** Tombol aksi pil tonal untuk dialog Properti (P15). */
+@Composable
+private fun PropPillButton(text: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
+        onClick = onClick
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp)
+        )
+    }
 }
 
 /** Potong string panjang di tengah: awal\u2026akhir, agar jalur tetap terbaca. */
