@@ -40,7 +40,7 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 | Build | AGP 8.11.1, Gradle 8.13, JDK 17 |
 | Android | minSdk 26 (Android 8.0), targetSdk 34, compileSdk 36 |
 | Package | `id.sysfile.manager` |
-| Version | 1.1.0 |
+| Version | 1.2.0 |
 | Signing | Fixed keystore committed in this repo (`sysfile.p12`, PKCS12) — every CI build carries the same signature, so updates install in place |
 | R8 | Minify + resource shrinking enabled on debug and release builds, using the default optimize rules plus keep rules for the archive libraries |
 

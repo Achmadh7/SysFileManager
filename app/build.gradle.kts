@@ -12,8 +12,8 @@ android {
         applicationId = "id.sysfile.manager"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
     // Kunci tanda tangan TETAP untuk semua build dari repo ini (keystore
