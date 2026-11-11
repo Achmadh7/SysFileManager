@@ -78,7 +78,6 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
@@ -576,12 +575,6 @@ fun FormatsScreen(onBack: () -> Unit) {
 // Layar Tentang (halaman penuh, menggantikan dialog Tentang lama)
 // ---------------------------------------------------------------------------
 
-private const val MIT_LICENSE_TEXT = """Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."""
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
@@ -593,7 +586,6 @@ fun AboutScreen(
     val t = txt()
     val context = LocalContext.current
     val internal = remember { FileOps.storageRoots(context).firstOrNull { it.kind == "internal" } }
-    var showLicense by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -690,15 +682,6 @@ fun AboutScreen(
                 )
             }
             item {
-                AboutCard(
-                    icon = Icons.Default.Gavel,
-                    color = Color(0xFF2DD4BF),
-                    title = t.licenseTitle,
-                    subtitle = "Copyright © 2026 Reffan Lintang",
-                    onClick = { showLicense = true }
-                )
-            }
-            item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -744,61 +727,6 @@ fun AboutScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
-            }
-        }
-    }
-    if (showLicense) {
-        Dialog(onDismissRequest = { showLicense = false }) {
-            Surface(
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                Column(Modifier.padding(24.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFF3D4B63)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Gavel, null,
-                                tint = Color.White, modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Text(
-                            t.licenseTitle,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        "Copyright © 2026 Reffan Lintang",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Column(
-                        Modifier
-                            .height(380.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Text(
-                            MIT_LICENSE_TEXT,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { showLicense = false }) { Text(t.close) }
-                    }
-                }
             }
         }
     }
