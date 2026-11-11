@@ -14,6 +14,36 @@ import java.io.File
  */
 class PureLogicTest {
 
+    // --- FileOps property formatting (Properties dialog, reference style) --
+
+    @Test
+    fun formatPerms_fileLikeReferenceScreenshot() {
+        // 0100770 = regular file, rwxrwx--- -> the BiTGApps zip in the reference.
+        assertEquals("-rwxrwx---(770)", FileOps.formatPerms(0x81F8))
+        assertEquals("drwxr-xr-x(755)", FileOps.formatPerms(0x41ED))
+        assertEquals("lrwxrwxrwx(777)", FileOps.formatPerms(0xA1FF))
+        assertEquals("-rw-r--r--(644)", FileOps.formatPerms(0x81A4))
+    }
+
+    @Test
+    fun ownerAndGroupNames_androidConventions() {
+        assertEquals("u0_a277", FileOps.ownerName(10277))
+        assertEquals("root", FileOps.ownerName(0))
+        assertEquals("system", FileOps.ownerName(1000))
+        assertEquals("media_rw", FileOps.groupName(1023))
+        assertEquals("sdcard_rw", FileOps.groupName(1015))
+        assertEquals("9999", FileOps.groupName(9999))
+    }
+
+    @Test
+    fun formatSizeExact_referenceStyle() {
+        assertEquals("301.92M (316591162)", FileOps.formatSizeExact(316591162L))
+        assertEquals("512 B (512)", FileOps.formatSizeExact(512L))
+        assertEquals("1.50K (1536)", FileOps.formatSizeExact(1536L))
+        assertEquals("2.00G (2147483648)", FileOps.formatSizeExact(2147483648L))
+    }
+
+
     @get:Rule
     val tmp = TemporaryFolder()
 

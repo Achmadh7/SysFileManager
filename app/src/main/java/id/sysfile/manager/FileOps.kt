@@ -351,6 +351,108 @@ object FileOps {
     }
 
     /** MD5 + SHA-256 sebuah berkas dalam satu kali baca; null bila gagal. */
+    /** Info stat mentah dari Os.lstat (tautan simbolik dibaca apa adanya). */
+    data class StatInfo(
+        val mode: Int, val uid: Int, val gid: Int,
+        val atimeSec: Long, val ctimeSec: Long, val ino: Long, val nlink: Long
+    )
+
+    /** null bila stat tidak tersedia (entri SAF / jalur virtual / ditolak sistem). */
+    fun statInfo(path: String): StatInfo? = try {
+        val st = android.system.Os.lstat(path)
+        StatInfo(st.st_mode, st.st_uid, st.st_gid, st.st_atime, st.st_ctime, st.st_ino, st.st_nlink)
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Izin gaya ls: "-rwxrwx---(770)" - simbolik + oktal dalam kurung. */
+    fun formatPerms(mode: Int): String {
+        val jenis = when (mode and 0xF000) {
+            0x4000 -> 'd'
+            0xA000 -> 'l'
+            0x6000 -> 'b'
+            0x2000 -> 'c'
+            0x1000 -> 'p'
+            0xC000 -> 's'
+            else -> '-'
+        }
+        fun tiga(geser: Int, bitKhusus: Int, hurufKhusus: Char): String {
+            val bit = (mode shr geser) and 7
+            val sb = StringBuilder()
+            sb.append(if (bit and 4 != 0) 'r' else '-')
+            sb.append(if (bit and 2 != 0) 'w' else '-')
+            val x = bit and 1 != 0
+            sb.append(
+                when {
+                    bitKhusus == 0 -> if (x) 'x' else '-'
+                    x -> hurufKhusus.lowercaseChar()
+                    else -> hurufKhusus.uppercaseChar()
+                }
+            )
+            return sb.toString()
+        }
+        val oktal = (mode and 0xFFF).toString(8)
+        return jenis.toString() +
+            tiga(6, (mode shr 11) and 1, 's') +
+            tiga(3, (mode shr 10) and 1, 's') +
+            tiga(0, (mode shr 9) and 1, 't') +
+            "(" + oktal + ")"
+    }
+
+    /** Nama pemilik dari uid: nama bawaan Android untuk uid sistem,
+     * pola "u<user>_a<app>" untuk uid aplikasi, angka mentah sisanya. */
+    fun ownerName(uid: Int): String = when (uid) {
+        0 -> "root"
+        1000 -> "system"
+        2000 -> "shell"
+        1013 -> "media"
+        else -> appIdName(uid) ?: uid.toString()
+    }
+
+    /** Nama kelompok dari gid: tabel nama bawaan Android yang umum. */
+    fun groupName(gid: Int): String = when (gid) {
+        0 -> "root"
+        1000 -> "system"
+        2000 -> "shell"
+        1001 -> "radio"
+        1002 -> "bluetooth"
+        1007 -> "log"
+        1015 -> "sdcard_rw"
+        1023 -> "media_rw"
+        1028 -> "sdcard_r"
+        3003 -> "inet"
+        9997 -> "everybody"
+        else -> appIdName(gid) ?: gid.toString()
+    }
+
+    private fun appIdName(id: Int): String? {
+        if (id < 10000) return null
+        val user = id / 100000
+        val app = id % 100000
+        return when {
+            app >= 99000 -> "u" + user + "_i" + (app - 99000)
+            app >= 10000 -> "u" + user + "_a" + (app - 10000)
+            else -> null
+        }
+    }
+
+    /** Ukuran gaya dialog Properti referensi: "301.92M (316591162)". */
+    fun formatSizeExact(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B ($bytes)"
+        val units = arrayOf("K", "M", "G", "T")
+        var value = bytes.toDouble()
+        var unit = -1
+        while (value >= 1024 && unit < units.size - 1) {
+            value /= 1024
+            unit++
+        }
+        return String.format(java.util.Locale.US, "%.2f%s (%d)", value, units[unit], bytes)
+    }
+
+    /** Waktu gaya dialog Properti referensi: "2026-11-06 11:45:53". */
+    fun formatIsoTime(epochMillis: Long): String =
+        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date(epochMillis))
+
     fun checksums(file: File): Pair<String, String>? {
         return try {
             val md5 = java.security.MessageDigest.getInstance("MD5")

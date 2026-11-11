@@ -190,161 +190,165 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
     val t = txt()
     val clipboard = LocalClipboardManager.current
     var stats by remember { mutableStateOf<FileOps.FolderStats?>(null) }
+    var stat by remember(entry.path) { mutableStateOf<FileOps.StatInfo?>(null) }
+    var expanded by remember(entry.path) { mutableStateOf(false) }
+    var showSums by remember(entry.path) { mutableStateOf(false) }
     var sums by remember(entry.path) { mutableStateOf<Pair<String, String>?>(null) }
     var computing by remember(entry.path) { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     LaunchedEffect(entry.path) {
         if (entry.isDir) {
             stats = withContext(Dispatchers.IO) { FileOps.folderStats(entry.file) }
         }
+        stat = withContext(Dispatchers.IO) { FileOps.statInfo(entry.path) }
+    }
+    LaunchedEffect(showSums) {
+        if (showSums && sums == null && !computing) {
+            computing = true
+            sums = withContext(Dispatchers.IO) { FileOps.checksums(entry.file) }
+            computing = false
+            if (sums == null) onNotify(t.opFailed)
+        }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF3D4B63)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-        },
+        title = { Text(t.properties) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                    Column {
-                        PropGroupRow(t.propType, if (entry.isDir) t.propFolder else t.propFile)
-                        PropGroupDivider()
-                        PropGroupRow(
-                            t.propSize,
-                            if (entry.isDir) {
-                                stats?.let { FileOps.formatSize(it.totalSize) } ?: "\u2026"
-                            } else {
-                                FileOps.formatSize(entry.size)
-                            }
+                if (showSums) {
+                    // Tampilan CEKSUM (tombol CEKSUM di dialog referensi):
+                    // MD5 + SHA-256 dihitung otomatis begitu dibuka.
+                    Text(t.checksum, style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        t.checksumDesc,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    if (sums == null) {
+                        Text(
+                            if (computing) t.scanning else t.opFailed,
+                            style = MaterialTheme.typography.bodyMedium
                         )
-                        if (entry.isDir) {
-                            PropGroupDivider()
-                            PropGroupRow(t.propFileCount, stats?.fileCount?.toString() ?: "\u2026")
-                            PropGroupDivider()
-                            PropGroupRow(t.propFolderCount, stats?.dirCount?.toString() ?: "\u2026")
-                            if (stats?.largestName != null) {
-                                PropGroupDivider()
-                                PropGroupRow(
-                                    t.propLargest,
-                                    stats!!.largestName + " \u00b7 " + FileOps.formatSize(stats!!.largestSize)
-                                )
+                    } else {
+                        listOf("MD5" to sums!!.first, "SHA-256" to sums!!.second).forEach { (label, hash) ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(label, style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        hash,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    clipboard.setText(AnnotatedString(hash))
+                                    onNotify(t.copiedDone)
+                                }) { Icon(Icons.Default.ContentCopy, t.copy, modifier = Modifier.size(18.dp)) }
                             }
+                            Spacer(Modifier.height(8.dp))
                         }
-                        PropGroupDivider()
-                        PropGroupRow(
-                            t.propModified,
-                            java.text.DateFormat.getDateTimeInstance(
-                                java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, appLocale()
-                            ).format(java.util.Date(entry.modified))
-                        )
-                        PropGroupDivider()
-                        PropGroupRow(t.propPath, ellipsizeMiddle(entry.path)) {
+                    }
+                } else {
+                    // Baris-baris gaya dialog referensi (permintaan Achmad
+                    // 2026-11-11): Nama, Induk, Jenis, Ukuran persis,
+                    // Diubah ISO, Izin simbolik+oktal, Pemilik, Kelompok.
+                    PropRow(t.propName, entry.name)
+                    PropRow(
+                        t.propParent,
+                        entry.file.parent?.let { if (it.endsWith("/")) it else "$it/" } ?: "/"
+                    )
+                    PropRow(t.propType, if (entry.isDir) t.propFolder else t.propFile)
+                    PropRow(
+                        t.propSize,
+                        if (entry.isDir) {
+                            stats?.let { FileOps.formatSizeExact(it.totalSize) } ?: "\u2026"
+                        } else {
+                            FileOps.formatSizeExact(entry.size)
+                        }
+                    )
+                    if (entry.isDir) {
+                        PropRow(t.propFileCount, stats?.fileCount?.toString() ?: "\u2026")
+                        PropRow(t.propFolderCount, stats?.dirCount?.toString() ?: "\u2026")
+                        if (stats?.largestName != null) {
+                            PropRow(
+                                t.propLargest,
+                                stats!!.largestName + " \u00b7 " + FileOps.formatSize(stats!!.largestSize)
+                            )
+                        }
+                    }
+                    PropRow(t.propModified, FileOps.formatIsoTime(entry.modified))
+                    if (stat != null) {
+                        PropRow(t.propPerms, FileOps.formatPerms(stat!!.mode), monospace = true)
+                        PropRow(t.propOwner, FileOps.ownerName(stat!!.uid))
+                        PropRow(t.propGroup, FileOps.groupName(stat!!.gid))
+                    }
+                    if (expanded) {
+                        // Isi tombol LAGI: jalur lengkap (dengan salin) +
+                        // rincian stat lanjutan bila tersedia.
+                        PropRow(t.propPath, ellipsizeMiddle(entry.path)) {
                             IconButton(onClick = {
                                 clipboard.setText(AnnotatedString(entry.path))
                                 onNotify(t.copiedDone)
                             }) { Icon(Icons.Default.ContentCopy, t.copy, modifier = Modifier.size(18.dp)) }
                         }
-                    }
-                }
-                if (!entry.isDir) {
-                    Spacer(Modifier.height(12.dp))
-                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                        Column(Modifier.padding(20.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(t.checksum, style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        t.checksumDesc,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                if (sums == null) {
-                                    Button(
-                                        enabled = !computing,
-                                        onClick = {
-                                            computing = true
-                                            scope.launch {
-                                                sums = withContext(Dispatchers.IO) { FileOps.checksums(entry.file) }
-                                                computing = false
-                                                if (sums == null) onNotify(t.opFailed)
-                                            }
-                                        }
-                                    ) { Text(if (computing) t.scanning else t.calcShort) }
-                                }
-                            }
-                            if (sums != null) {
-                                Spacer(Modifier.height(14.dp))
-                                listOf("MD5" to sums!!.first, "SHA-256" to sums!!.second).forEach { (label, hash) ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text(label, style = MaterialTheme.typography.labelLarge)
-                                            Text(
-                                                hash,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
-                                        IconButton(onClick = {
-                                            clipboard.setText(AnnotatedString(hash))
-                                            onNotify(t.copiedDone)
-                                        }) { Icon(Icons.Default.ContentCopy, t.copy, modifier = Modifier.size(18.dp)) }
-                                    }
-                                    Spacer(Modifier.height(8.dp))
-                                }
-                            }
+                        if (stat != null) {
+                            PropRow(t.propAccessed, FileOps.formatIsoTime(stat!!.atimeSec * 1000))
+                            PropRow(t.propChanged, FileOps.formatIsoTime(stat!!.ctimeSec * 1000))
+                            PropRow(t.propInode, stat!!.ino.toString())
+                            PropRow(t.propLinks, stat!!.nlink.toString())
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(t.close) } }
+        confirmButton = {
+            Row(Modifier.fillMaxWidth()) {
+                if (showSums) {
+                    TextButton(onClick = { showSums = false }) { Text(t.back.uppercase()) }
+                } else {
+                    TextButton(onClick = { expanded = !expanded }) { Text(t.propMore.uppercase()) }
+                }
+                Spacer(Modifier.weight(1f))
+                if (!entry.isDir && !showSums) {
+                    TextButton(onClick = { showSums = true }) { Text(t.checksumBtn.uppercase()) }
+                }
+                TextButton(onClick = onDismiss) { Text(t.close.uppercase()) }
+            }
+        }
     )
 }
 
-/** Satu baris label-nilai di dalam kartu grup Properti (nilai rata kanan). */
+/** Satu baris label-nilai gaya dialog referensi: label redup selebar
+ * tetap di kiri, nilai di kolom sebelahnya (membungkus bila panjang). */
 @Composable
-private fun PropGroupRow(label: String, value: String, trailing: @Composable (() -> Unit)? = null) {
+private fun PropRow(
+    label: String,
+    value: String,
+    monospace: Boolean = false,
+    trailing: @Composable (() -> Unit)? = null
+) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 13.dp),
+        Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(104.dp))
+        Text(
+            label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(92.dp),
+            style = MaterialTheme.typography.bodyMedium
+        )
         Text(
             value,
             modifier = Modifier.weight(1f),
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default
         )
         if (trailing != null) {
             Spacer(Modifier.width(4.dp))
             trailing()
         }
     }
-}
-
-/** Garis pemisah tipis di dalam kartu grup Properti. */
-@Composable
-private fun PropGroupDivider() {
-    HorizontalDivider(
-        Modifier.padding(horizontal = 20.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-    )
 }
 
 /** Potong string panjang di tengah: awal\u2026akhir, agar jalur tetap terbaca. */
