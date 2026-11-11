@@ -940,7 +940,7 @@ fun AnalysisScreen(
                     val usedStorage = roots.sumOf { it.total - it.free }
                     val freeFracSummary = if (totalStorage > 0) (totalStorage - usedStorage).toFloat() / totalStorage.toFloat() else 0f
                     val (statusText, statusDot) = storageStatus(freeFracSummary)
-                    GradientStorageCard(
+                    StorageCard(
                         label = t.storageAnalysis,
                         usedText = FileOps.formatSize(usedStorage),
                         detailText = t.ofTotal(FileOps.formatSize(totalStorage)) + " · " + t.items(totalFilesAll),
@@ -948,7 +948,6 @@ fun AnalysisScreen(
                         usedWord = t.usedWord,
                         statusText = statusText,
                         statusDot = statusDot,
-                        fraction = if (totalStorage > 0) usedStorage.toFloat() / totalStorage.toFloat() else 0f,
                         onClick = {}
                     )
                 }

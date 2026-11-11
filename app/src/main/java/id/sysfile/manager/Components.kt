@@ -405,7 +405,7 @@ fun storageStatus(freeFraction: Float): Pair<String, Color> {
  *  berubah. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun GradientStorageCard(
+fun StorageCard(
     label: String,
     usedText: String,
     detailText: String,
@@ -413,7 +413,6 @@ fun GradientStorageCard(
     usedWord: String,
     statusText: String,
     statusDot: Color,
-    fraction: Float,
     icon: ImageVector = Icons.Default.Storage,
     onClick: () -> Unit
 ) {

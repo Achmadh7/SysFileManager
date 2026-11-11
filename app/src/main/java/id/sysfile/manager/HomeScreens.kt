@@ -254,7 +254,7 @@ fun HomeScreen(
                             }
                         } else if (root.total > 0) {
                             val (statusText, statusDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
-                            GradientStorageCard(
+                            StorageCard(
                                 label = rootLabel(root, t),
                                 usedText = FileOps.formatSize(root.total - root.free),
                                 detailText = t.ofTotal(FileOps.formatSize(root.total)),
@@ -262,7 +262,6 @@ fun HomeScreen(
                                 usedWord = t.usedWord,
                                 statusText = statusText,
                                 statusDot = statusDot,
-                                fraction = (root.total - root.free).toFloat() / root.total.toFloat(),
                                 icon = Icons.Default.Smartphone,
                                 onClick = { onOpenRoot(root.path) }
                             )
