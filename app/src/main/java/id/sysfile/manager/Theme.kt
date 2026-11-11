@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -160,7 +162,16 @@ fun SysFileTheme(themeMode: String, dynamicColor: Boolean = false, content: @Com
     } else if (dark) DarkScheme else LightScheme
     MaterialExpressiveTheme(
         colorScheme = scheme,
-        motionScheme = MotionScheme.expressive(),
-        content = content
-    )
+        motionScheme = MotionScheme.expressive()
+    ) {
+        // Warna konten bawaan mengikuti onSurface skema (putih di mode
+        // gelap, hitam di mode terang). Tanpa penyedia ini, teks tanpa
+        // warna eksplisit yang berada di luar Surface - nama berkas,
+        // judul seksi, label petak kategori - jatuh ke hitam bawaan
+        // CompositionLocal, seperti terlihat pada tangkapan layar
+        // Beranda mode gelap 2026-11-11.
+        CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
+            content()
+        }
+    }
 }
