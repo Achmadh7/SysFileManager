@@ -1,9 +1,11 @@
 package id.sysfile.manager
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +39,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -81,6 +82,7 @@ fun SectionCard(
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -111,10 +113,10 @@ fun categoryIcon(category: Category, name: String): ImageVector {
 
 fun categoryColor(category: Category): Color {
     return when (category) {
-        Category.IMAGE -> Color(0xFF8B7CFF)
-        Category.VIDEO -> Color(0xFFFF5C8A)
+        Category.IMAGE -> Color(0xFF7FB2F0)
+        Category.VIDEO -> Color(0xFFA78BFA)
         Category.AUDIO -> Color(0xFF2DD4BF)
-        Category.DOCUMENT -> Color(0xFF4DA3FF)
+        Category.DOCUMENT -> Color(0xFF40C4FF)
         Category.APP -> Color(0xFF7ED957)
         Category.ARCHIVE -> Color(0xFFFFB020)
         Category.OTHER -> Color(0xFF9AA7B8)
@@ -123,7 +125,7 @@ fun categoryColor(category: Category): Color {
 
 /** Warna ikon satu entri: folder amber, PDF merah, sisanya warna kategorinya. */
 fun entryColor(entry: FEntry): Color {
-    if (entry.isDir) return Color(0xFFFFA000)
+    if (entry.isDir) return Color(0xFF8FC1F5)
     if (FileOps.extOf(entry.name) == "pdf") return Color(0xFFE53935)
     return categoryColor(entry.category)
 }
@@ -256,6 +258,7 @@ fun FileRow(
                     MaterialTheme.colorScheme.surfaceContainerHigh
                 }
             )
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -393,10 +396,11 @@ fun storageStatus(freeFraction: Float): Pair<String, Color> {
     }
 }
 
-/** Kartu penyimpanan biru baja solid: label, angka terpakai besar, detail total/kosong,
- *  garis gelombang putih selebar kartu, lalu baris bawah berisi persen sedang + kata
- *  "terpakai" di kiri dan chip status kesehatan di kanan (desain "Ekspresif Konsisten"
- *  varian B pilihan pemilik). */
+/** Kartu penyimpanan arah C "Kaca & Aurora": permukaan kaca bertepi
+ *  terang, cincin ukur cyan di kiri (persen di tengahnya), label + angka
+ *  terpakai besar + detail total di tengah, dan baris status kesehatan
+ *  di bawahnya. Tanda tangan sama seperti kartu baja lama agar pemanggil
+ *  tidak berubah. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GradientStorageCard(
@@ -412,51 +416,55 @@ fun GradientStorageCard(
     onClick: () -> Unit
 ) {
     val frac = fraction.coerceIn(0f, 1f)
+    val scheme = MaterialTheme.colorScheme
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFF2E5A88))
+            .background(scheme.surfaceContainer)
+            .border(1.dp, scheme.outlineVariant, RoundedCornerShape(28.dp))
             .clickable { onClick() }
             .padding(20.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(
-                Modifier.size(52.dp).clip(RoundedCornerShape(14.dp))
-                    .background(Color.White.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(92.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.size(92.dp)) {
+                    val sw = 9.dp.toPx()
+                    drawArc(
+                        color = scheme.surfaceContainerHighest,
+                        startAngle = -90f, sweepAngle = 360f, useCenter = false,
+                        style = Stroke(sw, cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = scheme.primary,
+                        startAngle = -90f, sweepAngle = 360f * frac, useCenter = false,
+                        style = Stroke(sw, cap = StrokeCap.Round)
+                    )
+                }
+                Text(percentText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             }
-            Column {
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, null, tint = scheme.primary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
-                    label,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    usedText + " " + usedWord,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
                 )
-                Text(
-                    usedText + " " + detailText,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-            }
-            LinearWavyProgressIndicator(
-                progress = { frac },
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                trackColor = Color.White.copy(alpha = 0.35f)
-            )
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    percentText + " " + usedWord,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.92f)
-                )
-                Spacer(Modifier.weight(1f))
-                Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
-                Spacer(Modifier.width(8.dp))
-                Text(statusText, style = MaterialTheme.typography.labelLarge, color = Color.White)
+                Text(detailText, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
+                    Spacer(Modifier.width(8.dp))
+                    Text(statusText, style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }
