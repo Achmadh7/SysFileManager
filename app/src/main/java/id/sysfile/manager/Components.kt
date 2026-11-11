@@ -57,7 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -396,11 +396,13 @@ fun storageStatus(freeFraction: Float): Pair<String, Color> {
     }
 }
 
-/** Kartu penyimpanan arah C "Kaca & Aurora": permukaan kaca bertepi
- *  terang, cincin ukur cyan di kiri (persen di tengahnya), label + angka
- *  terpakai besar + detail total di tengah, dan baris status kesehatan
- *  di bawahnya. Tanda tangan sama seperti kartu baja lama agar pemanggil
- *  tidak berubah. */
+/** Kartu penyimpanan K4 "Gelombang Dasar" (pilihan pemilik 2026-11-11):
+ *  kartu kaca bertepi terang; baris kepala berisi ikon + label volume dan
+ *  chip status berwarna mengikuti kesehatan penyimpanan; angka terpakai
+ *  besar dengan detail total di bawahnya; dasar kartu diisi gelombang
+ *  cyan (isi transparan + garis puncak tegas) yang memuat baris persen.
+ *  Tanda tangan sama seperti kartu sebelumnya agar pemanggil tidak
+ *  berubah. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GradientStorageCard(
@@ -415,34 +417,18 @@ fun GradientStorageCard(
     icon: ImageVector = Icons.Default.Storage,
     onClick: () -> Unit
 ) {
-    val frac = fraction.coerceIn(0f, 1f)
     val scheme = MaterialTheme.colorScheme
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
             .background(scheme.surfaceContainer)
             .border(1.dp, scheme.outlineVariant, RoundedCornerShape(28.dp))
             .clickable { onClick() }
-            .padding(20.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(92.dp), contentAlignment = Alignment.Center) {
-                Canvas(Modifier.size(92.dp)) {
-                    val sw = 9.dp.toPx()
-                    drawArc(
-                        color = scheme.surfaceContainerHighest,
-                        startAngle = -90f, sweepAngle = 360f, useCenter = false,
-                        style = Stroke(sw, cap = StrokeCap.Round)
-                    )
-                    drawArc(
-                        color = scheme.primary,
-                        startAngle = -90f, sweepAngle = 360f * frac, useCenter = false,
-                        style = Stroke(sw, cap = StrokeCap.Round)
-                    )
-                }
-                Text(percentText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            }
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column {
+            Column(
+                Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(icon, null, tint = scheme.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
@@ -453,6 +439,21 @@ fun GradientStorageCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(Modifier.weight(1f))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = statusDot.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, statusDot.copy(alpha = 0.6f))
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(statusDot))
+                            Spacer(Modifier.width(6.dp))
+                            Text(statusText, style = MaterialTheme.typography.labelMedium, color = statusDot)
+                        }
+                    }
                 }
                 Text(
                     usedText + " " + usedWord,
@@ -460,11 +461,36 @@ fun GradientStorageCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(detailText, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(9.dp).clip(CircleShape).background(statusDot))
-                    Spacer(Modifier.width(8.dp))
-                    Text(statusText, style = MaterialTheme.typography.labelLarge)
+            }
+            Box(Modifier.fillMaxWidth().height(64.dp)) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val w = size.width
+                    val h = size.height
+                    fun waveY(x: Float): Float {
+                        val t = x / w
+                        return h * 0.58f - kotlin.math.sin(t * 5.2f) * (0.10f + 0.22f * t) * h - t * h * 0.30f
+                    }
+                    val crest = Path()
+                    var x = 0f
+                    crest.moveTo(0f, waveY(0f))
+                    while (x < w) {
+                        x = minOf(x + 8f, w)
+                        crest.lineTo(x, waveY(x))
+                    }
+                    val fill = Path()
+                    fill.addPath(crest)
+                    fill.lineTo(w, h)
+                    fill.lineTo(0f, h)
+                    fill.close()
+                    drawPath(fill, color = scheme.primary.copy(alpha = 0.28f))
+                    drawPath(crest, color = scheme.primary, style = Stroke(width = 2.5.dp.toPx()))
                 }
+                Text(
+                    percentText + " " + usedWord,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 12.dp)
+                )
             }
         }
     }
