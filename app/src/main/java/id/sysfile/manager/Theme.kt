@@ -1,97 +1,149 @@
 package id.sysfile.manager
 
 import android.os.Build
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 
-// Skema warna oranye/amber SysFileManager, ditulis tangan mengikuti peran warna
-// Material 3 (tanpa peran "shadow": peran itu membuat skema gagal
-// dikompilasi di Material3 1.5.0-alpha08).
+// Skema warna "Kaca & Aurora" SysFile (arah C, pilihan pemilik 2026-11-11):
+// gelap = navy sangat pekat dengan permukaan kaca bertingkat dan aksen cyan
+// + ungu; terang = kaca cerah di atas latar biru pucat. Ditulis tangan
+// mengikuti peran warna Material 3 (tanpa peran "shadow": peran itu membuat
+// skema gagal dikompilasi di Material3 1.5.0-alpha08).
 private val LightScheme: ColorScheme = ColorScheme(
-    primary = Color(0xFF9A4A00),
+    primary = Color(0xFF0284C7),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFFDCC3),
-    onPrimaryContainer = Color(0xFF6E3400),
-    inversePrimary = Color(0xFFFFB77D),
-    secondary = Color(0xFF755845),
+    primaryContainer = Color(0xFFCDEBFF),
+    onPrimaryContainer = Color(0xFF07334D),
+    inversePrimary = Color(0xFF40C4FF),
+    secondary = Color(0xFF7C5CD6),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFFFDCC3),
-    onSecondaryContainer = Color(0xFF5A4130),
-    tertiary = Color(0xFF5F6238),
+    secondaryContainer = Color(0xFFE4DEFB),
+    onSecondaryContainer = Color(0xFF372A6E),
+    tertiary = Color(0xFF0E9488),
     onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFE2E6AE),
-    onTertiaryContainer = Color(0xFF44481F),
-    background = Color(0xFFFFF8F4),
-    onBackground = Color(0xFF221A14),
-    surface = Color(0xFFFFF8F4),
-    onSurface = Color(0xFF221A14),
-    surfaceVariant = Color(0xFFF4DED1),
-    onSurfaceVariant = Color(0xFF54443A),
-    surfaceTint = Color(0xFF9A4A00),
-    inverseSurface = Color(0xFF382E27),
-    inverseOnSurface = Color(0xFFFFEDE3),
+    tertiaryContainer = Color(0xFFC8F2EC),
+    onTertiaryContainer = Color(0xFF06423C),
+    background = Color(0xFFEDF2F8),
+    onBackground = Color(0xFF0E1A26),
+    surface = Color(0xFFF7FAFD),
+    onSurface = Color(0xFF0E1A26),
+    surfaceVariant = Color(0xFFDCE8F2),
+    onSurfaceVariant = Color(0xFF51667A),
+    surfaceTint = Color(0xFF0284C7),
+    inverseSurface = Color(0xFF0B1526),
+    inverseOnSurface = Color(0xFFEDF3F9),
     error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF93000A),
-    outline = Color(0xFF877367),
-    outlineVariant = Color(0xFFD8C2B4),
+    outline = Color(0xFF9FB4C8),
+    outlineVariant = Color(0xFFC9D8E8),
     scrim = Color(0xFF000000),
-    surfaceBright = Color(0xFFFFF8F4),
-    surfaceDim = Color(0xFFEAD6C9),
+    surfaceBright = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFD8E4F0),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFFFF1E8),
-    surfaceContainer = Color(0xFFFBEBDF),
-    surfaceContainerHigh = Color(0xFFF5E5D9),
-    surfaceContainerHighest = Color(0xFFEEDDD0)
+    surfaceContainerLow = Color(0xFFF4F8FC),
+    surfaceContainer = Color(0xFFEAF1F8),
+    surfaceContainerHigh = Color(0xFFE0EAF4),
+    surfaceContainerHighest = Color(0xFFD6E4F2)
 )
 
 private val DarkScheme: ColorScheme = ColorScheme(
-    primary = Color(0xFFFFB77D),
-    onPrimary = Color(0xFF4D2600),
-    primaryContainer = Color(0xFF6E3400),
-    onPrimaryContainer = Color(0xFFFFDCC3),
-    inversePrimary = Color(0xFF9A4A00),
-    secondary = Color(0xFFCDB9DD),
-    onSecondary = Color(0xFF372847),
-    secondaryContainer = Color(0xFF4F3D63),
-    onSecondaryContainer = Color(0xFFEDDCFF),
-    tertiary = Color(0xFFC6CC94),
-    onTertiary = Color(0xFF2E330F),
-    tertiaryContainer = Color(0xFF44481F),
-    onTertiaryContainer = Color(0xFFE2E6AE),
-    background = Color(0xFF141118),
-    onBackground = Color(0xFFEDE6F2),
-    surface = Color(0xFF141118),
-    onSurface = Color(0xFFEDE6F2),
-    surfaceVariant = Color(0xFF2C2733),
-    onSurfaceVariant = Color(0xFFCFC6D9),
-    surfaceTint = Color(0xFFFFB77D),
-    inverseSurface = Color(0xFFEDE6F2),
-    inverseOnSurface = Color(0xFF332C3D),
+    primary = Color(0xFF40C4FF),
+    onPrimary = Color(0xFF06283D),
+    primaryContainer = Color(0xFF0E3A52),
+    onPrimaryContainer = Color(0xFFBDE9FF),
+    inversePrimary = Color(0xFF0284C7),
+    secondary = Color(0xFFA78BFA),
+    onSecondary = Color(0xFF2A1B54),
+    secondaryContainer = Color(0xFF2C2150),
+    onSecondaryContainer = Color(0xFFDED2FF),
+    tertiary = Color(0xFF2DD4BF),
+    onTertiary = Color(0xFF053B35),
+    tertiaryContainer = Color(0xFF0B3D38),
+    onTertiaryContainer = Color(0xFFB9F4EC),
+    background = Color(0xFF070B14),
+    onBackground = Color(0xFFEDF3F9),
+    surface = Color(0xFF0A111F),
+    onSurface = Color(0xFFEDF3F9),
+    surfaceVariant = Color(0xFF1B2A44),
+    onSurfaceVariant = Color(0xFFA5B4C6),
+    surfaceTint = Color(0xFF40C4FF),
+    inverseSurface = Color(0xFFEDF3F9),
+    inverseOnSurface = Color(0xFF0B1526),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    outline = Color(0xFF988DA1),
-    outlineVariant = Color(0xFF4A4356),
+    outline = Color(0xFF3D5478),
+    outlineVariant = Color(0xFF22364F),
     scrim = Color(0xFF000000),
-    surfaceBright = Color(0xFF3B3544),
-    surfaceDim = Color(0xFF141118),
-    surfaceContainerLowest = Color(0xFF0E0B11),
-    surfaceContainerLow = Color(0xFF1C1822),
-    surfaceContainer = Color(0xFF221D2A),
-    surfaceContainerHigh = Color(0xFF2C2635),
-    surfaceContainerHighest = Color(0xFF373040)
+    surfaceBright = Color(0xFF24334D),
+    surfaceDim = Color(0xFF070B14),
+    surfaceContainerLowest = Color(0xFF05080F),
+    surfaceContainerLow = Color(0xFF0C1424),
+    surfaceContainer = Color(0xFF111C30),
+    surfaceContainerHigh = Color(0xFF17263F),
+    surfaceContainerHighest = Color(0xFF1E3050)
 )
+
+/** Latar aurora arah C: warna dasar skema + tiga gumpalan cahaya radial
+ *  (cyan, ungu, biru) di sudut-sudut layar, digambar sekali di belakang
+ *  konten. Di tema terang cahayanya jauh lebih lembut. */
+@Composable
+fun AuroraBackground(content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val gelap = scheme.background.luminance() < 0.05f
+    Box(Modifier.fillMaxSize().background(scheme.background)) {
+        Canvas(Modifier.fillMaxSize()) {
+            val r = size.minDimension * 0.95f
+            val blobs = if (gelap) {
+                listOf(
+                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), Color(0xFF0E4A66), 0.50f),
+                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), Color(0xFF3B2A6E), 0.45f),
+                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), Color(0xFF10365E), 0.50f),
+                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), Color(0xFF2A1B54), 0.40f)
+                )
+            } else {
+                listOf(
+                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), Color(0xFF7ED0F7), 0.35f),
+                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), Color(0xFFC4B0F5), 0.30f),
+                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), Color(0xFF9CC3EE), 0.35f),
+                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), Color(0xFFD9CCFA), 0.28f)
+                )
+            }
+            blobs.forEach { (pusat, warna, alfa) ->
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(warna.copy(alpha = alfa), Color.Transparent),
+                        center = pusat,
+                        radius = r
+                    ),
+                    radius = r,
+                    center = pusat
+                )
+            }
+        }
+        content()
+    }
+}
 
 /** Tema aplikasi: mode "light" / "dark" / "system" dari preferensi. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
