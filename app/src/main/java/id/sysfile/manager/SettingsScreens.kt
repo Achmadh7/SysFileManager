@@ -21,6 +21,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -195,80 +196,100 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(2.dp),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            item { SettingsSectionLabel(t.appearance) }
+            // G3 Petak Cepat (pilihan Achmad 2026-11-11): empat
+            // pengaturan yang paling sering disentuh jadi petak kaca
+            // 2x2; sisanya berkumpul di kartu kaca Lainnya.
             item {
-                SettingsRow(
-                    icon = when (themeMode) {
-                        "light" -> Icons.Default.LightMode
-                        "dark" -> Icons.Default.DarkMode
-                        else -> Icons.Default.BrightnessAuto
-                    },
-                    circleColor = Color(0xFFFFB020),
-                    title = t.theme,
-                    subtitle = themeOptions.firstOrNull { it.first == themeMode }?.second,
-                    onClick = { themeDialog = true }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SettingsQuickTile(
+                        icon = when (themeMode) {
+                            "light" -> Icons.Default.LightMode
+                            "dark" -> Icons.Default.DarkMode
+                            else -> Icons.Default.BrightnessAuto
+                        },
+                        circleColor = Color(0xFFFFB020),
+                        title = t.theme,
+                        state = themeOptions.firstOrNull { it.first == themeMode }?.second ?: "",
+                        modifier = Modifier.weight(1f),
+                        onClick = { themeDialog = true }
+                    )
+                    SettingsQuickTile(
+                        icon = Icons.Default.Translate,
+                        circleColor = Color(0xFF4DA3FF),
+                        title = t.language,
+                        state = langOptions.firstOrNull { it.first == language }?.second ?: "",
+                        modifier = Modifier.weight(1f),
+                        onClick = { langDialog = true }
+                    )
+                }
             }
             item {
-                SettingsRow(
-                    icon = Icons.Default.Translate,
-                    circleColor = Color(0xFF4DA3FF),
-                    title = t.language,
-                    subtitle = langOptions.firstOrNull { it.first == language }?.second,
-                    onClick = { langDialog = true }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SettingsQuickTile(
+                        icon = Icons.Default.Palette,
+                        circleColor = Color(0xFF2DD4BF),
+                        title = t.dynamicColor,
+                        state = if (dynamicColor) t.stateOn else t.stateOff,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onDynamicColor(!dynamicColor) }
+                    )
+                    SettingsQuickTile(
+                        icon = Icons.Default.Folder,
+                        circleColor = Color(0xFFF06292),
+                        title = t.showHidden,
+                        state = if (showHidden) t.stateOn else t.stateOff,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onHidden(!showHidden) }
+                    )
+                }
             }
+            item { SettingsSectionLabel(t.otherSection, topPadding = 14.dp) }
             item {
-                SettingsRow(
-                    icon = Icons.Default.Palette,
-                    circleColor = Color(0xFF2DD4BF),
-                    title = t.dynamicColor,
-                    subtitle = t.dynamicColorDesc,
-                    trailing = { Switch(checked = dynamicColor, onCheckedChange = onDynamicColor) }
-                )
-            }
-            item { SettingsSectionLabel(t.fileSection, topPadding = 22.dp) }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Folder,
-                    circleColor = Color(0xFFF06292),
-                    title = t.showHidden,
-                    trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
-                )
-            }
-            item { SettingsSectionLabel(t.otherSection, topPadding = 22.dp) }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Security,
-                    circleColor = Color(0xFFC62828),
-                    title = t.rootAccessTitle,
-                    subtitle = t.rootAccessDesc,
-                    trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Archive,
-                    circleColor = Color(0xFF8B7CFF),
-                    title = t.formatsTitle,
-                    onClick = onFormats
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Apps,
-                    circleColor = Color(0xFF7ED957),
-                    title = t.appsTitle,
-                    onClick = onApps
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Info,
-                    circleColor = Color(0xFFB39DDB),
-                    title = t.about,
-                    onClick = onAbout
-                )
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                        SettingsRow(
+                            icon = Icons.Default.Security,
+                            circleColor = Color(0xFFC62828),
+                            title = t.rootAccessTitle,
+                            subtitle = t.rootAccessDesc,
+                            trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 60.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Archive,
+                            circleColor = Color(0xFF8B7CFF),
+                            title = t.formatsTitle,
+                            onClick = onFormats
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 60.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Apps,
+                            circleColor = Color(0xFF7ED957),
+                            title = t.appsTitle,
+                            onClick = onApps
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(start = 60.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Info,
+                            circleColor = Color(0xFFB39DDB),
+                            title = t.about,
+                            onClick = onAbout
+                        )
+                    }
+                }
             }
         }
         if (themeDialog) {
@@ -342,6 +363,56 @@ private fun SettingsRow(
             Icon(
                 Icons.Default.ChevronRight, null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** Petak cepat Pengaturan (G3): kartu kaca setengah lebar dengan
+ *  petak ikon berwarna, status ringkas di kanan atas (nilai tema /
+ *  bahasa, atau Nyala/Mati), dan judul di bawahnya. Mengetuk petak
+ *  sakelar langsung membalik nilainya. */
+@Composable
+private fun SettingsQuickTile(
+    icon: ImageVector,
+    circleColor: Color,
+    title: String,
+    state: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier.height(104.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        onClick = onClick
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(36.dp).clip(RoundedCornerShape(11.dp))
+                        .background(circleColor.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = circleColor, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    state,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
