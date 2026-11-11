@@ -573,7 +573,7 @@ fun AboutScreen(
                     Spacer(Modifier.height(8.dp))
                     Surface(shape = RoundedCornerShape(50), color = Color(0xFF2E5A88)) {
                         Text(
-                            t.version("1.2.0"),
+                            t.version(BuildConfig.VERSION_NAME),
                             Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                             color = Color.White,
                             style = MaterialTheme.typography.labelLarge,
@@ -811,7 +811,7 @@ fun SpecScreen(onBack: () -> Unit) {
                     rows = listOf(
                         t.specAppName to "SysFile",
                         t.packageLabel to "id.sysfile.manager",
-                        t.versionLabel to "1.2.0",
+                        t.versionLabel to BuildConfig.VERSION_NAME,
                         t.specBuildEnv to "AGP 8.11.1"
                     )
                 )

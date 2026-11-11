@@ -16,6 +16,10 @@ android {
         versionName = "1.2.0"
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     // Kunci tanda tangan TETAP untuk semua build dari repo ini (keystore
     // sysfile.p12 di root repo). Tanpa ini, setiap build GitHub Actions
     // memakai kunci debug acak baru, sehingga APK baru tidak bisa dipasang
