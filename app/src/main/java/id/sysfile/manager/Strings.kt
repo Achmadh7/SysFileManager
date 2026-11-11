@@ -3,809 +3,809 @@ package id.sysfile.manager
 import java.util.Locale
 
 /** Tabel teks dua bahasa (Indonesia/Inggris) untuk seluruh antarmuka. */
-class Txt(
-    val locale: Locale,
-    val slogan: String,
-    val internalStorage: String,
-    val sdCard: String,
-    val usbStorage: String,
-    val free: (String) -> String,
-    val favorites: String,
-    val noFavorites: String,
-    val categories: String,
-    val storageAnalysis: String,
-    val permissionTitle: String,
-    val permissionBody: String,
-    val permissionButton: String,
-    val permissionRationale: String,
-    val emptyFolder: String,
-    val folderInaccessible: String,
-    val items: (Int) -> String,
-    val selected: (Int) -> String,
-    val search: String,
-    val appTagline: String,
-    val searchHint: String,
-    val searchInFolder: String,
-    val searchNoResults: String,
-    val searching: String,
-    val sortName: String,
-    val sortDate: String,
-    val sortSize: String,
-    val sortAscending: String,
-    val sortDescending: String,
-    val showHidden: String,
-    val gridView: String,
-    val listView: String,
-    val copy: String,
-    val cut: String,
-    val paste: String,
-    val pasteHere: (Int) -> String,
-    val clipboard: String,
-    val pasteHereAction: String,
-    val rename: String,
-    val delete: String,
-    val deleteConfirm: (String) -> String,
-    val newFolder: String,
-    val newFile: String,
-    val folderName: String,
-    val fileName: String,
-    val newName: String,
-    val create: String,
-    val cancel: String,
-    val save: String,
-    val properties: String,
-    val propPath: String,
-    val propSize: String,
-    val propModified: String,
-    val propFolder: String,
-    val propFile: String,
-    val share: String,
-    val compress: String,
-    val extract: String,
-    val extractShort: String,
-    val compressShort: String,
-    val selectAll: String,
-    val addFavorite: String,
-    val removeFavorite: String,
-    val copiedDone: String,
-    val movedDone: String,
-    val deletedDone: String,
-    val renamedDone: String,
-    val folderCreated: String,
-    val fileCreated: String,
-    val zipDone: String,
-    val extractDone: String,
-    val extractAll: String,
-    val checksum: String,
-    val trash: String,
-    val trashEmpty: String,
-    val movedToTrash: String,
-    val restore: String,
-    val restoredDone: String,
-    val deleteForever: String,
-    val deleteForeverConfirm: (String) -> String,
-    val emptyTrash: String,
-    val emptyTrashConfirm: String,
-    val computeChecksum: String,
-    val propType: String,
-    val propName: String,
-    val propParent: String,
-    val propPerms: String,
-    val propPermsGroup: String,
-    val propOwner: String,
-    val propGroup: String,
-    val propAccessed: String,
-    val propChanged: String,
-    val propInode: String,
-    val propLinks: String,
-    val propMore: String,
-    val back: String,
-    val checksumBtn: String,
-    val checksumDesc: String,
-    val calcShort: String,
-    val extractArchive: String,
-    val openArchive: String,
-    val browseFirst: String,
-    val extractCustom: String,
-    val pickLocation: String,
-    val selectFolder: String,
-    val more: String,
-    val opFailed: String,
-    val working: String,
-    val largestFiles: String,
-    val scanning: String,
-    val scanFailed: String,
-    val catImages: String,
-    val catVideos: String,
-    val catAudio: String,
-    val catDocuments: String,
-    val catApps: String,
-    val catArchives: String,
-    val catOther: String,
-    val settings: String,
-    val theme: String,
-    val themeLight: String,
-    val themeDark: String,
-    val themeSystem: String,
-    val language: String,
-    val close: String,
-    val about: String,
-    val version: (String) -> String,
-    val developer: String,
-    val storageUsedLine: (String, String) -> String,
-    val supportedFormats: String,
-    val formatsSummary: String,
-    val appSpecs: String,
-    val packageLabel: String,
-    val versionLabel: String,
-    val minAndroidLabel: String,
-    val targetAndroidLabel: String,
-    val technologyLabel: String,
-    val licenseTitle: String,
-    val specGroupIdentity: String,
-    val specGroupArchive: String,
-    val specGroupUiStorage: String,
-    val specAppName: String,
-    val specBuildEnv: String,
-    val specCompression: String,
-    val specDesignLabel: String,
-    val payloadParserValue: String,
-    val specStorageEngine: String,
-    val safGrant: String,
-    val safOpen: String,
-    val safCopyOut: String,
-    val safCopied: (String) -> String,
-    val safCopyFailed: String,
-    val edit: String,
-    val preview: String,
-    val codeLabel: String,
-    val refresh: String,
-    val textSaved: String,
-    val readFailed: String,
-    val openFailed: String,
-    val home: String,
-    val storage: String,
-    val sortBy: String,
-    val recentFiles: String,
-    val dynamicColor: String,
-    val dynamicColorDesc: String,
-    val catImagesS: String,
-    val catVideosS: String,
-    val catAudioS: String,
-    val catDocumentsS: String,
-    val catAppsS: String,
-    val catArchivesS: String,
-    val catOtherS: String,
-    val all: String,
-    val foldersLabel: String,
-    val filesLabel: String,
-    val seeAll: String,
-    val showLess: String,
-    val appearance: String,
-    val categoryEmpty: String,
-    val analysisShort: String,
-    val ofTotal: (String) -> String,
-    val usedWord: String,
-    val freeWord: String,
-    val statusHealthy: String,
-    val statusAlmostFull: String,
-    val statusFull: String,
-    val recentShort: String,
-    val noRecent: String,
-    val today: String,
-    val yesterday: String,
-    val rootSystem: String,
-    val rootLimited: String,
-    val rootActive: String,
-    val rootAccessTitle: String,
-    val rootAccessDesc: String,
-    val formatsTitle: String,
-    val formatGroupStandard: String,
-    val formatGroupTarball: String,
-    val chipCreate: String,
-    val chipExtract: String,
-    val chipEncrypt: String,
-    val chipHighRatio: String,
-    val archiveName: String,
-    val zipPassword: String,
-    val zipPasswordTitle: String,
-    val zipPasswordBody: String,
-    val fmtZipDesc: String,
-    val fmt7zDesc: String,
-    val fmtTarDesc: String,
-    val fmtTarGzDesc: String,
-    val fmtTarBz2Desc: String,
-    val fmtTarXzDesc: String,
-    val formatGroupSingle: String,
-    val formatGroupSpecial: String,
-    val chipDecompress: String,
-    val chipInspect: String,
-    val chipNative: String,
-    val fmtGzipDesc: String,
-    val fmtBzip2Desc: String,
-    val fmtXzDesc: String,
-    val fmtRarDesc: String,
-    val fmtApkDesc: String,
-    val fmtPayloadDesc: String,
-    val apkInspect: String,
-    val apkExtract: String,
-    val apkInstall: String,
-    val apkInspectDesc: String,
-    val apkExtractDesc: String,
-    val apkInstallDesc: String,
-    val archiveEmpty: String,
-    val payloadDone: (Int) -> String,
-    val payloadUnsupported: String,
-    val payloadInvalid: String,
-    val payloadCancelled: String,
-    val payloadHashMismatch: String,
-    val fileSection: String,
-    val otherSection: String,
-    val propFileCount: String,
-    val propFolderCount: String,
-    val propLargest: String,
-    val lockFolder: String,
-    val unlockFolder: String,
-    val unlockTitle: String,
-    val unlockPrompt: (String) -> String,
-    val unlockFailed: String,
-    val folderLockedDone: String,
-    val folderUnlockedDone: String,
-    val appsTitle: String,
-    val appsUser: String,
-    val appsSystem: String,
-    val appOpen: String,
-    val appCopyApk: String,
-    val appShareApk: String,
-    val appInfo: String,
-    val appOpenDesc: String,
-    val appCopyDesc: String,
-    val appShareDesc: String,
-    val appInfoDesc: String,
-    val totalWord: String,
-    val appChooseFolder: String,
-    val appCopiedDone: String,
-    val usageAccessTitle: String,
-    val usageAccessBody: String,
-    val usageAccessButton: String,
-    val appsEmpty: String
-)
+class Txt {
+    var locale: Locale = Locale("id", "ID")
+    var slogan: String = ""
+    var internalStorage: String = ""
+    var sdCard: String = ""
+    var usbStorage: String = ""
+    var free: (String) -> String = { "" }
+    var favorites: String = ""
+    var noFavorites: String = ""
+    var categories: String = ""
+    var storageAnalysis: String = ""
+    var permissionTitle: String = ""
+    var permissionBody: String = ""
+    var permissionButton: String = ""
+    var permissionRationale: String = ""
+    var emptyFolder: String = ""
+    var folderInaccessible: String = ""
+    var items: (Int) -> String = { "" }
+    var selected: (Int) -> String = { "" }
+    var search: String = ""
+    var appTagline: String = ""
+    var searchHint: String = ""
+    var searchInFolder: String = ""
+    var searchNoResults: String = ""
+    var searching: String = ""
+    var sortName: String = ""
+    var sortDate: String = ""
+    var sortSize: String = ""
+    var sortAscending: String = ""
+    var sortDescending: String = ""
+    var showHidden: String = ""
+    var gridView: String = ""
+    var listView: String = ""
+    var copy: String = ""
+    var cut: String = ""
+    var paste: String = ""
+    var pasteHere: (Int) -> String = { "" }
+    var clipboard: String = ""
+    var pasteHereAction: String = ""
+    var rename: String = ""
+    var delete: String = ""
+    var deleteConfirm: (String) -> String = { "" }
+    var newFolder: String = ""
+    var newFile: String = ""
+    var folderName: String = ""
+    var fileName: String = ""
+    var newName: String = ""
+    var create: String = ""
+    var cancel: String = ""
+    var save: String = ""
+    var properties: String = ""
+    var propPath: String = ""
+    var propSize: String = ""
+    var propModified: String = ""
+    var propFolder: String = ""
+    var propFile: String = ""
+    var share: String = ""
+    var compress: String = ""
+    var extract: String = ""
+    var extractShort: String = ""
+    var compressShort: String = ""
+    var selectAll: String = ""
+    var addFavorite: String = ""
+    var removeFavorite: String = ""
+    var copiedDone: String = ""
+    var movedDone: String = ""
+    var deletedDone: String = ""
+    var renamedDone: String = ""
+    var folderCreated: String = ""
+    var fileCreated: String = ""
+    var zipDone: String = ""
+    var extractDone: String = ""
+    var extractAll: String = ""
+    var checksum: String = ""
+    var trash: String = ""
+    var trashEmpty: String = ""
+    var movedToTrash: String = ""
+    var restore: String = ""
+    var restoredDone: String = ""
+    var deleteForever: String = ""
+    var deleteForeverConfirm: (String) -> String = { "" }
+    var emptyTrash: String = ""
+    var emptyTrashConfirm: String = ""
+    var computeChecksum: String = ""
+    var propType: String = ""
+    var propName: String = ""
+    var propParent: String = ""
+    var propPerms: String = ""
+    var propPermsGroup: String = ""
+    var propOwner: String = ""
+    var propGroup: String = ""
+    var propAccessed: String = ""
+    var propChanged: String = ""
+    var propInode: String = ""
+    var propLinks: String = ""
+    var propMore: String = ""
+    var back: String = ""
+    var checksumBtn: String = ""
+    var checksumDesc: String = ""
+    var calcShort: String = ""
+    var extractArchive: String = ""
+    var openArchive: String = ""
+    var browseFirst: String = ""
+    var extractCustom: String = ""
+    var pickLocation: String = ""
+    var selectFolder: String = ""
+    var more: String = ""
+    var opFailed: String = ""
+    var working: String = ""
+    var largestFiles: String = ""
+    var scanning: String = ""
+    var scanFailed: String = ""
+    var catImages: String = ""
+    var catVideos: String = ""
+    var catAudio: String = ""
+    var catDocuments: String = ""
+    var catApps: String = ""
+    var catArchives: String = ""
+    var catOther: String = ""
+    var settings: String = ""
+    var theme: String = ""
+    var themeLight: String = ""
+    var themeDark: String = ""
+    var themeSystem: String = ""
+    var language: String = ""
+    var close: String = ""
+    var about: String = ""
+    var version: (String) -> String = { "" }
+    var developer: String = ""
+    var storageUsedLine: (String, String) -> String = { _, _ -> "" }
+    var supportedFormats: String = ""
+    var formatsSummary: String = ""
+    var appSpecs: String = ""
+    var packageLabel: String = ""
+    var versionLabel: String = ""
+    var minAndroidLabel: String = ""
+    var targetAndroidLabel: String = ""
+    var technologyLabel: String = ""
+    var licenseTitle: String = ""
+    var specGroupIdentity: String = ""
+    var specGroupArchive: String = ""
+    var specGroupUiStorage: String = ""
+    var specAppName: String = ""
+    var specBuildEnv: String = ""
+    var specCompression: String = ""
+    var specDesignLabel: String = ""
+    var payloadParserValue: String = ""
+    var specStorageEngine: String = ""
+    var safGrant: String = ""
+    var safOpen: String = ""
+    var safCopyOut: String = ""
+    var safCopied: (String) -> String = { "" }
+    var safCopyFailed: String = ""
+    var edit: String = ""
+    var preview: String = ""
+    var codeLabel: String = ""
+    var refresh: String = ""
+    var textSaved: String = ""
+    var readFailed: String = ""
+    var openFailed: String = ""
+    var home: String = ""
+    var storage: String = ""
+    var sortBy: String = ""
+    var recentFiles: String = ""
+    var dynamicColor: String = ""
+    var dynamicColorDesc: String = ""
+    var catImagesS: String = ""
+    var catVideosS: String = ""
+    var catAudioS: String = ""
+    var catDocumentsS: String = ""
+    var catAppsS: String = ""
+    var catArchivesS: String = ""
+    var catOtherS: String = ""
+    var all: String = ""
+    var foldersLabel: String = ""
+    var filesLabel: String = ""
+    var seeAll: String = ""
+    var showLess: String = ""
+    var appearance: String = ""
+    var categoryEmpty: String = ""
+    var analysisShort: String = ""
+    var ofTotal: (String) -> String = { "" }
+    var usedWord: String = ""
+    var freeWord: String = ""
+    var statusHealthy: String = ""
+    var statusAlmostFull: String = ""
+    var statusFull: String = ""
+    var recentShort: String = ""
+    var noRecent: String = ""
+    var today: String = ""
+    var yesterday: String = ""
+    var rootSystem: String = ""
+    var rootLimited: String = ""
+    var rootActive: String = ""
+    var rootAccessTitle: String = ""
+    var rootAccessDesc: String = ""
+    var formatsTitle: String = ""
+    var formatGroupStandard: String = ""
+    var formatGroupTarball: String = ""
+    var chipCreate: String = ""
+    var chipExtract: String = ""
+    var chipEncrypt: String = ""
+    var chipHighRatio: String = ""
+    var archiveName: String = ""
+    var zipPassword: String = ""
+    var zipPasswordTitle: String = ""
+    var zipPasswordBody: String = ""
+    var fmtZipDesc: String = ""
+    var fmt7zDesc: String = ""
+    var fmtTarDesc: String = ""
+    var fmtTarGzDesc: String = ""
+    var fmtTarBz2Desc: String = ""
+    var fmtTarXzDesc: String = ""
+    var formatGroupSingle: String = ""
+    var formatGroupSpecial: String = ""
+    var chipDecompress: String = ""
+    var chipInspect: String = ""
+    var chipNative: String = ""
+    var fmtGzipDesc: String = ""
+    var fmtBzip2Desc: String = ""
+    var fmtXzDesc: String = ""
+    var fmtRarDesc: String = ""
+    var fmtApkDesc: String = ""
+    var fmtPayloadDesc: String = ""
+    var apkInspect: String = ""
+    var apkExtract: String = ""
+    var apkInstall: String = ""
+    var apkInspectDesc: String = ""
+    var apkExtractDesc: String = ""
+    var apkInstallDesc: String = ""
+    var archiveEmpty: String = ""
+    var payloadDone: (Int) -> String = { "" }
+    var payloadUnsupported: String = ""
+    var payloadInvalid: String = ""
+    var payloadCancelled: String = ""
+    var payloadHashMismatch: String = ""
+    var fileSection: String = ""
+    var otherSection: String = ""
+    var propFileCount: String = ""
+    var propFolderCount: String = ""
+    var propLargest: String = ""
+    var lockFolder: String = ""
+    var unlockFolder: String = ""
+    var unlockTitle: String = ""
+    var unlockPrompt: (String) -> String = { "" }
+    var unlockFailed: String = ""
+    var folderLockedDone: String = ""
+    var folderUnlockedDone: String = ""
+    var appsTitle: String = ""
+    var appsUser: String = ""
+    var appsSystem: String = ""
+    var appOpen: String = ""
+    var appCopyApk: String = ""
+    var appShareApk: String = ""
+    var appInfo: String = ""
+    var appOpenDesc: String = ""
+    var appCopyDesc: String = ""
+    var appShareDesc: String = ""
+    var appInfoDesc: String = ""
+    var totalWord: String = ""
+    var appChooseFolder: String = ""
+    var appCopiedDone: String = ""
+    var usageAccessTitle: String = ""
+    var usageAccessBody: String = ""
+    var usageAccessButton: String = ""
+    var appsEmpty: String = ""
+}
 
-val TxtId = Txt(
-    locale = Locale("id", "ID"),
-    slogan = "Kelola semua file di HP-mu.",
-    internalStorage = "Penyimpanan Internal",
-    sdCard = "Kartu SD",
-    usbStorage = "USB / OTG",
-    free = { x -> "$x kosong" },
-    favorites = "Favorit",
-    noFavorites = "Belum ada folder favorit. Buka folder lalu ketuk bintang untuk menambahkannya di sini.",
-    categories = "Kategori",
-    storageAnalysis = "Analisis Penyimpanan",
-    permissionTitle = "Izin akses file diperlukan",
-    permissionBody = "SysFile memerlukan izin Akses semua file agar bisa menjelajahi dan mengelola file di HP-mu. Ketuk tombol di bawah, lalu aktifkan izin untuk SysFile.",
-    permissionButton = "Beri Izin Akses",
-    permissionRationale = "Tanpa izin ini, SysFile tidak bisa menampilkan file apa pun.",
-    emptyFolder = "Folder ini kosong.",
-    folderInaccessible = "Folder ini tidak dapat diakses. Sebagian folder sistem memang dikunci oleh Android.",
-    items = { n -> "$n item" },
-    selected = { n -> "$n dipilih" },
-    search = "Cari",
-    appTagline = "Pengelola Berkas",
-    searchHint = "Nama file…",
-    searchInFolder = "Cari di folder ini…",
-    searchNoResults = "Tidak ada file yang cocok.",
-    searching = "Mencari…",
-    sortName = "Nama",
-    sortDate = "Tanggal",
-    sortSize = "Ukuran",
-    sortAscending = "Naik (A→Z)",
-    sortDescending = "Turun (Z→A)",
-    showHidden = "File tersembunyi",
-    gridView = "Tampilan kisi",
-    listView = "Tampilan daftar",
-    copy = "Salin",
-    cut = "Potong",
-    paste = "Tempel",
-    pasteHere = { n -> "Tempel $n item di sini" },
-    clipboard = "Papan Klip",
-    pasteHereAction = "Tempel di Sini",
-    rename = "Ganti Nama",
-    delete = "Hapus",
-    deleteConfirm = { name -> "Pindahkan $name ke Tempat Sampah?" },
-    newFolder = "Folder Baru",
-    newFile = "File Baru",
-    folderName = "Nama folder",
-    fileName = "Nama file",
-    newName = "Nama baru",
-    create = "Buat",
-    cancel = "Batal",
-    save = "Simpan",
-    properties = "Properti",
-    propPath = "Lokasi",
-    propSize = "Ukuran",
-    propModified = "Diubah",
-    propFolder = "Folder",
-    propFile = "File",
-    share = "Bagikan",
-    compress = "Kompres ke ZIP",
-    extract = "Ekstrak di Sini",
-    extractShort = "Ekstrak",
-    compressShort = "ZIP",
-    selectAll = "Pilih Semua",
-    addFavorite = "Tambah ke Favorit",
-    removeFavorite = "Hapus dari Favorit",
-    copiedDone = "Berhasil disalin.",
-    movedDone = "Berhasil dipindahkan.",
-    deletedDone = "Berhasil dihapus.",
-    renamedDone = "Nama berhasil diganti.",
-    folderCreated = "Folder berhasil dibuat.",
-    fileCreated = "File berhasil dibuat.",
-    zipDone = "Berkas ZIP berhasil dibuat.",
-    extractDone = "Berhasil diekstrak.",
-    extractAll = "Ekstrak Semua",
-    checksum = "Checksum",
-    computeChecksum = "Hitung Checksum",
-    propType = "Jenis",
-    propName = "Nama",
-    propParent = "Induk",
-    propPerms = "Izin",
-    propPermsGroup = "Izin & Kepemilikan",
-    propOwner = "Pemilik",
-    propGroup = "Kelompok",
-    propAccessed = "Diakses",
-    propChanged = "Status diubah",
-    propInode = "Inode",
-    propLinks = "Tautan",
-    propMore = "Lagi",
-    back = "Kembali",
-    checksumBtn = "Ceksum",
-    checksumDesc = "MD5 + SHA-256, dihitung saat diminta",
-    calcShort = "Hitung",
-    trash = "Tempat Sampah",
-    trashEmpty = "Tempat Sampah kosong.",
-    movedToTrash = "Dipindahkan ke Tempat Sampah.",
-    restore = "Pulihkan",
-    restoredDone = "Berkas dipulihkan.",
-    deleteForever = "Hapus Permanen",
-    deleteForeverConfirm = { name -> "Hapus permanen $name? Tidak bisa dikembalikan." },
-    emptyTrash = "Kosongkan",
-    emptyTrashConfirm = "Kosongkan Tempat Sampah? Semua isinya terhapus permanen.",
-    extractArchive = "Ekstrak Arsip",
-    openArchive = "Buka Arsip",
-    browseFirst = "Lihat isi dulu",
-    extractCustom = "Ekstrak ke Jalur Kustom",
-    pickLocation = "Pilih lokasi berbeda",
-    selectFolder = "Pilih Folder Ini",
-    more = "Lainnya",
-    opFailed = "Operasi gagal.",
-    working = "Memproses…",
-    largestFiles = "File Terbesar",
-    scanning = "Memindai penyimpanan…",
-    scanFailed = "Pemindaian gagal.",
-    catImages = "Gambar",
-    catVideos = "Video",
-    catAudio = "Audio",
-    catDocuments = "Dokumen",
-    catApps = "Aplikasi (APK)",
-    catArchives = "Arsip",
-    catOther = "Lainnya",
-    settings = "Pengaturan",
-    theme = "Tema",
-    themeLight = "Terang",
-    themeDark = "Gelap",
-    themeSystem = "Ikuti Sistem",
-    language = "Bahasa",
-    close = "Tutup",
-    about = "Tentang",
-    developer = "Pengembang",
-    storageUsedLine = { u, tot -> "$u dari $tot terpakai" },
-    supportedFormats = "Format yang Didukung",
-    formatsSummary = "ZIP, 7Z, TAR, GZ, RAR, dan lainnya",
-    appSpecs = "Spesifikasi Aplikasi",
-    packageLabel = "Paket",
-    versionLabel = "Versi",
-    minAndroidLabel = "Android Minimum",
-    targetAndroidLabel = "Target Android",
-    technologyLabel = "Teknologi",
-    licenseTitle = "Lisensi MIT",
-    specGroupIdentity = "Identitas Aplikasi",
-    specGroupArchive = "Mesin Arsip",
-    specGroupUiStorage = "UI & Penyimpanan",
-    specAppName = "Nama Aplikasi",
-    specBuildEnv = "Lingkungan Build",
-    specCompression = "Kompresi",
-    specDesignLabel = "Desain",
-    payloadParserValue = "Parser Kotlin bawaan",
-    specStorageEngine = "Mesin Penyimpanan",
-    safGrant = "Beri Akses",
-    safOpen = "Buka via SAF",
-    safCopyOut = "Salin Keluar",
-    safCopied = { n -> "Disalin: $n" },
-    safCopyFailed = "Gagal menyalin berkas",
-    version = { v -> "Versi $v" },
-    edit = "Ubah",
-    preview = "Pratinjau",
-    codeLabel = "Kode",
-    refresh = "Muat Ulang",
-    textSaved = "Teks tersimpan.",
-    readFailed = "Gagal membaca file.",
-    openFailed = "Tidak ada aplikasi yang bisa membuka file ini.",
-    home = "Beranda",
-    storage = "Penyimpanan",
-    sortBy = "Urutkan",
-    recentFiles = "File Terbaru",
-    dynamicColor = "Warna Dinamis (Material You)",
-    dynamicColorDesc = "Ikuti warna wallpaper (Android 12+).",
-    catImagesS = "Gambar",
-    catVideosS = "Video",
-    catAudioS = "Audio",
-    catDocumentsS = "Dokumen",
-    catAppsS = "APK",
-    catArchivesS = "Arsip",
-    catOtherS = "Lainnya",
-    all = "Semua",
-    foldersLabel = "Folder",
-    filesLabel = "File",
-    seeAll = "Lihat Semua",
-    showLess = "Tutup",
-    appearance = "Tampilan",
-    categoryEmpty = "Belum ada berkas di kategori ini.",
-    analysisShort = "Analisis",
-    ofTotal = { "dari $it" },
-    usedWord = "terpakai",
-    freeWord = "kosong",
-    statusHealthy = "Sehat",
-    statusAlmostFull = "Hampir Penuh",
-    statusFull = "Penuh",
-    recentShort = "Terbaru",
-    noRecent = "Belum ada file terbaru.",
-    today = "Hari ini",
-    yesterday = "Kemarin",
-    rootSystem = "Root (Sistem)",
-    rootLimited = "Mode terbatas",
-    rootActive = "Root aktif",
-    rootAccessTitle = "Akses Root / Hak Istimewa",
-    rootAccessDesc = "Tampilkan penyimpanan Root di beranda",
-    formatsTitle = "Format yang Didukung",
-    formatGroupStandard = "Arsip Standar",
-    formatGroupTarball = "Tarball Terkompresi",
-    chipCreate = "Buat",
-    chipExtract = "Ekstrak",
-    chipEncrypt = "Enkripsi",
-    chipHighRatio = "Rasio Tinggi",
-    archiveName = "Nama arsip",
-    zipPassword = "Kata sandi ZIP (boleh kosong)",
-    zipPasswordTitle = "ZIP Terenkripsi",
-    zipPasswordBody = "Arsip ini dilindungi kata sandi. Masukkan kata sandinya untuk mengekstrak.",
-    fmtZipDesc = "Format arsip paling umum, kompresi Deflate; bisa dilindungi kata sandi AES.",
-    fmt7zDesc = "Arsip 7-Zip berasio kompresi tinggi (LZMA2). Di SysFile hanya untuk ekstrak.",
-    fmtTarDesc = "Arsip tape standar POSIX tanpa kompresi; isi tersimpan apa adanya.",
-    fmtTarGzDesc = "Arsip Tar terkompresi Gzip; umum di Linux dan berkas .tgz.",
-    fmtTarBz2Desc = "Arsip Tar terkompresi Bzip2; lebih kecil dari Gzip, sedikit lebih lambat.",
-    fmtTarXzDesc = "Arsip Tar terkompresi XZ (LZMA2); rasio paling tinggi di keluarga Tar.",
-    formatGroupSingle = "Aliran Berkas Tunggal",
-    formatGroupSpecial = "Format Spesialisasi & Android",
-    chipDecompress = "Dekompresi",
-    chipInspect = "Inspeksi",
-    chipNative = "Parser Bawaan",
-    fmtGzipDesc = "Dekompresi aliran berkas terkompresi GNU zip.",
-    fmtBzip2Desc = "Aliran kompresi data pengurutan blok berefisiensi tinggi.",
-    fmtXzDesc = "Aliran wadah LZMA2 berasio kompresi tinggi.",
-    fmtRarDesc = "Dukungan dekompresi Roshal Archive.",
-    fmtApkDesc = "Arsip paket Android dengan inspeksi aset & ekstraksi.",
-    fmtPayloadDesc = "Pengekstrak partisi firmware OTA Android dari payload.bin (payload penuh, bukan delta) memakai parser bawaan SysFile.",
-    apkInspect = "Inspeksi Isi",
-    apkExtract = "Ekstrak di Sini",
-    apkInstall = "Instal Aplikasi",
-    apkInspectDesc = "Lihat berkas di dalam APK",
-    apkExtractDesc = "Bongkar isi APK ke folder ini",
-    apkInstallDesc = "Pasang aplikasi dari berkas ini",
-    archiveEmpty = "Arsip kosong.",
-    payloadDone = { count -> "Payload diekstrak: $count partisi (.img)." },
-    payloadUnsupported = "Payload delta/parsial tidak didukung; gunakan payload OTA penuh.",
-    payloadInvalid = "Berkas payload.bin tidak valid.",
-    payloadCancelled = "Ekstraksi payload dibatalkan.",
-    payloadHashMismatch = "Hash partisi tidak cocok — hasil ekstrak dihapus.",
-    fileSection = "Berkas",
-    otherSection = "Lainnya",
-    propFileCount = "Berkas di dalamnya",
-    propFolderCount = "Folder di dalamnya",
-    propLargest = "Isi terbesar",
-    lockFolder = "Kunci Folder",
-    unlockFolder = "Buka Kunci Folder",
-    unlockTitle = "Folder Terkunci",
-    unlockPrompt = { name -> "Buka \"$name\" dengan sidik jari atau PIN layar kunci." },
-    unlockFailed = "Gagal membuka kunci folder.",
-    folderLockedDone = "Folder dikunci.",
-    folderUnlockedDone = "Kunci folder dibuka.",
-    appsTitle = "Pengelola Aplikasi",
-    appsUser = "Pengguna",
-    appsSystem = "Sistem",
-    appOpen = "Buka Aplikasi",
-    appCopyApk = "Salin APK",
-    appShareApk = "Bagikan APK",
-    appInfo = "Info Aplikasi",
-    appOpenDesc = "Jalankan aplikasi ini",
-    appCopyDesc = "Simpan salinan .apk ke folder pilihan",
-    appShareDesc = "Kirim berkas .apk ke aplikasi lain",
-    appInfoDesc = "Buka halaman info di Pengaturan",
-    totalWord = "Total",
-    appChooseFolder = "Pilih Folder Tujuan APK",
-    appCopiedDone = "APK berhasil disalin.",
-    usageAccessTitle = "Ukuran Total Belum Akurat",
-    usageAccessBody = "Aktifkan Akses Penggunaan untuk SysFile agar ukuran aplikasi mencakup data dan cache, bukan hanya berkas APK.",
-    usageAccessButton = "Aktifkan",
+val TxtId = Txt().apply {
+    locale = Locale("id", "ID")
+    slogan = "Kelola semua file di HP-mu."
+    internalStorage = "Penyimpanan Internal"
+    sdCard = "Kartu SD"
+    usbStorage = "USB / OTG"
+    free = { x -> "$x kosong" }
+    favorites = "Favorit"
+    noFavorites = "Belum ada folder favorit. Buka folder lalu ketuk bintang untuk menambahkannya di sini."
+    categories = "Kategori"
+    storageAnalysis = "Analisis Penyimpanan"
+    permissionTitle = "Izin akses file diperlukan"
+    permissionBody = "SysFile memerlukan izin Akses semua file agar bisa menjelajahi dan mengelola file di HP-mu. Ketuk tombol di bawah, lalu aktifkan izin untuk SysFile."
+    permissionButton = "Beri Izin Akses"
+    permissionRationale = "Tanpa izin ini, SysFile tidak bisa menampilkan file apa pun."
+    emptyFolder = "Folder ini kosong."
+    folderInaccessible = "Folder ini tidak dapat diakses. Sebagian folder sistem memang dikunci oleh Android."
+    items = { n -> "$n item" }
+    selected = { n -> "$n dipilih" }
+    search = "Cari"
+    appTagline = "Pengelola Berkas"
+    searchHint = "Nama file…"
+    searchInFolder = "Cari di folder ini…"
+    searchNoResults = "Tidak ada file yang cocok."
+    searching = "Mencari…"
+    sortName = "Nama"
+    sortDate = "Tanggal"
+    sortSize = "Ukuran"
+    sortAscending = "Naik (A→Z)"
+    sortDescending = "Turun (Z→A)"
+    showHidden = "File tersembunyi"
+    gridView = "Tampilan kisi"
+    listView = "Tampilan daftar"
+    copy = "Salin"
+    cut = "Potong"
+    paste = "Tempel"
+    pasteHere = { n -> "Tempel $n item di sini" }
+    clipboard = "Papan Klip"
+    pasteHereAction = "Tempel di Sini"
+    rename = "Ganti Nama"
+    delete = "Hapus"
+    deleteConfirm = { name -> "Pindahkan $name ke Tempat Sampah?" }
+    newFolder = "Folder Baru"
+    newFile = "File Baru"
+    folderName = "Nama folder"
+    fileName = "Nama file"
+    newName = "Nama baru"
+    create = "Buat"
+    cancel = "Batal"
+    save = "Simpan"
+    properties = "Properti"
+    propPath = "Lokasi"
+    propSize = "Ukuran"
+    propModified = "Diubah"
+    propFolder = "Folder"
+    propFile = "File"
+    share = "Bagikan"
+    compress = "Kompres ke ZIP"
+    extract = "Ekstrak di Sini"
+    extractShort = "Ekstrak"
+    compressShort = "ZIP"
+    selectAll = "Pilih Semua"
+    addFavorite = "Tambah ke Favorit"
+    removeFavorite = "Hapus dari Favorit"
+    copiedDone = "Berhasil disalin."
+    movedDone = "Berhasil dipindahkan."
+    deletedDone = "Berhasil dihapus."
+    renamedDone = "Nama berhasil diganti."
+    folderCreated = "Folder berhasil dibuat."
+    fileCreated = "File berhasil dibuat."
+    zipDone = "Berkas ZIP berhasil dibuat."
+    extractDone = "Berhasil diekstrak."
+    extractAll = "Ekstrak Semua"
+    checksum = "Checksum"
+    computeChecksum = "Hitung Checksum"
+    propType = "Jenis"
+    propName = "Nama"
+    propParent = "Induk"
+    propPerms = "Izin"
+    propPermsGroup = "Izin & Kepemilikan"
+    propOwner = "Pemilik"
+    propGroup = "Kelompok"
+    propAccessed = "Diakses"
+    propChanged = "Status diubah"
+    propInode = "Inode"
+    propLinks = "Tautan"
+    propMore = "Lagi"
+    back = "Kembali"
+    checksumBtn = "Ceksum"
+    checksumDesc = "MD5 + SHA-256, dihitung saat diminta"
+    calcShort = "Hitung"
+    trash = "Tempat Sampah"
+    trashEmpty = "Tempat Sampah kosong."
+    movedToTrash = "Dipindahkan ke Tempat Sampah."
+    restore = "Pulihkan"
+    restoredDone = "Berkas dipulihkan."
+    deleteForever = "Hapus Permanen"
+    deleteForeverConfirm = { name -> "Hapus permanen $name? Tidak bisa dikembalikan." }
+    emptyTrash = "Kosongkan"
+    emptyTrashConfirm = "Kosongkan Tempat Sampah? Semua isinya terhapus permanen."
+    extractArchive = "Ekstrak Arsip"
+    openArchive = "Buka Arsip"
+    browseFirst = "Lihat isi dulu"
+    extractCustom = "Ekstrak ke Jalur Kustom"
+    pickLocation = "Pilih lokasi berbeda"
+    selectFolder = "Pilih Folder Ini"
+    more = "Lainnya"
+    opFailed = "Operasi gagal."
+    working = "Memproses…"
+    largestFiles = "File Terbesar"
+    scanning = "Memindai penyimpanan…"
+    scanFailed = "Pemindaian gagal."
+    catImages = "Gambar"
+    catVideos = "Video"
+    catAudio = "Audio"
+    catDocuments = "Dokumen"
+    catApps = "Aplikasi (APK)"
+    catArchives = "Arsip"
+    catOther = "Lainnya"
+    settings = "Pengaturan"
+    theme = "Tema"
+    themeLight = "Terang"
+    themeDark = "Gelap"
+    themeSystem = "Ikuti Sistem"
+    language = "Bahasa"
+    close = "Tutup"
+    about = "Tentang"
+    developer = "Pengembang"
+    storageUsedLine = { u, tot -> "$u dari $tot terpakai" }
+    supportedFormats = "Format yang Didukung"
+    formatsSummary = "ZIP, 7Z, TAR, GZ, RAR, dan lainnya"
+    appSpecs = "Spesifikasi Aplikasi"
+    packageLabel = "Paket"
+    versionLabel = "Versi"
+    minAndroidLabel = "Android Minimum"
+    targetAndroidLabel = "Target Android"
+    technologyLabel = "Teknologi"
+    licenseTitle = "Lisensi MIT"
+    specGroupIdentity = "Identitas Aplikasi"
+    specGroupArchive = "Mesin Arsip"
+    specGroupUiStorage = "UI & Penyimpanan"
+    specAppName = "Nama Aplikasi"
+    specBuildEnv = "Lingkungan Build"
+    specCompression = "Kompresi"
+    specDesignLabel = "Desain"
+    payloadParserValue = "Parser Kotlin bawaan"
+    specStorageEngine = "Mesin Penyimpanan"
+    safGrant = "Beri Akses"
+    safOpen = "Buka via SAF"
+    safCopyOut = "Salin Keluar"
+    safCopied = { n -> "Disalin: $n" }
+    safCopyFailed = "Gagal menyalin berkas"
+    version = { v -> "Versi $v" }
+    edit = "Ubah"
+    preview = "Pratinjau"
+    codeLabel = "Kode"
+    refresh = "Muat Ulang"
+    textSaved = "Teks tersimpan."
+    readFailed = "Gagal membaca file."
+    openFailed = "Tidak ada aplikasi yang bisa membuka file ini."
+    home = "Beranda"
+    storage = "Penyimpanan"
+    sortBy = "Urutkan"
+    recentFiles = "File Terbaru"
+    dynamicColor = "Warna Dinamis (Material You)"
+    dynamicColorDesc = "Ikuti warna wallpaper (Android 12+)."
+    catImagesS = "Gambar"
+    catVideosS = "Video"
+    catAudioS = "Audio"
+    catDocumentsS = "Dokumen"
+    catAppsS = "APK"
+    catArchivesS = "Arsip"
+    catOtherS = "Lainnya"
+    all = "Semua"
+    foldersLabel = "Folder"
+    filesLabel = "File"
+    seeAll = "Lihat Semua"
+    showLess = "Tutup"
+    appearance = "Tampilan"
+    categoryEmpty = "Belum ada berkas di kategori ini."
+    analysisShort = "Analisis"
+    ofTotal = { "dari $it" }
+    usedWord = "terpakai"
+    freeWord = "kosong"
+    statusHealthy = "Sehat"
+    statusAlmostFull = "Hampir Penuh"
+    statusFull = "Penuh"
+    recentShort = "Terbaru"
+    noRecent = "Belum ada file terbaru."
+    today = "Hari ini"
+    yesterday = "Kemarin"
+    rootSystem = "Root (Sistem)"
+    rootLimited = "Mode terbatas"
+    rootActive = "Root aktif"
+    rootAccessTitle = "Akses Root / Hak Istimewa"
+    rootAccessDesc = "Tampilkan penyimpanan Root di beranda"
+    formatsTitle = "Format yang Didukung"
+    formatGroupStandard = "Arsip Standar"
+    formatGroupTarball = "Tarball Terkompresi"
+    chipCreate = "Buat"
+    chipExtract = "Ekstrak"
+    chipEncrypt = "Enkripsi"
+    chipHighRatio = "Rasio Tinggi"
+    archiveName = "Nama arsip"
+    zipPassword = "Kata sandi ZIP (boleh kosong)"
+    zipPasswordTitle = "ZIP Terenkripsi"
+    zipPasswordBody = "Arsip ini dilindungi kata sandi. Masukkan kata sandinya untuk mengekstrak."
+    fmtZipDesc = "Format arsip paling umum, kompresi Deflate; bisa dilindungi kata sandi AES."
+    fmt7zDesc = "Arsip 7-Zip berasio kompresi tinggi (LZMA2). Di SysFile hanya untuk ekstrak."
+    fmtTarDesc = "Arsip tape standar POSIX tanpa kompresi; isi tersimpan apa adanya."
+    fmtTarGzDesc = "Arsip Tar terkompresi Gzip; umum di Linux dan berkas .tgz."
+    fmtTarBz2Desc = "Arsip Tar terkompresi Bzip2; lebih kecil dari Gzip, sedikit lebih lambat."
+    fmtTarXzDesc = "Arsip Tar terkompresi XZ (LZMA2); rasio paling tinggi di keluarga Tar."
+    formatGroupSingle = "Aliran Berkas Tunggal"
+    formatGroupSpecial = "Format Spesialisasi & Android"
+    chipDecompress = "Dekompresi"
+    chipInspect = "Inspeksi"
+    chipNative = "Parser Bawaan"
+    fmtGzipDesc = "Dekompresi aliran berkas terkompresi GNU zip."
+    fmtBzip2Desc = "Aliran kompresi data pengurutan blok berefisiensi tinggi."
+    fmtXzDesc = "Aliran wadah LZMA2 berasio kompresi tinggi."
+    fmtRarDesc = "Dukungan dekompresi Roshal Archive."
+    fmtApkDesc = "Arsip paket Android dengan inspeksi aset & ekstraksi."
+    fmtPayloadDesc = "Pengekstrak partisi firmware OTA Android dari payload.bin (payload penuh, bukan delta) memakai parser bawaan SysFile."
+    apkInspect = "Inspeksi Isi"
+    apkExtract = "Ekstrak di Sini"
+    apkInstall = "Instal Aplikasi"
+    apkInspectDesc = "Lihat berkas di dalam APK"
+    apkExtractDesc = "Bongkar isi APK ke folder ini"
+    apkInstallDesc = "Pasang aplikasi dari berkas ini"
+    archiveEmpty = "Arsip kosong."
+    payloadDone = { count -> "Payload diekstrak: $count partisi (.img)." }
+    payloadUnsupported = "Payload delta/parsial tidak didukung; gunakan payload OTA penuh."
+    payloadInvalid = "Berkas payload.bin tidak valid."
+    payloadCancelled = "Ekstraksi payload dibatalkan."
+    payloadHashMismatch = "Hash partisi tidak cocok — hasil ekstrak dihapus."
+    fileSection = "Berkas"
+    otherSection = "Lainnya"
+    propFileCount = "Berkas di dalamnya"
+    propFolderCount = "Folder di dalamnya"
+    propLargest = "Isi terbesar"
+    lockFolder = "Kunci Folder"
+    unlockFolder = "Buka Kunci Folder"
+    unlockTitle = "Folder Terkunci"
+    unlockPrompt = { name -> "Buka \"$name\" dengan sidik jari atau PIN layar kunci." }
+    unlockFailed = "Gagal membuka kunci folder."
+    folderLockedDone = "Folder dikunci."
+    folderUnlockedDone = "Kunci folder dibuka."
+    appsTitle = "Pengelola Aplikasi"
+    appsUser = "Pengguna"
+    appsSystem = "Sistem"
+    appOpen = "Buka Aplikasi"
+    appCopyApk = "Salin APK"
+    appShareApk = "Bagikan APK"
+    appInfo = "Info Aplikasi"
+    appOpenDesc = "Jalankan aplikasi ini"
+    appCopyDesc = "Simpan salinan .apk ke folder pilihan"
+    appShareDesc = "Kirim berkas .apk ke aplikasi lain"
+    appInfoDesc = "Buka halaman info di Pengaturan"
+    totalWord = "Total"
+    appChooseFolder = "Pilih Folder Tujuan APK"
+    appCopiedDone = "APK berhasil disalin."
+    usageAccessTitle = "Ukuran Total Belum Akurat"
+    usageAccessBody = "Aktifkan Akses Penggunaan untuk SysFile agar ukuran aplikasi mencakup data dan cache, bukan hanya berkas APK."
+    usageAccessButton = "Aktifkan"
     appsEmpty = "Tidak ada aplikasi pada saringan ini."
-)
+}
 
-val TxtEn = Txt(
-    locale = Locale.ENGLISH,
-    slogan = "Manage every file on your phone.",
-    internalStorage = "Internal Storage",
-    sdCard = "SD Card",
-    usbStorage = "USB / OTG",
-    free = { x -> "$x free" },
-    favorites = "Favorites",
-    noFavorites = "No favorite folders yet. Open a folder and tap the star to pin it here.",
-    categories = "Categories",
-    storageAnalysis = "Storage Analysis",
-    permissionTitle = "File access permission needed",
-    permissionBody = "SysFile needs the All files access permission to browse and manage the files on your phone. Tap the button below, then allow access for SysFile.",
-    permissionButton = "Grant Access",
-    permissionRationale = "Without this permission, SysFile cannot show any files.",
-    emptyFolder = "This folder is empty.",
-    folderInaccessible = "This folder cannot be accessed. Some system folders are locked by Android.",
-    items = { n -> "$n items" },
-    selected = { n -> "$n selected" },
-    search = "Search",
-    appTagline = "File Manager",
-    searchHint = "File name…",
-    searchInFolder = "Search in this folder…",
-    searchNoResults = "No matching files.",
-    searching = "Searching…",
-    sortName = "Name",
-    sortDate = "Date",
-    sortSize = "Size",
-    sortAscending = "Ascending (A→Z)",
-    sortDescending = "Descending (Z→A)",
-    showHidden = "Hidden files",
-    gridView = "Grid view",
-    listView = "List view",
-    copy = "Copy",
-    cut = "Cut",
-    paste = "Paste",
-    pasteHere = { n -> "Paste $n items here" },
-    clipboard = "Clipboard",
-    pasteHereAction = "Paste Here",
-    rename = "Rename",
-    delete = "Delete",
-    deleteConfirm = { name -> "Move $name to Trash?" },
-    newFolder = "New Folder",
-    newFile = "New File",
-    folderName = "Folder name",
-    fileName = "File name",
-    newName = "New name",
-    create = "Create",
-    cancel = "Cancel",
-    save = "Save",
-    properties = "Properties",
-    propPath = "Location",
-    propSize = "Size",
-    propModified = "Modified",
-    propFolder = "Folder",
-    propFile = "File",
-    share = "Share",
-    compress = "Compress to ZIP",
-    extract = "Extract Here",
-    extractShort = "Extract",
-    compressShort = "ZIP",
-    selectAll = "Select All",
-    addFavorite = "Add to Favorites",
-    removeFavorite = "Remove from Favorites",
-    copiedDone = "Copied successfully.",
-    movedDone = "Moved successfully.",
-    deletedDone = "Deleted successfully.",
-    renamedDone = "Renamed successfully.",
-    folderCreated = "Folder created.",
-    fileCreated = "File created.",
-    zipDone = "ZIP file created.",
-    extractDone = "Extracted successfully.",
-    extractAll = "Extract All",
-    checksum = "Checksum",
-    computeChecksum = "Compute Checksum",
-    propType = "Type",
-    propName = "Name",
-    propParent = "Parent",
-    propPerms = "Permissions",
-    propPermsGroup = "Permissions & Ownership",
-    propOwner = "Owner",
-    propGroup = "Group",
-    propAccessed = "Accessed",
-    propChanged = "Status changed",
-    propInode = "Inode",
-    propLinks = "Links",
-    propMore = "More",
-    back = "Back",
-    checksumBtn = "Checksum",
-    checksumDesc = "MD5 + SHA-256, computed on demand",
-    calcShort = "Compute",
-    trash = "Trash",
-    trashEmpty = "Trash is empty.",
-    movedToTrash = "Moved to Trash.",
-    restore = "Restore",
-    restoredDone = "File restored.",
-    deleteForever = "Delete Permanently",
-    deleteForeverConfirm = { name -> "Delete $name permanently? This cannot be undone." },
-    emptyTrash = "Empty Trash",
-    emptyTrashConfirm = "Empty the Trash? Everything in it will be permanently deleted.",
-    extractArchive = "Extract Archive",
-    openArchive = "Open Archive",
-    browseFirst = "Browse contents first",
-    extractCustom = "Extract to Custom Path",
-    pickLocation = "Pick a different location",
-    selectFolder = "Select This Folder",
-    more = "More",
-    opFailed = "Operation failed.",
-    working = "Working…",
-    largestFiles = "Largest Files",
-    scanning = "Scanning storage…",
-    scanFailed = "Scan failed.",
-    catImages = "Images",
-    catVideos = "Videos",
-    catAudio = "Audio",
-    catDocuments = "Documents",
-    catApps = "Apps (APK)",
-    catArchives = "Archives",
-    catOther = "Other",
-    settings = "Settings",
-    theme = "Theme",
-    themeLight = "Light",
-    themeDark = "Dark",
-    themeSystem = "Follow System",
-    language = "Language",
-    close = "Close",
-    about = "About",
-    developer = "Developer",
-    storageUsedLine = { u, tot -> "$u of $tot used" },
-    supportedFormats = "Supported Formats",
-    formatsSummary = "ZIP, 7Z, TAR, GZ, RAR, and more",
-    appSpecs = "App Specifications",
-    packageLabel = "Package",
-    versionLabel = "Version",
-    minAndroidLabel = "Minimum Android",
-    targetAndroidLabel = "Target Android",
-    technologyLabel = "Technology",
-    licenseTitle = "MIT License",
-    specGroupIdentity = "App Identity",
-    specGroupArchive = "Archive Engine",
-    specGroupUiStorage = "UI & Storage",
-    specAppName = "App Name",
-    specBuildEnv = "Build Environment",
-    specCompression = "Compression",
-    specDesignLabel = "Design",
-    payloadParserValue = "Built-in Kotlin parser",
-    specStorageEngine = "Storage Engine",
-    safGrant = "Grant Access",
-    safOpen = "Open via SAF",
-    safCopyOut = "Copy Out",
-    safCopied = { n -> "Copied: $n" },
-    safCopyFailed = "Failed to copy the file",
-    version = { v -> "Version $v" },
-    edit = "Edit",
-    preview = "Preview",
-    codeLabel = "Code",
-    refresh = "Reload",
-    textSaved = "Text saved.",
-    readFailed = "Couldn't read the file.",
-    openFailed = "No app can open this file.",
-    home = "Home",
-    storage = "Storage",
-    sortBy = "Sort by",
-    recentFiles = "Recent Files",
-    dynamicColor = "Dynamic Color (Material You)",
-    dynamicColorDesc = "Follow your wallpaper colors (Android 12+).",
-    catImagesS = "Images",
-    catVideosS = "Videos",
-    catAudioS = "Audio",
-    catDocumentsS = "Docs",
-    catAppsS = "Apps",
-    catArchivesS = "Archives",
-    catOtherS = "Other",
-    all = "All",
-    foldersLabel = "Folders",
-    filesLabel = "Files",
-    seeAll = "See All",
-    showLess = "Show Less",
-    appearance = "Appearance",
-    categoryEmpty = "No files in this category yet.",
-    analysisShort = "Analysis",
-    ofTotal = { "of $it" },
-    usedWord = "used",
-    freeWord = "free",
-    statusHealthy = "Healthy",
-    statusAlmostFull = "Almost Full",
-    statusFull = "Full",
-    recentShort = "Recent",
-    noRecent = "No recent files yet.",
-    today = "Today",
-    yesterday = "Yesterday",
-    rootSystem = "Root (System)",
-    rootLimited = "Limited mode",
-    rootActive = "Root active",
-    rootAccessTitle = "Root Access / Privileges",
-    rootAccessDesc = "Show Root storage on the home screen",
-    formatsTitle = "Supported Formats",
-    formatGroupStandard = "Standard Archives",
-    formatGroupTarball = "Compressed Tarballs",
-    chipCreate = "Create",
-    chipExtract = "Extract",
-    chipEncrypt = "Encryption",
-    chipHighRatio = "High Ratio",
-    archiveName = "Archive name",
-    zipPassword = "ZIP password (optional)",
-    zipPasswordTitle = "Encrypted ZIP",
-    zipPasswordBody = "This archive is password-protected. Enter its password to extract it.",
-    fmtZipDesc = "The most common archive format, Deflate compression; can be protected with an AES password.",
-    fmt7zDesc = "High-ratio 7-Zip archives (LZMA2). Extraction only in SysFile.",
-    fmtTarDesc = "Standard POSIX tape archive without compression; contents stored as-is.",
-    fmtTarGzDesc = "Tar archive compressed with Gzip; common on Linux and .tgz files.",
-    fmtTarBz2Desc = "Tar archive compressed with Bzip2; smaller than Gzip, slightly slower.",
-    fmtTarXzDesc = "Tar archive compressed with XZ (LZMA2); the highest ratio in the Tar family.",
-    formatGroupSingle = "Single File Streams",
-    formatGroupSpecial = "Specialized & Android Formats",
-    chipDecompress = "Decompress",
-    chipInspect = "Inspect",
-    chipNative = "Built-in Parser",
-    fmtGzipDesc = "Decompresses a GNU zip compressed file stream.",
-    fmtBzip2Desc = "High-efficiency block-sorting data compression stream.",
-    fmtXzDesc = "LZMA2 container stream with a high compression ratio.",
-    fmtRarDesc = "Roshal Archive decompression support.",
-    fmtApkDesc = "Android package archives with asset inspection & extraction.",
-    fmtPayloadDesc = "Extracts Android OTA firmware partitions from payload.bin (full payloads, not delta) using SysFile's built-in parser.",
-    apkInspect = "Inspect Contents",
-    apkExtract = "Extract Here",
-    apkInstall = "Install App",
-    apkInspectDesc = "Browse the files inside the APK",
-    apkExtractDesc = "Unpack the APK contents into this folder",
-    apkInstallDesc = "Install the app from this file",
-    archiveEmpty = "Archive is empty.",
-    payloadDone = { count -> "Payload extracted: $count partitions (.img)." },
-    payloadUnsupported = "Delta/partial payloads are not supported; use a full OTA payload.",
-    payloadInvalid = "Not a valid payload.bin file.",
-    payloadCancelled = "Payload extraction cancelled.",
-    payloadHashMismatch = "Partition hash mismatch — extracted output deleted.",
-    fileSection = "Files",
-    otherSection = "Other",
-    propFileCount = "Files inside",
-    propFolderCount = "Folders inside",
-    propLargest = "Largest item",
-    lockFolder = "Lock Folder",
-    unlockFolder = "Unlock Folder",
-    unlockTitle = "Locked Folder",
-    unlockPrompt = { name -> "Open \"$name\" with your fingerprint or lock-screen PIN." },
-    unlockFailed = "Could not unlock the folder.",
-    folderLockedDone = "Folder locked.",
-    folderUnlockedDone = "Folder unlocked.",
-    appsTitle = "App Manager",
-    appsUser = "User",
-    appsSystem = "System",
-    appOpen = "Open App",
-    appCopyApk = "Copy APK",
-    appShareApk = "Share APK",
-    appInfo = "App Info",
-    appOpenDesc = "Launch this app",
-    appCopyDesc = "Save a copy of the .apk to a chosen folder",
-    appShareDesc = "Send the .apk file to another app",
-    appInfoDesc = "Open the info page in Settings",
-    totalWord = "Total",
-    appChooseFolder = "Choose the APK Destination Folder",
-    appCopiedDone = "APK copied.",
-    usageAccessTitle = "Total Sizes Not Exact Yet",
-    usageAccessBody = "Enable Usage Access for SysFile so app sizes include data and cache, not just the APK file.",
-    usageAccessButton = "Enable",
+val TxtEn = Txt().apply {
+    locale = Locale.ENGLISH
+    slogan = "Manage every file on your phone."
+    internalStorage = "Internal Storage"
+    sdCard = "SD Card"
+    usbStorage = "USB / OTG"
+    free = { x -> "$x free" }
+    favorites = "Favorites"
+    noFavorites = "No favorite folders yet. Open a folder and tap the star to pin it here."
+    categories = "Categories"
+    storageAnalysis = "Storage Analysis"
+    permissionTitle = "File access permission needed"
+    permissionBody = "SysFile needs the All files access permission to browse and manage the files on your phone. Tap the button below, then allow access for SysFile."
+    permissionButton = "Grant Access"
+    permissionRationale = "Without this permission, SysFile cannot show any files."
+    emptyFolder = "This folder is empty."
+    folderInaccessible = "This folder cannot be accessed. Some system folders are locked by Android."
+    items = { n -> "$n items" }
+    selected = { n -> "$n selected" }
+    search = "Search"
+    appTagline = "File Manager"
+    searchHint = "File name…"
+    searchInFolder = "Search in this folder…"
+    searchNoResults = "No matching files."
+    searching = "Searching…"
+    sortName = "Name"
+    sortDate = "Date"
+    sortSize = "Size"
+    sortAscending = "Ascending (A→Z)"
+    sortDescending = "Descending (Z→A)"
+    showHidden = "Hidden files"
+    gridView = "Grid view"
+    listView = "List view"
+    copy = "Copy"
+    cut = "Cut"
+    paste = "Paste"
+    pasteHere = { n -> "Paste $n items here" }
+    clipboard = "Clipboard"
+    pasteHereAction = "Paste Here"
+    rename = "Rename"
+    delete = "Delete"
+    deleteConfirm = { name -> "Move $name to Trash?" }
+    newFolder = "New Folder"
+    newFile = "New File"
+    folderName = "Folder name"
+    fileName = "File name"
+    newName = "New name"
+    create = "Create"
+    cancel = "Cancel"
+    save = "Save"
+    properties = "Properties"
+    propPath = "Location"
+    propSize = "Size"
+    propModified = "Modified"
+    propFolder = "Folder"
+    propFile = "File"
+    share = "Share"
+    compress = "Compress to ZIP"
+    extract = "Extract Here"
+    extractShort = "Extract"
+    compressShort = "ZIP"
+    selectAll = "Select All"
+    addFavorite = "Add to Favorites"
+    removeFavorite = "Remove from Favorites"
+    copiedDone = "Copied successfully."
+    movedDone = "Moved successfully."
+    deletedDone = "Deleted successfully."
+    renamedDone = "Renamed successfully."
+    folderCreated = "Folder created."
+    fileCreated = "File created."
+    zipDone = "ZIP file created."
+    extractDone = "Extracted successfully."
+    extractAll = "Extract All"
+    checksum = "Checksum"
+    computeChecksum = "Compute Checksum"
+    propType = "Type"
+    propName = "Name"
+    propParent = "Parent"
+    propPerms = "Permissions"
+    propPermsGroup = "Permissions & Ownership"
+    propOwner = "Owner"
+    propGroup = "Group"
+    propAccessed = "Accessed"
+    propChanged = "Status changed"
+    propInode = "Inode"
+    propLinks = "Links"
+    propMore = "More"
+    back = "Back"
+    checksumBtn = "Checksum"
+    checksumDesc = "MD5 + SHA-256, computed on demand"
+    calcShort = "Compute"
+    trash = "Trash"
+    trashEmpty = "Trash is empty."
+    movedToTrash = "Moved to Trash."
+    restore = "Restore"
+    restoredDone = "File restored."
+    deleteForever = "Delete Permanently"
+    deleteForeverConfirm = { name -> "Delete $name permanently? This cannot be undone." }
+    emptyTrash = "Empty Trash"
+    emptyTrashConfirm = "Empty the Trash? Everything in it will be permanently deleted."
+    extractArchive = "Extract Archive"
+    openArchive = "Open Archive"
+    browseFirst = "Browse contents first"
+    extractCustom = "Extract to Custom Path"
+    pickLocation = "Pick a different location"
+    selectFolder = "Select This Folder"
+    more = "More"
+    opFailed = "Operation failed."
+    working = "Working…"
+    largestFiles = "Largest Files"
+    scanning = "Scanning storage…"
+    scanFailed = "Scan failed."
+    catImages = "Images"
+    catVideos = "Videos"
+    catAudio = "Audio"
+    catDocuments = "Documents"
+    catApps = "Apps (APK)"
+    catArchives = "Archives"
+    catOther = "Other"
+    settings = "Settings"
+    theme = "Theme"
+    themeLight = "Light"
+    themeDark = "Dark"
+    themeSystem = "Follow System"
+    language = "Language"
+    close = "Close"
+    about = "About"
+    developer = "Developer"
+    storageUsedLine = { u, tot -> "$u of $tot used" }
+    supportedFormats = "Supported Formats"
+    formatsSummary = "ZIP, 7Z, TAR, GZ, RAR, and more"
+    appSpecs = "App Specifications"
+    packageLabel = "Package"
+    versionLabel = "Version"
+    minAndroidLabel = "Minimum Android"
+    targetAndroidLabel = "Target Android"
+    technologyLabel = "Technology"
+    licenseTitle = "MIT License"
+    specGroupIdentity = "App Identity"
+    specGroupArchive = "Archive Engine"
+    specGroupUiStorage = "UI & Storage"
+    specAppName = "App Name"
+    specBuildEnv = "Build Environment"
+    specCompression = "Compression"
+    specDesignLabel = "Design"
+    payloadParserValue = "Built-in Kotlin parser"
+    specStorageEngine = "Storage Engine"
+    safGrant = "Grant Access"
+    safOpen = "Open via SAF"
+    safCopyOut = "Copy Out"
+    safCopied = { n -> "Copied: $n" }
+    safCopyFailed = "Failed to copy the file"
+    version = { v -> "Version $v" }
+    edit = "Edit"
+    preview = "Preview"
+    codeLabel = "Code"
+    refresh = "Reload"
+    textSaved = "Text saved."
+    readFailed = "Couldn't read the file."
+    openFailed = "No app can open this file."
+    home = "Home"
+    storage = "Storage"
+    sortBy = "Sort by"
+    recentFiles = "Recent Files"
+    dynamicColor = "Dynamic Color (Material You)"
+    dynamicColorDesc = "Follow your wallpaper colors (Android 12+)."
+    catImagesS = "Images"
+    catVideosS = "Videos"
+    catAudioS = "Audio"
+    catDocumentsS = "Docs"
+    catAppsS = "Apps"
+    catArchivesS = "Archives"
+    catOtherS = "Other"
+    all = "All"
+    foldersLabel = "Folders"
+    filesLabel = "Files"
+    seeAll = "See All"
+    showLess = "Show Less"
+    appearance = "Appearance"
+    categoryEmpty = "No files in this category yet."
+    analysisShort = "Analysis"
+    ofTotal = { "of $it" }
+    usedWord = "used"
+    freeWord = "free"
+    statusHealthy = "Healthy"
+    statusAlmostFull = "Almost Full"
+    statusFull = "Full"
+    recentShort = "Recent"
+    noRecent = "No recent files yet."
+    today = "Today"
+    yesterday = "Yesterday"
+    rootSystem = "Root (System)"
+    rootLimited = "Limited mode"
+    rootActive = "Root active"
+    rootAccessTitle = "Root Access / Privileges"
+    rootAccessDesc = "Show Root storage on the home screen"
+    formatsTitle = "Supported Formats"
+    formatGroupStandard = "Standard Archives"
+    formatGroupTarball = "Compressed Tarballs"
+    chipCreate = "Create"
+    chipExtract = "Extract"
+    chipEncrypt = "Encryption"
+    chipHighRatio = "High Ratio"
+    archiveName = "Archive name"
+    zipPassword = "ZIP password (optional)"
+    zipPasswordTitle = "Encrypted ZIP"
+    zipPasswordBody = "This archive is password-protected. Enter its password to extract it."
+    fmtZipDesc = "The most common archive format, Deflate compression; can be protected with an AES password."
+    fmt7zDesc = "High-ratio 7-Zip archives (LZMA2). Extraction only in SysFile."
+    fmtTarDesc = "Standard POSIX tape archive without compression; contents stored as-is."
+    fmtTarGzDesc = "Tar archive compressed with Gzip; common on Linux and .tgz files."
+    fmtTarBz2Desc = "Tar archive compressed with Bzip2; smaller than Gzip, slightly slower."
+    fmtTarXzDesc = "Tar archive compressed with XZ (LZMA2); the highest ratio in the Tar family."
+    formatGroupSingle = "Single File Streams"
+    formatGroupSpecial = "Specialized & Android Formats"
+    chipDecompress = "Decompress"
+    chipInspect = "Inspect"
+    chipNative = "Built-in Parser"
+    fmtGzipDesc = "Decompresses a GNU zip compressed file stream."
+    fmtBzip2Desc = "High-efficiency block-sorting data compression stream."
+    fmtXzDesc = "LZMA2 container stream with a high compression ratio."
+    fmtRarDesc = "Roshal Archive decompression support."
+    fmtApkDesc = "Android package archives with asset inspection & extraction."
+    fmtPayloadDesc = "Extracts Android OTA firmware partitions from payload.bin (full payloads, not delta) using SysFile's built-in parser."
+    apkInspect = "Inspect Contents"
+    apkExtract = "Extract Here"
+    apkInstall = "Install App"
+    apkInspectDesc = "Browse the files inside the APK"
+    apkExtractDesc = "Unpack the APK contents into this folder"
+    apkInstallDesc = "Install the app from this file"
+    archiveEmpty = "Archive is empty."
+    payloadDone = { count -> "Payload extracted: $count partitions (.img)." }
+    payloadUnsupported = "Delta/partial payloads are not supported; use a full OTA payload."
+    payloadInvalid = "Not a valid payload.bin file."
+    payloadCancelled = "Payload extraction cancelled."
+    payloadHashMismatch = "Partition hash mismatch — extracted output deleted."
+    fileSection = "Files"
+    otherSection = "Other"
+    propFileCount = "Files inside"
+    propFolderCount = "Folders inside"
+    propLargest = "Largest item"
+    lockFolder = "Lock Folder"
+    unlockFolder = "Unlock Folder"
+    unlockTitle = "Locked Folder"
+    unlockPrompt = { name -> "Open \"$name\" with your fingerprint or lock-screen PIN." }
+    unlockFailed = "Could not unlock the folder."
+    folderLockedDone = "Folder locked."
+    folderUnlockedDone = "Folder unlocked."
+    appsTitle = "App Manager"
+    appsUser = "User"
+    appsSystem = "System"
+    appOpen = "Open App"
+    appCopyApk = "Copy APK"
+    appShareApk = "Share APK"
+    appInfo = "App Info"
+    appOpenDesc = "Launch this app"
+    appCopyDesc = "Save a copy of the .apk to a chosen folder"
+    appShareDesc = "Send the .apk file to another app"
+    appInfoDesc = "Open the info page in Settings"
+    totalWord = "Total"
+    appChooseFolder = "Choose the APK Destination Folder"
+    appCopiedDone = "APK copied."
+    usageAccessTitle = "Total Sizes Not Exact Yet"
+    usageAccessBody = "Enable Usage Access for SysFile so app sizes include data and cache, not just the APK file."
+    usageAccessButton = "Enable"
     appsEmpty = "No apps in this filter."
-)
+}
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */
 object AppLang {
