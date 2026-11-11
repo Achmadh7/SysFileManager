@@ -506,12 +506,12 @@ fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFFF9E45).copy(alpha = 0.16f)),
+                            .background(Color(0xFFFFB020).copy(alpha = 0.16f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.ContentPaste, null,
-                            tint = Color(0xFFFF9E45), modifier = Modifier.size(24.dp)
+                            tint = Color(0xFFFFB020), modifier = Modifier.size(24.dp)
                         )
                     }
                     Spacer(Modifier.width(12.dp))

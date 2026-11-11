@@ -715,12 +715,12 @@ fun ArchiveActionsDialog(
                 Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(15.dp))
-                    .background(Color(0xFF8B7CFF).copy(alpha = 0.16f)),
+                    .background(Color(0xFFA78BFA).copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Unarchive, null,
-                    tint = Color(0xFF8B7CFF), modifier = Modifier.size(26.dp)
+                    tint = Color(0xFFA78BFA), modifier = Modifier.size(26.dp)
                 )
             }
         },
@@ -737,11 +737,11 @@ fun ArchiveActionsDialog(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp)
                 )
                 ApkActionRow(
-                    Icons.Default.Unarchive, Color(0xFFFF9E45),
+                    Icons.Default.Unarchive, Color(0xFFFFB020),
                     t.extract, "$folderName/", onExtractHere
                 )
                 ApkActionRow(
-                    Icons.Default.Folder, Color(0xFF8B7CFF),
+                    Icons.Default.Folder, Color(0xFFA78BFA),
                     t.openArchive, t.browseFirst, onOpenArchive
                 )
                 ApkActionRow(
@@ -804,7 +804,7 @@ fun FolderPickerDialog(
                             Modifier.fillMaxWidth().clickable { current = dir.path }.padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Folder, null, tint = Color(0xFFFFA000))
+                            Icon(Icons.Default.Folder, null, tint = Color(0xFF8FC1F5))
                             Spacer(Modifier.width(12.dp))
                             Text(dir.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
@@ -875,8 +875,8 @@ fun ApkActionsDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ApkActionRow(Icons.Default.Search, Color(0xFFFF9E45), t.apkInspect, t.apkInspectDesc, onInspect)
-                ApkActionRow(Icons.Default.Archive, Color(0xFF8B7CFF), t.apkExtract, t.apkExtractDesc, onExtract)
+                ApkActionRow(Icons.Default.Search, Color(0xFFFFB020), t.apkInspect, t.apkInspectDesc, onInspect)
+                ApkActionRow(Icons.Default.Archive, Color(0xFFA78BFA), t.apkExtract, t.apkExtractDesc, onExtract)
                 ApkActionRow(Icons.Default.InstallMobile, Color(0xFF7ED957), t.apkInstall, t.apkInstallDesc, onInstall)
             }
         },
