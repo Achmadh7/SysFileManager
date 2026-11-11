@@ -20,7 +20,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -173,6 +175,12 @@ fun HomeScreen(
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item {
+            Column {
+                Text(t.greetingHello, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(t.greetingLine, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            }
+        }
         if (!accessGranted) {
             item {
                 SectionCard(icon = Icons.Default.Warning, title = t.permissionTitle) {
@@ -196,7 +204,8 @@ fun HomeScreen(
                         if (root.kind != "internal" && root.total > 0) {
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                                    .background(Color(0xFF182636))
+                                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
                                     .clickable { onOpenRoot(root.path) }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -212,12 +221,12 @@ fun HomeScreen(
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall, color = Color.White)
+                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
                                     LinearWavyProgressIndicator(
                                         progress = { ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f) },
                                         modifier = Modifier.fillMaxWidth(),
-                                        color = Color.White,
-                                        trackColor = Color.White.copy(alpha = 0.35f)
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                                     )
                                     Text(
                                         if (root.kind == "root") {
@@ -226,7 +235,7 @@ fun HomeScreen(
                                             FileOps.formatSize(root.total - root.free) + " " + t.usedWord
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFFAABED7)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                                 Spacer(Modifier.width(12.dp))
@@ -234,13 +243,12 @@ fun HomeScreen(
                                     Text(
                                         FileOps.formatSize(root.free),
                                         style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         t.freeWord,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFFAABED7)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -294,6 +302,7 @@ fun HomeScreen(
                                 Modifier.weight(1f).height(76.dp)
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(color.copy(alpha = 0.15f))
+                                    .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -320,6 +329,7 @@ fun HomeScreen(
                                 Modifier.weight(1f).height(76.dp)
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(trashColor.copy(alpha = 0.15f))
+                                    .border(1.dp, trashColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -364,7 +374,8 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     )
     Surface(
         shape = RoundedCornerShape(percent = 50),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shadowElevation = 6.dp
     ) {
         Row(
@@ -375,13 +386,13 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             items.forEach { (index, icon, label) ->
                 val active = homeTab == index
                 val fg = if (active) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                    MaterialTheme.colorScheme.inverseOnSurface
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Row(
                     Modifier.clip(RoundedCornerShape(percent = 50))
-                        .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                        .background(if (active) MaterialTheme.colorScheme.inverseSurface else Color.Transparent)
                         .clickable { onSelect(index) }
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
