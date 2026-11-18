@@ -141,7 +141,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -221,36 +220,29 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            // Kepala P15 "Kaca Aurora" (pilihan Achmad 2026-11-11): pita
-            // sapuan gradien cyan -> violet di belakang petak ikon +
-            // nama berkas (maks 2 baris).
+            // Kepala PD1 "Navy Solid" (pilihan Achmad 2026-11-18): pita
+            // navy pekat #0B1526, petak ikon cyan + nama putih
+            // (maks 2 baris).
             Box(
-                Modifier.clip(RoundedCornerShape(16.dp)).background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.22f)
-                        )
-                    )
-                )
+                Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF0B1526))
             ) {
                 Row(
                     Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF3D4B63)),
+                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF40C4FF)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
                             null,
-                            tint = Color.White,
+                            tint = Color(0xFF0B1526),
                             modifier = Modifier.size(24.dp)
                         )
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Color.White)
                 }
             }
         },
@@ -292,9 +284,9 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         }
                     }
                 } else {
-                    // P15 Kaca Aurora (pilihan Achmad 2026-11-11, menggantikan P1):
-                    // kartu 1 info berkas, kartu 2 izin & kepemilikan.
-                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                    // PD1 "Navy Solid" (pilihan Achmad 2026-11-18): kartu
+                    // tanpa border; kartu 1 info berkas, kartu 2 izin & kepemilikan.
+                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                         Column {
                             PropGroupRow(
                                 t.propParent,
@@ -332,7 +324,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     }
                     if (stat != null) {
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                             Column {
                                 Row(
                                     Modifier.padding(start = 20.dp, top = 16.dp, bottom = 2.dp),
@@ -372,7 +364,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         // Isi tombol LAGI: jalur lengkap (dengan salin) +
                         // rincian stat lanjutan bila tersedia.
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                             Column {
                                 PropGroupRow(t.propPath, ellipsizeMiddle(entry.path)) {
                                     IconButton(onClick = {
