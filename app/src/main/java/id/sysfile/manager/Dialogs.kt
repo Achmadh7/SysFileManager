@@ -95,6 +95,8 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.SplitButtonDefaults
@@ -297,7 +299,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                 } else {
                     // PD1 "Navy Solid" (pilihan Achmad 2026-11-18): kartu
                     // tanpa border; kartu 1 info berkas, kartu 2 izin & kepemilikan.
-                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                         Column {
                             PropGroupRow(
                                 t.propParent,
@@ -335,7 +337,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     }
                     if (stat != null) {
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                        Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                             Column {
                                 Row(
                                     Modifier.padding(start = 20.dp, top = 16.dp, bottom = 2.dp),
@@ -375,7 +377,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         // Isi tombol LAGI: jalur lengkap (dengan salin) +
                         // rincian stat lanjutan bila tersedia.
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                        Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                             Column {
                                 PropGroupRow(t.propPath, ellipsizeMiddle(entry.path)) {
                                     IconButton(onClick = {
@@ -754,24 +756,20 @@ fun ArchivePasswordDialog(
 
 @Composable
 private fun ApkActionRow(icon: ImageVector, color: Color, label: String, desc: String, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .clickable { onClick() }.padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.16f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.width(14.dp))
-        Column {
-            Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
+    ListItem(
+        headlineContent = { Text(label) },
+        supportingContent = { Text(desc) },
+        leadingContent = {
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+            }
+        },
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
 }
 
 

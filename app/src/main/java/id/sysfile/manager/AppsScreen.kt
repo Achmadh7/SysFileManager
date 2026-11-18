@@ -260,17 +260,29 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(visible, key = { it.packageName }) { app ->
-                        Surface(
-                            shape = RoundedCornerShape(22.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 5.dp)
-                                .clickable { actionApp = app }
-                        ) {
-                            Row(
-                                Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    app.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    listOfNotNull(
+                                        app.versionName.takeIf { it.isNotEmpty() }?.let { "v$it" },
+                                        app.packageName
+                                    ).joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            leadingContent = {
                                 if (app.icon != null) {
                                     Image(
                                         bitmap = app.icon.asImageBitmap(),
@@ -280,27 +292,8 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                 } else {
                                     Icon(Icons.Default.Info, null, Modifier.size(48.dp))
                                 }
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        app.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        listOfNotNull(
-                                            app.versionName.takeIf { it.isNotEmpty() }?.let { "v$it" },
-                                            app.packageName
-                                        ).joinToString(" · "),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Spacer(Modifier.width(12.dp))
+                            },
+                            trailingContent = {
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
                                         FileOps.formatSize(app.totalSize ?: app.apkSize),
@@ -315,8 +308,12 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                         )
                                     }
                                 }
-                            }
-                        }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 5.dp)
+                                .clickable { actionApp = app }
+                        )
                     }
                 }
             }

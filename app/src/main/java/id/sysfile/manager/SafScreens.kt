@@ -31,9 +31,10 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -242,18 +243,23 @@ private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit) {
     val name = doc.name ?: "?"
     val isDir = doc.isDirectory
     val color = if (isDir) Color(0xFFFFA000) else categoryColor(FileOps.categoryOf(name))
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        onClick = onClick
-    ) {
-        Row(
-            Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    ListItem(
+        headlineContent = {
+            Text(
+                name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+        },
+        supportingContent = {
+            Text(
+                if (isDir) t.foldersLabel else FileOps.formatSize(doc.length()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingContent = {
             Box(
                 Modifier
                     .size(48.dp)
@@ -269,21 +275,8 @@ private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit) {
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    if (isDir) t.foldersLabel else FileOps.formatSize(doc.length()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        },
+        trailingContent = {
             if (!isDir) {
                 IconButton(onClick = onCopy) {
                     Icon(
@@ -292,8 +285,12 @@ private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit) {
                     )
                 }
             }
-        }
-    }
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clickable { onClick() }
+    )
 }
 
 private fun openSafDoc(

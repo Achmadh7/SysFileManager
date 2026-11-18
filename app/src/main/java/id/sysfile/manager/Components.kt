@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -249,60 +251,58 @@ fun FileRow(
     onLongClick: () -> Unit,
     locked: Boolean = false
 ) {
-    Row(
-        Modifier.fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                }
-            )
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box {
-            FileThumbTile(entry, 54)
-            if (locked) {
-                Box(
-                    Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(11.dp))
-                }
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(entry.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val sub = if (entry.isDir) {
-                listOfNotNull(itemCount?.let { txt().items(it) }, formatDate(entry.modified))
-                    .joinToString(" • ")
-            } else {
-                formatDate(entry.modified)
-            }
-            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (selectionMode) {
-            Checkbox(checked = isSelected, onCheckedChange = { onClick() })
-        } else if (entry.isDir) {
-            Icon(
-                Icons.Default.ChevronRight, null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            Text(
-                FileOps.formatSize(entry.size),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
+    val sub = if (entry.isDir) {
+        listOfNotNull(itemCount?.let { txt().items(it) }, formatDate(entry.modified))
+            .joinToString(" • ")
+    } else {
+        formatDate(entry.modified)
     }
+    ListItem(
+        headlineContent = {
+            Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        supportingContent = { Text(sub) },
+        leadingContent = {
+            Box {
+                FileThumbTile(entry, 54)
+                if (locked) {
+                    Box(
+                        Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                    }
+                }
+            }
+        },
+        trailingContent = {
+            if (selectionMode) {
+                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+            } else if (entry.isDir) {
+                Icon(
+                    Icons.Default.ChevronRight, null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    FileOps.formatSize(entry.size),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        colors = ListItemDefaults.colors(
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            }
+        ),
+        modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    )
 }
 
 /** Ubin kotak membulat untuk kartu daftar: foto/video memenuhi ubin, lainnya ikon berwarna. */

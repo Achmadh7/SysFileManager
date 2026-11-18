@@ -15,13 +15,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -33,12 +31,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -111,12 +107,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -134,11 +131,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
@@ -363,94 +356,26 @@ fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
-/** Bilah tab bawah gaya kapsul melayang: item aktif menjadi pil terisi di dalam kapsul.
- *  TB1 Kapsul Warna (pilihan Achmad 2026-11-18): pil aktif primaryContainer
- *  (ikut warna dinamis), tanpa garis tepi.
- *  UX2 Kaca Penuh (2026-11-18): isi kapsul jadi kaca (surfaceContainer 60%).
- *  TA1 Pil Meluncur (pilihan Achmad 2026-11-18): satu pil bersama meluncur
- *  dengan pegas lembut ke tab yang diketuk (posisi + lebar beranimasi,
- *  selesai ~300ms); warna ikon/label ikut memudar 300ms. */
+/** Nav bawah resmi (K1, konversi semua 2026-11-18): NavigationBar +
+ *  NavigationBarItem menggantikan PillNavBar kustom (TA1 pensiun).
+ *  Indikator aktif = pil per item dengan animasi morph resmi. */
 @Composable
-fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
+fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val t = txt()
     val items = listOf(
         Triple(0, Icons.Default.Home, t.home),
         Triple(1, Icons.Default.History, t.recentShort),
         Triple(2, Icons.Default.Analytics, t.analysisShort)
     )
-    val density = LocalDensity.current
-    val motion = MaterialTheme.motionScheme
-    // Posisi + lebar tiap item (px, diukur saat layout) — target pil meluncur.
-    var rects by remember { mutableStateOf<Map<Int, Pair<Float, Float>>>(emptyMap()) }
-    val activeRect = rects[homeTab]
-    val targetX = activeRect?.let { with(density) { it.first.toDp() } } ?: 0.dp
-    val targetW = activeRect?.let { with(density) { it.second.toDp() } } ?: 0.dp
-    // TA1: pil meluncur dengan MotionScheme resmi (fastSpatialSpec; posisi +
-    // lebar ikut beranimasi karena label tiap tab beda panjang), seirama
-    // dengan transisi konten tab.
-    val pillX by animateDpAsState(
-        targetValue = targetX,
-        animationSpec = motion.fastSpatialSpec(),
-        label = "pillX"
-    )
-    val pillW by animateDpAsState(
-        targetValue = targetW,
-        animationSpec = motion.fastSpatialSpec(),
-        label = "pillW"
-    )
-    Surface(
-        shape = RoundedCornerShape(percent = 50),
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
-        shadowElevation = 6.dp
-    ) {
-        Box(Modifier.padding(6.dp).height(IntrinsicSize.Min)) {
-            // Satu pil bersama di belakang baris item — digambar hanya sesudah
-            // item aktif terukur (bingkai pertama tanpa animasi dari 0).
-            if (activeRect != null) {
-                Box(
-                    Modifier
-                        .offset { IntOffset(pillX.roundToPx(), 0) }
-                        .width(pillW)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                items.forEach { (index, icon, label) ->
-                    val active = homeTab == index
-                    val fg by animateColorAsState(
-                        targetValue = if (active) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        animationSpec = motion.fastEffectsSpec(),
-                        label = "tabFg"
-                    )
-                    Row(
-                        Modifier.clip(RoundedCornerShape(percent = 50))
-                            .clickable { onSelect(index) }
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
-                            .onGloballyPositioned { coords ->
-                                val x = coords.positionInParent().x
-                                val w = coords.size.width.toFloat()
-                                val old = rects[index]
-                                if (old == null || old.first != x || old.second != w) {
-                                    rects = rects + (index to Pair(x, w))
-                                }
-                            },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(label, style = MaterialTheme.typography.labelLarge, color = fg)
-                    }
-                }
-            }
+    NavigationBar {
+        items.forEach { (index, icon, label) ->
+            NavigationBarItem(
+                selected = homeTab == index,
+                onClick = { onSelect(index) },
+                icon = { Icon(icon, null) },
+                label = { Text(label) }
+            )
         }
     }
 }
+

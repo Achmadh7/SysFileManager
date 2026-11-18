@@ -84,6 +84,8 @@ import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AssistChip
@@ -195,7 +197,7 @@ fun RecentScreen(
         items(groups, key = { it.first }) { (parentPath, items) ->
             val root = roots.firstOrNull { it.path == parentPath }
             val parentName = root?.let { rootLabel(it, t) } ?: File(parentPath).name
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                 Column(Modifier.padding(20.dp)) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
@@ -222,33 +224,27 @@ fun RecentScreen(
                         )
                     }
                     items.forEach { entry ->
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    entry.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    recentWhen(entry.modified, t) + " \u00b7 " + FileOps.formatSize(entry.size),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            },
+                            leadingContent = { FileThumbTile(entry, 48) },
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        ) {
-                            Row(
-                                Modifier.clickable { onOpenEntry(entry) }
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                FileThumbTile(entry, 48)
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        entry.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        recentWhen(entry.modified, t) + " \u00b7 " + FileOps.formatSize(entry.size),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
+                                .clickable { onOpenEntry(entry) }
+                        )
                     }
                 }
             }
@@ -996,9 +992,9 @@ fun AnalysisScreen(
                 val res = results[root.path]
                 item(key = "root-" + root.path) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Surface(
+                        Card(
                             shape = RoundedCornerShape(24.dp),
-                            color = if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF2E5A88)
+                            colors = CardDefaults.cardColors(containerColor = if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF2E5A88))
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
@@ -1036,9 +1032,9 @@ fun AnalysisScreen(
                             }
                         }
                         if (res == null) {
-                            Surface(
+                            Card(
                                 shape = RoundedCornerShape(24.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                             ) {
                                 Row(
                                     Modifier.padding(20.dp),
@@ -1061,9 +1057,9 @@ fun AnalysisScreen(
                             )
                             val maxCat = (res.byCategory.values.maxOrNull() ?: 1).coerceAtLeast(1)
                             res.byCategory.entries.sortedByDescending { it.value }.forEach { (cat, size) ->
-                                Surface(
+                                Card(
                                     shape = RoundedCornerShape(24.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                                 ) {
                                     Row(
                                         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1116,9 +1112,9 @@ fun AnalysisScreen(
                                 )
                                 val shownLargest = if (expandedLargest.contains(root.path)) res.largest else res.largest.take(5)
                                 shownLargest.forEach { entry ->
-                                    Surface(
+                                    Card(
                                         shape = RoundedCornerShape(24.dp),
-                                        color = MaterialTheme.colorScheme.secondaryContainer
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth()

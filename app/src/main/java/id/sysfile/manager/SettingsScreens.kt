@@ -97,6 +97,8 @@ import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AssistChip
@@ -104,6 +106,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -212,9 +217,9 @@ fun SettingsScreen(
             // Berkas / Aplikasi); petak cepat G3 dihapus.
             item { SettingsSectionLabel(t.tampilanSection) }
             item {
-                Surface(
+                Card(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
                     Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -263,9 +268,9 @@ fun SettingsScreen(
             }
             item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
             item {
-                Surface(
+                Card(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
                     Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -290,9 +295,9 @@ fun SettingsScreen(
             }
             item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
             item {
-                Surface(
+                Card(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
                     Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -393,33 +398,42 @@ private fun SettingsRow(
 
 @Composable
 fun FormatChip(text: String, container: Color, content: Color) {
-    Surface(shape = RoundedCornerShape(8.dp), color = container) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelMedium,
-            color = content,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+    FilterChip(
+        selected = false,
+        onClick = {},
+        label = { Text(text) },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = container,
+            labelColor = content
         )
-    }
+    )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FormatCard(name: String, desc: String, chips: List<Triple<String, Color, Color>>) {
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
-        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            chips.forEach { (label, bg, fg) -> FormatChip(label, bg, fg) }
+        Column(
+            Modifier.fillMaxWidth().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                chips.forEach { (label, bg, fg) -> FormatChip(label, bg, fg) }
+            }
+            Text(
+                desc,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        Text(
-            desc,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -637,10 +651,10 @@ fun AboutScreen(
                 )
             }
             item {
-                Surface(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
                     Row(
                         Modifier.padding(20.dp),
@@ -695,11 +709,11 @@ private fun AboutCard(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    Surface(
+    Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        onClick = onClick
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
     ) {
         Row(
             Modifier.padding(20.dp),
@@ -808,10 +822,10 @@ private fun SpecGroup(
     title: String,
     rows: List<Pair<String, String>>
 ) {
-    Surface(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

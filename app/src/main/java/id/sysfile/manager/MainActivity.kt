@@ -1121,12 +1121,7 @@ fun SysFileApp() {
                                         onClear = { clipboard = null }
                                     )
                                 } else if (currentPath == null) {
-                                    Box(
-                                        Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        PillNavBar(homeTab = homeTab, onSelect = { homeTab = it })
-                                    }
+                                    SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
                                 }
                             }
                         ) { padding ->
