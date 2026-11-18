@@ -78,6 +78,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
@@ -516,6 +517,12 @@ fun FormatsScreen(onBack: () -> Unit) {
                     FormatCard("Teks", t.fmtTextDesc, listOf(chipView))
                 }
             }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
+                    FormatCard("Dokumen (PDF)", t.fmtPdfDesc, listOf(chipView))
+                }
+            }
         }
     }
     }
@@ -627,7 +634,7 @@ fun AboutScreen(
                     icon = Icons.Default.Archive,
                     color = Color(0xFF40C4FF),
                     title = t.formatsTitle,
-                    subtitle = "ZIP · TAR · 7Z · RAR · APK · payload.bin",
+                    subtitle = "ZIP · TAR · 7Z · RAR · APK · PDF · payload.bin",
                     onClick = onFormats
                 )
             }

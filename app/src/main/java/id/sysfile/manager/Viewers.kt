@@ -1,5 +1,6 @@
 package id.sysfile.manager
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -10,9 +11,13 @@ import androidx.compose.foundation.gestures.awaitPointerEvent
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import android.view.KeyEvent
 import android.view.MotionEvent
 import kotlin.math.abs
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +36,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LoadingIndicator
@@ -43,8 +49,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -355,6 +364,200 @@ class ViewerMediaController(context: android.content.Context) :
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+}
+
+/** Penampil PDF bawaan: geser antar halaman, cubit-zoom, ketuk untuk
+ *  menyembunyikan bilah atas. Render memakai PdfRenderer bawaan Android
+ *  (tanpa dependensi baru); tiap halaman dirender saat tampil saja (IO
+ *  thread, skala maks 2x, sisi terpanjang maks 2048px). PDF terenkripsi /
+ *  rusak tidak bisa dibuka PdfRenderer — tampil pesan gagal + tombol buka
+ *  dengan aplikasi lain. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit) {
+    val t = txt()
+    var renderer by remember { mutableStateOf<PdfRenderer?>(null) }
+    var openFailed by remember { mutableStateOf(false) }
+    DisposableEffect(path) {
+        var r: PdfRenderer? = null
+        var pfd: ParcelFileDescriptor? = null
+        renderer = null
+        openFailed = false
+        try {
+            pfd = ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.MODE_READ_ONLY)
+            r = PdfRenderer(pfd)
+            renderer = r
+        } catch (e: Exception) {
+            try { pfd?.close() } catch (_: Exception) { }
+            openFailed = true
+        }
+        onDispose {
+            try { r?.close() } catch (_: Exception) { }
+        }
+    }
+    val pageCount = renderer?.pageCount ?: 0
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { pageCount })
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+    var chrome by remember { mutableStateOf(true) }
+    var zooming by remember { mutableStateOf(false) }
+    // Ganti halaman: zoom direset.
+    LaunchedEffect(pagerState.currentPage) {
+        scale = 1f
+        offsetX = 0f
+        offsetY = 0f
+    }
+    BackHandler { onBack() }
+    Scaffold(
+        topBar = {
+            AnimatedVisibility(visible = chrome, enter = fadeIn(), exit = fadeOut()) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(File(path).name, maxLines = 1)
+                            if (pageCount > 1) {
+                                Text(
+                                    "${pagerState.currentPage + 1} / $pageCount",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                    }
+                )
+            }
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
+            when {
+                openFailed -> {
+                    Column(
+                        Modifier.align(Alignment.Center).padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            t.pdfOpenFailed,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                        Button(onClick = onOpenExternal) { Text(t.pdfOpenExternal) }
+                    }
+                }
+                renderer == null -> {
+                    LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                }
+                else -> {
+                    HorizontalPager(
+                        state = pagerState,
+                        // Sama seperti penampil foto: saat diperbesar atau
+                        // sedang dicubit dua jari, geser halaman dimatikan.
+                        userScrollEnabled = scale == 1f && !zooming,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        val r = renderer
+                        var bitmap by remember(page) { mutableStateOf<Bitmap?>(null) }
+                        var renderFailed by remember(page) { mutableStateOf(false) }
+                        LaunchedEffect(page, r) {
+                            if (r == null) return@LaunchedEffect
+                            val bmp = withContext(Dispatchers.IO) {
+                                try {
+                                    r.openPage(page).use { pg ->
+                                        val s = minOf(2f, 2048f / maxOf(pg.width, pg.height).toFloat())
+                                        val b = Bitmap.createBitmap(
+                                            (pg.width * s).toInt().coerceAtLeast(1),
+                                            (pg.height * s).toInt().coerceAtLeast(1),
+                                            Bitmap.Config.ARGB_8888
+                                        )
+                                        pg.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                                        b
+                                    }
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                            bitmap = bmp
+                            if (bmp == null) renderFailed = true
+                        }
+                        Box(
+                            Modifier.fillMaxSize()
+                                .pointerInput(page) {
+                                    detectTapGestures { chrome = !chrome }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when {
+                                renderFailed -> Text(
+                                    t.pdfOpenFailed,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(24.dp)
+                                )
+                                bitmap != null -> Image(
+                                    bitmap = bitmap!!.asImageBitmap(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        translationX = offsetX
+                                        translationY = offsetY
+                                    }
+                                        .pointerInput(page) {
+                                            // Detektor yang sama dengan penampil
+                                            // foto: satu jari + skala 1 jangan
+                                            // konsumsi apa pun (pager yang geser);
+                                            // dua jari = cubit-zoom; skala > 1 =
+                                            // pan satu jari milik halaman.
+                                            awaitEachGesture {
+                                                awaitFirstDown()
+                                                var pinching = false
+                                                do {
+                                                    val event = awaitPointerEvent()
+                                                    if (event.changes.any { it.isConsumed }) break
+                                                    val down = event.changes.count { it.pressed }
+                                                    if (down >= 2) {
+                                                        if (!pinching) {
+                                                            pinching = true
+                                                            zooming = true
+                                                        }
+                                                        val pan = event.calculatePan()
+                                                        val newScale = (scale * event.calculateZoom())
+                                                            .coerceIn(1f, 6f)
+                                                        scale = newScale
+                                                        if (newScale > 1f) {
+                                                            offsetX += pan.x
+                                                            offsetY += pan.y
+                                                        } else {
+                                                            offsetX = 0f
+                                                            offsetY = 0f
+                                                        }
+                                                        event.changes.forEach { it.consume() }
+                                                    } else if (scale > 1f) {
+                                                        val pan = event.calculatePan()
+                                                        offsetX += pan.x
+                                                        offsetY += pan.y
+                                                        event.changes.forEach { it.consume() }
+                                                    }
+                                                } while (event.changes.any { it.pressed })
+                                                if (pinching) zooming = false
+                                            }
+                                        }
+                                )
+                                else -> LoadingIndicator(Modifier.size(52.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

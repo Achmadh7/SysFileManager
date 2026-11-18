@@ -158,6 +158,7 @@ private sealed interface Overlay {
     data class ImageView(val paths: List<String>, val startIndex: Int) : Overlay
     data class VideoView(val paths: List<String>, val startIndex: Int) : Overlay
     data class TextView(val path: String) : Overlay
+    data class PdfView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
     data class ArchiveView(val path: String) : Overlay
     data class PayloadView(val path: String) : Overlay
@@ -592,6 +593,7 @@ fun SysFileApp() {
                 val (paths, idx) = FileOps.mediaSiblings(entries, entry)
                 overlay = Overlay.VideoView(paths, idx)
             }
+            FileOps.extOf(f.name) == "pdf" -> overlay = Overlay.PdfView(entry.path)
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
             entry.category == Category.ARCHIVE -> {
                 val kind = ArchiveOps.kindOf(f.name)
@@ -757,6 +759,11 @@ fun SysFileApp() {
                         onPathChange = { viewingPath = it }
                     )
                     is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
+                    is Overlay.PdfView -> PdfViewerScreen(
+                        path = ov.path,
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        onOpenExternal = { openExternal(File(ov.path)) }
+                    )
                     is Overlay.VideoView -> VideoViewerScreen(
                         paths = ov.paths,
                         startIndex = ov.startIndex,
