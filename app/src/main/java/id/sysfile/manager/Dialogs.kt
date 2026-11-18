@@ -192,7 +192,7 @@ fun NameDialog(
 }
 
 @Composable
-fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
+fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit, dynamicColor: Boolean = false) {
     val t = txt()
     val clipboard = LocalClipboardManager.current
     var stats by remember { mutableStateOf<FileOps.FolderStats?>(null) }
@@ -222,27 +222,35 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
         title = {
             // Kepala PD1 "Navy Solid" (pilihan Achmad 2026-11-18): pita
             // navy pekat #0B1526, petak ikon cyan + nama putih
-            // (maks 2 baris).
+            // (maks 2 baris). Warna dinamis nyala: pita + petak mengikuti
+            // skema dinamis (primaryContainer/primary).
             Box(
-                Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFF0B1526))
+                Modifier.clip(RoundedCornerShape(16.dp)).background(
+                    if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF0B1526)
+                )
             ) {
                 Row(
                     Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF40C4FF)),
+                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(
+                            if (dynamicColor) MaterialTheme.colorScheme.primary else Color(0xFF40C4FF)
+                        ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
                             null,
-                            tint = Color(0xFF0B1526),
+                            tint = if (dynamicColor) MaterialTheme.colorScheme.onPrimary else Color(0xFF0B1526),
                             modifier = Modifier.size(24.dp)
                         )
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Color.White)
+                    Text(
+                        entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
+                    )
                 }
             }
         },

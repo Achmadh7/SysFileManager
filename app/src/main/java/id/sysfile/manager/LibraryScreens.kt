@@ -926,7 +926,8 @@ fun SearchScreen(
 fun AnalysisScreen(
     roots: List<RootInfo>,
     onOpenFolder: (String) -> Unit,
-    onOpenFile: (FEntry) -> Unit
+    onOpenFile: (FEntry) -> Unit,
+    dynamicColor: Boolean = false
 ) {
     val t = txt()
     val context = LocalContext.current
@@ -994,7 +995,10 @@ fun AnalysisScreen(
                 val res = results[root.path]
                 item(key = "root-" + root.path) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Surface(shape = RoundedCornerShape(24.dp), color = Color(0xFF2E5A88)) {
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF2E5A88)
+                        ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -1005,7 +1009,9 @@ fun AnalysisScreen(
                                         "usb" -> Icons.Default.Usb
                                         else -> Icons.Default.Storage
                                     },
-                                    null, tint = Color.White, modifier = Modifier.size(26.dp)
+                                    null,
+                                    tint = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer else Color.White,
+                                    modifier = Modifier.size(26.dp)
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Column {
@@ -1013,7 +1019,7 @@ fun AnalysisScreen(
                                         rootLabel(root, t),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
                                     )
                                     Text(
                                         if (res != null) {
@@ -1023,7 +1029,7 @@ fun AnalysisScreen(
                                             t.scanning
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFFC8DCF5)
+                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else Color(0xFFC8DCF5)
                                     )
                                 }
                             }

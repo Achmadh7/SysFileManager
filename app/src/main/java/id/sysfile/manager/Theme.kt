@@ -110,13 +110,24 @@ private val DarkScheme: ColorScheme = ColorScheme(
  *  (cyan, ungu, biru) di sudut-sudut layar, digambar sekali di belakang
  *  konten. Di tema terang cahayanya jauh lebih lembut. */
 @Composable
-fun AuroraBackground(content: @Composable () -> Unit) {
+fun AuroraBackground(dynamicColor: Boolean = false, content: @Composable () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val gelap = scheme.background.luminance() < 0.05f
     Box(Modifier.fillMaxSize().background(scheme.background)) {
         Canvas(Modifier.fillMaxSize()) {
             val r = size.minDimension * 0.95f
-            val blobs = if (gelap) {
+            // Warna dinamis nyala: gumpalan mengikuti skema dinamis
+            // (container = gelap di tema gelap, pastel di tema terang),
+            // supaya latar selaras dengan warna wallpaper. Mati:
+            // gumpalan arah C asli (cyan/ungu/biru) tidak berubah.
+            val blobs = if (dynamicColor) {
+                listOf(
+                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), scheme.primaryContainer, if (gelap) 0.50f else 0.35f),
+                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), scheme.secondaryContainer, if (gelap) 0.45f else 0.30f),
+                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), scheme.tertiaryContainer, if (gelap) 0.50f else 0.35f),
+                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), scheme.primaryContainer, if (gelap) 0.40f else 0.28f)
+                )
+            } else if (gelap) {
                 listOf(
                     Triple(Offset(size.width * 0.02f, size.height * 0.04f), Color(0xFF0E4A66), 0.50f),
                     Triple(Offset(size.width * 0.98f, size.height * 0.16f), Color(0xFF3B2A6E), 0.45f),

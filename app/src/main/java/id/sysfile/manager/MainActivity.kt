@@ -652,7 +652,7 @@ fun SysFileApp() {
     }
 
     SysFileTheme(themeMode, dynamicColor) {
-        AuroraBackground {
+        AuroraBackground(dynamicColor) {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -887,17 +887,28 @@ fun SysFileApp() {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
                                                     Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
-                                                        .background(Brush.verticalGradient(listOf(Color(0xFF122844), Color(0xFF0B1526)))),
+                                                        .background(
+                                                            if (dynamicColor) {
+                                                                Brush.verticalGradient(
+                                                                    listOf(
+                                                                        MaterialTheme.colorScheme.primaryContainer,
+                                                                        MaterialTheme.colorScheme.primary
+                                                                    )
+                                                                )
+                                                            } else {
+                                                                Brush.verticalGradient(listOf(Color(0xFF122844), Color(0xFF0B1526)))
+                                                            }
+                                                        ),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(
                                                         Icons.Default.Folder, null,
-                                                        tint = Color.White,
+                                                        tint = if (dynamicColor) MaterialTheme.colorScheme.onPrimary else Color.White,
                                                         modifier = Modifier.size(25.dp)
                                                     )
                                                     Text(
                                                         "S",
-                                                        color = Color(0xFF2E5A88),
+                                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f) else Color(0xFF2E5A88),
                                                         fontWeight = FontWeight.ExtraBold,
                                                         fontSize = 11.sp,
                                                         modifier = Modifier.offset(y = 3.dp)
@@ -1211,6 +1222,7 @@ fun SysFileApp() {
                                                 )
                                                 2 -> AnalysisScreen(
                                                     roots = roots,
+                                                    dynamicColor = dynamicColor,
                                                     onOpenFolder = { path -> homeTab = 0; browseStack = listOf(path) },
                                                     onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                                 )
@@ -1408,7 +1420,7 @@ fun SysFileApp() {
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
             )
-            is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) })
+            is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) }, dynamicColor = dynamicColor)
             is DialogKind.Sort -> SortDialog(
                 sortKey = sortKey, ascending = sortAsc,
                 onDismiss = { dialog = null },
