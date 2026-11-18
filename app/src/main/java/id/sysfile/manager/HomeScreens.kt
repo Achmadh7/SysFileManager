@@ -383,7 +383,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                 val pillW = tabWidth - 8.dp
                 val pillX by animateDpAsState(
                     targetValue = tabWidth * homeTab + 4.dp,
-                    animationSpec = motion.fastSpatialSpec(),
+                    animationSpec = motion.defaultSpatialSpec(),
                     label = "pillX"
                 )
                 // Pil meluncur selebar tab (ikon + label sebaris di
@@ -400,7 +400,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                         val fg by animateColorAsState(
                             targetValue = if (selected) scheme.onPrimaryContainer
                             else scheme.onSurfaceVariant,
-                            animationSpec = motion.fastEffectsSpec(),
+                            animationSpec = motion.defaultEffectsSpec(),
                             label = "tabFg"
                         )
                         Row(
