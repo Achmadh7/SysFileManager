@@ -132,7 +132,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -847,26 +846,19 @@ fun SysFileApp() {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
                                                     Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
-                                                        .background(
-                                                            // r23: gradasi selalu dari skema resmi
-                                                            // (primaryContainer -> primary).
-                                                            Brush.verticalGradient(
-                                                                listOf(
-                                                                    MaterialTheme.colorScheme.primaryContainer,
-                                                                    MaterialTheme.colorScheme.primary
-                                                                )
-                                                            )
-                                                        ),
+                                                        // r24: logo TIDAK gradasi — solid
+                                                        // primaryContainer (peran container resmi).
+                                                        .background(MaterialTheme.colorScheme.primaryContainer),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(
                                                         Icons.Default.Folder, null,
-                                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         modifier = Modifier.size(25.dp)
                                                     )
                                                     Text(
                                                         "S",
-                                                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f),
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.55f),
                                                         fontWeight = FontWeight.ExtraBold,
                                                         fontSize = 11.sp,
                                                         modifier = Modifier.offset(y = 3.dp)
