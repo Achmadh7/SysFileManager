@@ -419,8 +419,8 @@ fun StorageCard(
     val scheme = MaterialTheme.colorScheme
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(scheme.surfaceContainer)
-            .border(1.dp, scheme.outlineVariant, RoundedCornerShape(28.dp))
+            .background(scheme.surfaceContainer.copy(alpha = 0.55f))
+            .border(1.dp, scheme.onSurface.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
             .clickable { onClick() }
     ) {
         Column {

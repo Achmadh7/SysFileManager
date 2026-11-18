@@ -896,7 +896,10 @@ fun SysFileApp() {
                                                                     )
                                                                 )
                                                             } else {
-                                                                Brush.verticalGradient(listOf(Color(0xFF122844), Color(0xFF0B1526)))
+                                                                // UX2 Kaca Penuh (2026-11-18): gradasi
+                                                                // cyan -> ungu (cabang dinamis tidak
+                                                                // diubah — tetap ikut skema dinamis).
+                                                                Brush.verticalGradient(listOf(Color(0xFF40C4FF), Color(0xFFA78BFA)))
                                                             }
                                                         ),
                                                     contentAlignment = Alignment.Center
@@ -908,7 +911,7 @@ fun SysFileApp() {
                                                     )
                                                     Text(
                                                         "S",
-                                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f) else Color(0xFF2E5A88),
+                                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f) else Color(0xFF0B1526),
                                                         fontWeight = FontWeight.ExtraBold,
                                                         fontSize = 11.sp,
                                                         modifier = Modifier.offset(y = 3.dp)

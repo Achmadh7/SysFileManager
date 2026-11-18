@@ -196,9 +196,9 @@ fun HomeScreen(
                     roots.forEach { root ->
                         if (root.kind != "internal" && root.total > 0) {
                             Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f))
+                                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
                                     .clickable { onOpenRoot(root.path) }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -292,9 +292,9 @@ fun HomeScreen(
                             val color = categoryColor(cat)
                             Row(
                                 Modifier.weight(1f).height(76.dp)
-                                    .clip(RoundedCornerShape(20.dp))
+                                    .clip(RoundedCornerShape(28.dp))
                                     .background(color.copy(alpha = 0.15f))
-                                    .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                                    .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(28.dp))
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -319,9 +319,9 @@ fun HomeScreen(
                             val trashColor = Color(0xFFEF5350)
                             Row(
                                 Modifier.weight(1f).height(76.dp)
-                                    .clip(RoundedCornerShape(20.dp))
+                                    .clip(RoundedCornerShape(28.dp))
                                     .background(trashColor.copy(alpha = 0.15f))
-                                    .border(1.dp, trashColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                                    .border(1.dp, trashColor.copy(alpha = 0.35f), RoundedCornerShape(28.dp))
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -357,7 +357,8 @@ fun HomeScreen(
 
 /** Bilah tab bawah gaya kapsul melayang: item aktif menjadi pil terisi di dalam kapsul.
  *  TB1 Kapsul Warna (pilihan Achmad 2026-11-18): pil aktif primaryContainer
- *  (ikut warna dinamis), tanpa garis tepi. */
+ *  (ikut warna dinamis), tanpa garis tepi.
+ *  UX2 Kaca Penuh (2026-11-18): isi kapsul jadi kaca (surfaceContainer 60%). */
 @Composable
 fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val t = txt()
@@ -368,7 +369,7 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     )
     Surface(
         shape = RoundedCornerShape(percent = 50),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
         shadowElevation = 6.dp
     ) {
         Row(

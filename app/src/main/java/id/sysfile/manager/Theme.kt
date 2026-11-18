@@ -108,38 +108,41 @@ private val DarkScheme: ColorScheme = ColorScheme(
 
 /** Latar aurora arah C: warna dasar skema + tiga gumpalan cahaya radial
  *  (cyan, ungu, biru) di sudut-sudut layar, digambar sekali di belakang
- *  konten. Di tema terang cahayanya jauh lebih lembut. */
+ *  konten. Di tema terang cahayanya jauh lebih lembut.
+ *  UX2 Kaca Penuh (pilihan Achmad 2026-11-18): gumpalan lebih besar
+ *  (radius 1.15x) dan lebih pekat, supaya kaca punya sesuatu untuk
+ *  ditembus di semua layar. */
 @Composable
 fun AuroraBackground(dynamicColor: Boolean = false, content: @Composable () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val gelap = scheme.background.luminance() < 0.05f
     Box(Modifier.fillMaxSize().background(scheme.background)) {
         Canvas(Modifier.fillMaxSize()) {
-            val r = size.minDimension * 0.95f
+            val r = size.minDimension * 1.15f
             // Warna dinamis nyala: gumpalan mengikuti skema dinamis
             // (container = gelap di tema gelap, pastel di tema terang),
             // supaya latar selaras dengan warna wallpaper. Mati:
             // gumpalan arah C asli (cyan/ungu/biru) tidak berubah.
             val blobs = if (dynamicColor) {
                 listOf(
-                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), scheme.primaryContainer, if (gelap) 0.50f else 0.35f),
-                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), scheme.secondaryContainer, if (gelap) 0.45f else 0.30f),
-                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), scheme.tertiaryContainer, if (gelap) 0.50f else 0.35f),
-                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), scheme.primaryContainer, if (gelap) 0.40f else 0.28f)
+                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), scheme.primaryContainer, if (gelap) 0.65f else 0.45f),
+                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), scheme.secondaryContainer, if (gelap) 0.60f else 0.40f),
+                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), scheme.tertiaryContainer, if (gelap) 0.65f else 0.45f),
+                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), scheme.primaryContainer, if (gelap) 0.55f else 0.38f)
                 )
             } else if (gelap) {
                 listOf(
-                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), Color(0xFF0E4A66), 0.50f),
-                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), Color(0xFF3B2A6E), 0.45f),
-                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), Color(0xFF10365E), 0.50f),
-                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), Color(0xFF2A1B54), 0.40f)
+                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), Color(0xFF0E4A66), 0.65f),
+                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), Color(0xFF3B2A6E), 0.60f),
+                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), Color(0xFF10365E), 0.65f),
+                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), Color(0xFF2A1B54), 0.55f)
                 )
             } else {
                 listOf(
-                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), Color(0xFF7ED0F7), 0.35f),
-                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), Color(0xFFC4B0F5), 0.30f),
-                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), Color(0xFF9CC3EE), 0.35f),
-                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), Color(0xFFD9CCFA), 0.28f)
+                    Triple(Offset(size.width * 0.02f, size.height * 0.04f), Color(0xFF7ED0F7), 0.45f),
+                    Triple(Offset(size.width * 0.98f, size.height * 0.16f), Color(0xFFC4B0F5), 0.40f),
+                    Triple(Offset(size.width * 0.92f, size.height * 0.88f), Color(0xFF9CC3EE), 0.45f),
+                    Triple(Offset(size.width * 0.04f, size.height * 0.96f), Color(0xFFD9CCFA), 0.38f)
                 )
             }
             blobs.forEach { (pusat, warna, alfa) ->
