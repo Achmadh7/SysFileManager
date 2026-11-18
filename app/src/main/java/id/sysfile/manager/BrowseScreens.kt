@@ -176,23 +176,22 @@ fun BrowseHeaderBar(
     val pathText = (listOf(currentRoot?.let { rootLabel(it, t) } ?: rootPath) + segments)
         .joinToString(" \u203a ")
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-        Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-            Row(
-                Modifier.fillMaxWidth().clickable { onSearch() }
-                    .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    t.searchInFolder,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
+        SearchBar(
+            inputField = {
+                SearchBarDefaults.InputField(
+                    query = "",
+                    onQueryChange = {},
+                    onSearch = { onSearch() },
+                    expanded = false,
+                    onExpandedChange = { if (it) onSearch() },
+                    placeholder = { Text(t.searchInFolder) },
+                    leadingIcon = { Icon(Icons.Default.Search, null) }
                 )
-            }
-        }
+            },
+            expanded = false,
+            onExpandedChange = {},
+            modifier = Modifier.fillMaxWidth()
+        ) {}
         ButtonGroup(modifier = Modifier.padding(top = 8.dp)) {
             toggleableItem(
                 checked = !gridView,

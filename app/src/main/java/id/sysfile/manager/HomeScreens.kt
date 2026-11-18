@@ -193,7 +193,7 @@ fun HomeScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Storage, null, tint = Color(0xFFAAC8F0), modifier = Modifier.size(26.dp))
+                        Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     }
@@ -213,7 +213,7 @@ fun HomeScreen(
                                         "usb" -> Icons.Default.Usb
                                         else -> Icons.Default.Storage
                                     },
-                                    null, tint = Color(0xFFAAC8F0), modifier = Modifier.size(26.dp)
+                                    null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
