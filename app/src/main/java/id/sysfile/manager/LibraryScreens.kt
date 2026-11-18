@@ -110,7 +110,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Switch
@@ -285,6 +284,7 @@ fun CategoryScreen(
     onOpenEntry: (FEntry) -> Unit
 ) {
     val t = txt()
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val context = LocalContext.current
     val lockedFolders = remember {
         context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
@@ -331,8 +331,8 @@ fun CategoryScreen(
             AnimatedContent(
                 targetState = contentState,
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
-                        fadeOut(animationSpec = tween(durationMillis = 300))
+                    fadeIn(animationSpec = fadeSpec) togetherWith
+                        fadeOut(animationSpec = fadeSpec)
                 },
                 modifier = Modifier.fillMaxSize(),
                 label = "categoryContentFade"
@@ -596,6 +596,7 @@ fun PayloadScreen(
 ) {
     val t = txt()
     val payloadFile = remember(path) { File(path) }
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var listing by remember(path) { mutableStateOf<PayloadOps.Listing?>(null) }
     LaunchedEffect(path) {
         val loaded = withContext(Dispatchers.IO) { PayloadOps.listPartitions(payloadFile) }
@@ -626,8 +627,8 @@ fun PayloadScreen(
         AnimatedContent(
             targetState = contentState,
             transitionSpec = {
-                fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
-                    fadeOut(animationSpec = tween(durationMillis = 300))
+                fadeIn(animationSpec = fadeSpec) togetherWith
+                    fadeOut(animationSpec = fadeSpec)
             },
             modifier = Modifier.fillMaxSize().padding(padding),
             label = "payloadContentFade"
@@ -688,6 +689,7 @@ fun ArchiveScreen(
 ) {
     val t = txt()
     val archiveFile = remember(path) { File(path) }
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var items by remember(path) { mutableStateOf<List<ArchiveItem>?>(null) }
     var prefix by remember(path) { mutableStateOf("") }
     LaunchedEffect(path) {
@@ -727,8 +729,8 @@ fun ArchiveScreen(
             AnimatedContent(
                 targetState = (contentState to prefix),
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
-                        fadeOut(animationSpec = tween(durationMillis = 300))
+                    fadeIn(animationSpec = fadeSpec) togetherWith
+                        fadeOut(animationSpec = fadeSpec)
                 },
                 modifier = Modifier.fillMaxSize(),
                 label = "archiveContentFade"
@@ -1095,7 +1097,7 @@ fun AnalysisScreen(
                                                 )
                                             }
                                             Spacer(Modifier.height(7.dp))
-                                            LinearProgressIndicator(
+                                            LinearWavyProgressIndicator(
                                                 progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
                                                 modifier = Modifier.fillMaxWidth(),
                                                 color = categoryColor(cat),

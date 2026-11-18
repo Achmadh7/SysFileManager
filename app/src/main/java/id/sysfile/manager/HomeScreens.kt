@@ -379,22 +379,23 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         Triple(2, Icons.Default.Analytics, t.analysisShort)
     )
     val density = LocalDensity.current
+    val motion = MaterialTheme.motionScheme
     // Posisi + lebar tiap item (px, diukur saat layout) — target pil meluncur.
     var rects by remember { mutableStateOf<Map<Int, Pair<Float, Float>>>(emptyMap()) }
     val activeRect = rects[homeTab]
     val targetX = activeRect?.let { with(density) { it.first.toDp() } } ?: 0.dp
     val targetW = activeRect?.let { with(density) { it.second.toDp() } } ?: 0.dp
-    // TA1: pil meluncur dengan pegas lembut (posisi + lebar ikut beranimasi
-    // karena label tiap tab beda panjang); selesai ~300ms, seirama dengan
-    // transisi konten tab.
+    // TA1: pil meluncur dengan MotionScheme resmi (fastSpatialSpec; posisi +
+    // lebar ikut beranimasi karena label tiap tab beda panjang), seirama
+    // dengan transisi konten tab.
     val pillX by animateDpAsState(
         targetValue = targetX,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
+        animationSpec = motion.fastSpatialSpec(),
         label = "pillX"
     )
     val pillW by animateDpAsState(
         targetValue = targetW,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
+        animationSpec = motion.fastSpatialSpec(),
         label = "pillW"
     )
     Surface(
@@ -427,7 +428,7 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        animationSpec = tween(300),
+                        animationSpec = motion.fastEffectsSpec(),
                         label = "tabFg"
                     )
                     Row(

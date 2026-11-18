@@ -205,6 +205,7 @@ fun SysFileApp() {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val prefs = remember { context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE) }
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
     var homeTab by remember { mutableStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
@@ -740,8 +741,8 @@ fun SysFileApp() {
                     if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
                         initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView ||
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
-                        fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
-                            fadeOut(animationSpec = tween(durationMillis = 300))
+                        fadeIn(animationSpec = fadeSpec) togetherWith
+                            fadeOut(animationSpec = fadeSpec)
                     } else {
                         EnterTransition.None togetherWith ExitTransition.None
                     }
@@ -1149,8 +1150,8 @@ fun SysFileApp() {
                                         AnimatedContent(
                                             targetState = homeTab,
                                             transitionSpec = {
-                                                fadeIn(animationSpec = tween(durationMillis = 300)) togetherWith
-                                                    fadeOut(animationSpec = tween(durationMillis = 300))
+                                                fadeIn(animationSpec = fadeSpec) togetherWith
+                                                    fadeOut(animationSpec = fadeSpec)
                                             },
                                             label = "tabAnim"
                                         ) { tab ->

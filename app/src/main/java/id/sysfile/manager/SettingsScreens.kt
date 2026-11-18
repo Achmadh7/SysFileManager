@@ -180,7 +180,8 @@ fun SettingsScreen(
     exiting: Boolean = false
 ) {
     val t = txt()
-    // Animasi perpindahan ke Pengaturan (S3, 300ms): masuk geser dari kanan
+    val motion = MaterialTheme.motionScheme
+    // Animasi perpindahan ke Pengaturan (S3, MotionScheme resmi): masuk geser dari kanan
     // + memudar; keluar (exiting) arah berlawanan. MainActivity menunda
     // pergantian layar 300ms supaya animasi keluar sempat selesai.
     val visState = remember { MutableTransitionState(false) }
@@ -188,10 +189,10 @@ fun SettingsScreen(
     LaunchedEffect(exiting) { visState.targetState = !exiting }
     AnimatedVisibility(
         visibleState = visState,
-        enter = slideInHorizontally(animationSpec = tween(300)) { it / 3 } +
-            fadeIn(animationSpec = tween(300)),
-        exit = slideOutHorizontally(animationSpec = tween(300)) { it / 3 } +
-            fadeOut(animationSpec = tween(300))
+        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+            fadeIn(animationSpec = motion.defaultEffectsSpec()),
+        exit = slideOutHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+            fadeOut(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
         topBar = {
@@ -464,11 +465,12 @@ fun FormatsScreen(onBack: () -> Unit) {
         MaterialTheme.colorScheme.onSurface
     )
     val visState = remember { MutableTransitionState(false) }
+    val motion = MaterialTheme.motionScheme
     LaunchedEffect(Unit) { visState.targetState = true }
     AnimatedVisibility(
         visibleState = visState,
-        enter = slideInHorizontally(animationSpec = tween(300)) { it / 3 } +
-            fadeIn(animationSpec = tween(300))
+        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+            fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
         topBar = {

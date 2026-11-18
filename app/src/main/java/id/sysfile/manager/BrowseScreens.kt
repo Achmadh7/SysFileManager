@@ -98,6 +98,9 @@ import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -333,58 +336,31 @@ fun BrowseScreen(
                         )
                     }
                 }
-                Column(
-                    Modifier.align(Alignment.BottomEnd).padding(16.dp),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    AnimatedVisibility(
-                        visible = fabOpen,
-                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            FabPill(Icons.Default.CreateNewFolder, t.newFolder) {
-                                fabOpen = false; onNewFolder()
-                            }
-                            FabPill(Icons.Default.NoteAdd, t.newFile) {
-                                fabOpen = false; onNewFile()
-                            }
+                FloatingActionButtonMenu(
+                    expanded = fabOpen,
+                    button = {
+                        FloatingActionButton(onClick = { fabOpen = !fabOpen }) {
+                            Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null)
                         }
-                    }
-                    Box(
-                        Modifier.size(56.dp).clip(CircleShape).background(Color(0xFF55688C))
-                            .clickable { fabOpen = !fabOpen },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            if (fabOpen) Icons.Default.Close else Icons.Default.Add,
-                            null, tint = Color(0xFFE8ECF4), modifier = Modifier.size(26.dp)
-                        )
-                    }
+                    },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                ) {
+                    FloatingActionButtonMenuItem(
+                        onClick = { fabOpen = false; onNewFolder() },
+                        text = { Text(t.newFolder) },
+                        icon = { Icon(Icons.Default.CreateNewFolder, null) }
+                    )
+                    FloatingActionButtonMenuItem(
+                        onClick = { fabOpen = false; onNewFile() },
+                        text = { Text(t.newFile) },
+                        icon = { Icon(Icons.Default.NoteAdd, null) }
+                    )
                 }
             }
         }
     }
 }
 
-/** Pil aksi pada FAB meluas: kapsul slate berisi ikon + label. */
-@Composable
-private fun FabPill(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Row(
-        Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF3D4B63))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 22.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = Color(0xFFE8ECF4), modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(label, color = Color(0xFFE8ECF4), style = MaterialTheme.typography.titleMedium)
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Bilah aksi pilihan & papan klip

@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
@@ -96,6 +97,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -777,7 +780,7 @@ private fun ApkActionRow(icon: ImageVector, color: Color, label: String, desc: S
  * Ekstrak Di Sini (ke folder bernama seperti arsip), Buka Arsip (lihat isi
  * dulu), atau Ekstrak ke Jalur Kustom.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ArchiveActionsDialog(
     entry: FEntry,
@@ -788,6 +791,7 @@ fun ArchiveActionsDialog(
     onCustomPath: () -> Unit
 ) {
     val t = txt()
+    var menuOpen by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -816,17 +820,33 @@ fun ArchiveActionsDialog(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp)
                 )
-                ApkActionRow(
-                    Icons.Default.Unarchive, Color(0xFFFFB020),
-                    t.extract, "$folderName/", onExtractHere
-                )
+                Box {
+                    SplitButtonLayout(
+                        leadingButton = {
+                            SplitButtonDefaults.LeadingButton(onClick = onExtractHere) {
+                                Text(t.extractShort)
+                            }
+                        },
+                        trailingButton = {
+                            SplitButtonDefaults.TrailingButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Default.KeyboardArrowDown, t.extract)
+                            }
+                        }
+                    )
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(t.extract) },
+                            onClick = { menuOpen = false; onExtractHere() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(t.extractCustom) },
+                            onClick = { menuOpen = false; onCustomPath() }
+                        )
+                    }
+                }
                 ApkActionRow(
                     Icons.Default.Folder, Color(0xFFA78BFA),
                     t.openArchive, t.browseFirst, onOpenArchive
-                )
-                ApkActionRow(
-                    Icons.Default.CreateNewFolder, Color(0xFF4DA3FF),
-                    t.extractCustom, t.pickLocation, onCustomPath
                 )
             }
         },
