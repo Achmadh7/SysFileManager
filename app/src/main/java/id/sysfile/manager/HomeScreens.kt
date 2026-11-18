@@ -437,7 +437,7 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                                 val w = coords.size.width.toFloat()
                                 val old = rects[index]
                                 if (old == null || old.first != x || old.second != w) {
-                                    rects = rects + (index to (x to w))
+                                    rects = rects + (index to Pair(x, w))
                                 }
                             },
                         verticalAlignment = Alignment.CenterVertically
