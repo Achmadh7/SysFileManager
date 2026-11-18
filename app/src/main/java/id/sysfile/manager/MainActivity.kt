@@ -670,7 +670,7 @@ fun SysFileApp() {
     }
 
     SysFileTheme(themeMode, dynamicColor) {
-        AuroraBackground(dynamicColor) {
+        AuroraBackground {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
