@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Environment
 import android.os.StatFs
 import android.webkit.MimeTypeMap
@@ -48,7 +49,8 @@ data class ApkInfo(
     val appName: String,
     val packageName: String,
     val versionName: String,
-    val versionCode: Long
+    val versionCode: Long,
+    val permissions: List<String> = emptyList()
 )
 
 /** Hasil analisis penyimpanan: ukuran per kategori + file terbesar. */
@@ -313,7 +315,7 @@ object FileOps {
     fun apkInfo(context: Context, file: File): ApkInfo? {
         return try {
             val pm = context.packageManager
-            val pkg = pm.getPackageArchiveInfo(file.absolutePath, 0) ?: return null
+            val pkg = pm.getPackageArchiveInfo(file.absolutePath, PackageManager.GET_PERMISSIONS) ?: return null
             val appInfo = pkg.applicationInfo ?: return null
             appInfo.sourceDir = file.absolutePath
             appInfo.publicSourceDir = file.absolutePath
@@ -322,7 +324,8 @@ object FileOps {
                 appName = label.ifBlank { file.name },
                 packageName = pkg.packageName ?: "",
                 versionName = pkg.versionName ?: "",
-                versionCode = pkg.longVersionCode
+                versionCode = pkg.longVersionCode,
+                permissions = pkg.requestedPermissions?.toList() ?: emptyList()
             )
         } catch (e: Exception) {
             null
@@ -810,7 +813,7 @@ object ArchiveOps {
         return true
     }
 
-    /** Ekstrak arsip RAR (junrar) dengan penjaga path-slip; RAR berenkripsi tidak didukung. */
+    /** Ekstrak arsip RAR (junrar) dengan penjaga path-slip; arsip terenkripsi butuh kata sandi (lihat extractEncryptedRar). */
     private fun extractRar(archive: File, destDir: File): Boolean {
         val destPath = destDir.canonicalPath
         com.github.junrar.Archive(archive).use { rar ->
@@ -1035,6 +1038,38 @@ object ArchiveOps {
         net.lingala.zip4j.ZipFile(file).isEncrypted
     } catch (e: Exception) {
         false
+    }
+
+    /** True bila arsip RAR dilindungi kata sandi (junrar); false bila gagal diperiksa. */
+    fun isRarEncrypted(file: File): Boolean = try {
+        com.github.junrar.Archive(file).use { it.isPasswordProtected() }
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Ekstrak arsip RAR terenkripsi (junrar) dengan kata sandi; false bila sandi salah/gagal. */
+    fun extractEncryptedRar(file: File, destDir: File, password: String): Boolean {
+        return try {
+            val destPath = destDir.canonicalPath
+            com.github.junrar.Archive(file, password).use { rar ->
+                while (true) {
+                    val header = rar.nextFileHeader() ?: break
+                    val name = header.fileName.replace('\\', '/')
+                    if (name.isBlank()) continue
+                    val out = File(destDir, name)
+                    if (!out.canonicalPath.startsWith(destPath)) continue
+                    if (header.isDirectory) {
+                        out.mkdirs()
+                    } else {
+                        out.parentFile?.mkdirs()
+                        FileOutputStream(out).use { fos -> rar.extractFile(header, fos) }
+                    }
+                }
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun extractEncryptedZip(file: File, destDir: File, password: String): Boolean {

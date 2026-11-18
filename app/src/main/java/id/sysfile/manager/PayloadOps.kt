@@ -27,10 +27,10 @@ object PayloadOps {
     data class Outcome(val partitions: Int, val error: String?)
 
     /** Satu partisi untuk layar isi payload: nama + ukuran berkas .img hasil ekstrak. */
-    data class PartitionInfo(val name: String, val size: Long)
+    data class PartitionInfo(val name: String, val size: Long, val opCounts: Map<Long, Int> = emptyMap())
 
     /** Hasil pemeriksaan payload: daftar partisi, atau kode galat ("unsupported"/"invalid"). */
-    data class Listing(val partitions: List<PartitionInfo>, val error: String?)
+    data class Listing(val partitions: List<PartitionInfo>, val error: String?, val version: Long = 0L, val blockSize: Long = 0L)
 
     /** Hasil ekstrak satu partisi: berkas .img yang dibuat, atau kode galat. */
     data class OneOutcome(val file: File?, val error: String?)
@@ -205,7 +205,7 @@ object PayloadOps {
         }
     }
 
-    private class Parsed(val blockSize: Long, val blobOffset: Long, val partitions: List<Partition>)
+    private class Parsed(val version: Long, val blockSize: Long, val blobOffset: Long, val partitions: List<Partition>)
 
     /** Baca header + manifest payload dari [raf]; melempar IllegalArgumentException bila tidak valid. */
     private fun readManifest(raf: RandomAccessFile): Parsed {
@@ -238,7 +238,7 @@ object PayloadOps {
         }
         if (partitions.isEmpty() || partitions.size > 128) throw IllegalArgumentException("partitions")
         if (blockSize <= 0L || blockSize > 1024L * 1024) throw IllegalArgumentException("block size")
-        return Parsed(blockSize, blobOffset, partitions)
+        return Parsed(version, blockSize, blobOffset, partitions)
     }
 
     /** Tolak payload delta: hanya operasi penulisan penuh yang didukung. */
@@ -288,9 +288,10 @@ object PayloadOps {
                     val extentSize = blocks * parsed.blockSize
                     PartitionInfo(
                         partition.name,
-                        if (partition.expectedSize > 0L) partition.expectedSize else extentSize
+                        if (partition.expectedSize > 0L) partition.expectedSize else extentSize,
+                        partition.ops.groupingBy { it.type }.eachCount()
                     )
-                }, null)
+                }, null, parsed.version, parsed.blockSize)
             }
         } catch (e: UnsupportedOperationException) {
             Listing(emptyList(), "unsupported")

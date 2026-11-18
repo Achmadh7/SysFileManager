@@ -171,6 +171,7 @@ private sealed interface DialogKind {
     data class Properties(val entry: FEntry) : DialogKind
     data class Compress(val entries: List<FEntry>) : DialogKind
     data class ZipPassword(val entry: FEntry) : DialogKind
+    data class RarPassword(val entry: FEntry) : DialogKind
     data class ApkActions(val entry: FEntry) : DialogKind
     data class ArchiveActions(val entry: FEntry) : DialogKind
     data class PickExtractFolder(val entry: FEntry) : DialogKind
@@ -579,6 +580,18 @@ fun SysFileApp() {
                                 dialog = DialogKind.ZipPassword(entry)
                             } else {
                                 dialog = DialogKind.ArchiveActions(entry)
+                            }
+                        }
+                    }
+                    kind == "rar" -> {
+                        working = true
+                        scope.launch {
+                            val encrypted = withContext(Dispatchers.IO) { ArchiveOps.isRarEncrypted(f) }
+                            working = false
+                            if (encrypted) {
+                                dialog = DialogKind.RarPassword(entry)
+                            } else {
+                                overlay = Overlay.ArchiveView(entry.path)
                             }
                         }
                     }
@@ -1055,6 +1068,19 @@ fun SysFileApp() {
                                                         }
                                                     }
                                                 }
+                                            } else if (only != null && ArchiveOps.kindOf(only.name) == "rar") {
+                                                working = true
+                                                scope.launch {
+                                                    val enc = withContext(Dispatchers.IO) { ArchiveOps.isRarEncrypted(only.file) }
+                                                    working = false
+                                                    if (enc) {
+                                                        dialog = DialogKind.RarPassword(only)
+                                                    } else {
+                                                        runOp(t.extractDone) {
+                                                            ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
+                                                        }
+                                                    }
+                                                }
                                             } else if (targets.isNotEmpty()) {
                                                 runOp(t.extractDone) {
                                                     targets.count {
@@ -1291,13 +1317,27 @@ fun SysFileApp() {
                     }
                 }
             )
-            is DialogKind.ZipPassword -> ZipPasswordDialog(
+            is DialogKind.ZipPassword -> ArchivePasswordDialog(
+                title = t.zipPasswordTitle,
+                body = t.zipPasswordBody,
                 onDismiss = { dialog = null },
                 onConfirm = { password ->
                     dialog = null
                     val f = d.entry.file
                     runOp(t.extractDone) {
                         ArchiveOps.extractEncryptedZip(f, f.parentFile ?: f, password)
+                    }
+                }
+            )
+            is DialogKind.RarPassword -> ArchivePasswordDialog(
+                title = t.rarPasswordTitle,
+                body = t.rarPasswordBody,
+                onDismiss = { dialog = null },
+                onConfirm = { password ->
+                    dialog = null
+                    val f = d.entry.file
+                    runOp(t.extractDone) {
+                        ArchiveOps.extractEncryptedRar(f, f.parentFile ?: f, password)
                     }
                 }
             )

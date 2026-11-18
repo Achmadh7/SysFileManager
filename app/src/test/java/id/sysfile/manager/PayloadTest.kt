@@ -143,6 +143,10 @@ class PayloadTest {
         assertEquals(listOf("boot", "vendor"), listing.partitions.map { it.name })
         assertEquals(8192L, listing.partitions[0].size)
         assertEquals(4096L, listing.partitions[1].size)
+        assertEquals(2L, listing.version)
+        assertEquals(4096L, listing.blockSize)
+        assertEquals(mapOf(1L to 1, 9L to 1), listing.partitions[0].opCounts)
+        assertEquals(mapOf(8L to 1), listing.partitions[1].opCounts)
 
         val one = PayloadOps.extractOne(f, "boot", tmp.root)
         assertNull(one.error)

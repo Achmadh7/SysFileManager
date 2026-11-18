@@ -90,6 +90,8 @@ import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -714,7 +716,9 @@ fun CompressDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ZipPasswordDialog(
+fun ArchivePasswordDialog(
+    title: String,
+    body: String,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
@@ -723,13 +727,13 @@ fun ZipPasswordDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Lock, null) },
-        title = { Text(t.zipPasswordTitle) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(t.zipPasswordBody, style = MaterialTheme.typography.bodyMedium)
+                Text(body, style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = password, onValueChange = { password = it },
-                    label = { Text(t.zipPasswordTitle) }, singleLine = true,
+                    label = { Text(title) }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -907,6 +911,7 @@ fun ApkActionsDialog(
     val context = LocalContext.current
     var info by remember(entry.path) { mutableStateOf<ApkInfo?>(null) }
     var iconBmp by remember(entry.path) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    var permsExpanded by remember(entry.path) { mutableStateOf(false) }
     LaunchedEffect(entry.path) {
         val loaded = withContext(Dispatchers.IO) {
             FileOps.apkInfo(context, entry.file) to FileOps.apkIcon(context, entry.file)?.asImageBitmap()
@@ -954,6 +959,39 @@ fun ApkActionsDialog(
                 ApkActionRow(Icons.Default.Search, Color(0xFFFFB020), t.apkInspect, t.apkInspectDesc, onInspect)
                 ApkActionRow(Icons.Default.Archive, Color(0xFFA78BFA), t.apkExtract, t.apkExtractDesc, onExtract)
                 ApkActionRow(Icons.Default.InstallMobile, Color(0xFF7ED957), t.apkInstall, t.apkInstallDesc, onInstall)
+                val perms = info?.permissions.orEmpty()
+                if (perms.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .clickable { permsExpanded = !permsExpanded }.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            t.apkPermissions(perms.size),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            if (permsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (permsExpanded) {
+                        LazyColumn(Modifier.heightIn(max = 180.dp).fillMaxWidth()) {
+                            items(perms) { perm ->
+                                Text(
+                                    perm.substringAfterLast('.'),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(vertical = 3.dp, horizontal = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {},

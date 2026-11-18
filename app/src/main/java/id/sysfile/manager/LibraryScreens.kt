@@ -40,6 +40,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -399,7 +400,7 @@ private fun archiveChildren(items: List<ArchiveItem>, prefix: String): List<Pair
 }
 
 @Composable
-private fun ArchiveItemRow(item: ArchiveItem, count: Int?, onClick: () -> Unit) {
+private fun ArchiveItemRow(item: ArchiveItem, count: Int?, extra: String? = null, onClick: () -> Unit) {
     val displayName = item.name.removeSuffix("/").substringAfterLast('/')
     val category = if (item.isDir) Category.OTHER else FileOps.categoryOf(displayName)
     val color = entryColor(FEntry(item.name, displayName, item.isDir, item.size, 0L, category))
@@ -425,6 +426,9 @@ private fun ArchiveItemRow(item: ArchiveItem, count: Int?, onClick: () -> Unit) 
             val sub = if (item.isDir) count?.let { txt().items(it) } else if (item.size > 0L) FileOps.formatSize(item.size) else ""
             if (!sub.isNullOrEmpty()) {
                 Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (!extra.isNullOrEmpty()) {
+                Text(extra, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -575,6 +579,12 @@ private fun TrashItemRow(item: TrashItem, busy: Boolean, onRestore: () -> Unit, 
  * "Ekstrak Semua" mengekstrak semua partisi ke folder "payload"; mengetuk satu
  * partisi mengekstrak partisi itu saja lalu membukanya.
  */
+/** Ringkasan operasi satu partisi: "REPLACE 12 • ZERO 3" (hanya jenis yang ada). */
+private fun opSummary(opCounts: Map<Long, Int>): String {
+    val labels = listOf(0L to "REPLACE", 1L to "REPLACE_BZ", 8L to "REPLACE_XZ", 9L to "ZERO", 10L to "DISCARD")
+    return labels.mapNotNull { (code, label) -> opCounts[code]?.let { "$label $it" } }.joinToString(" • ")
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PayloadScreen(
@@ -642,8 +652,23 @@ fun PayloadScreen(
                     )
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
+                    item {
+                        val meta = loaded
+                        if (meta != null) {
+                            Text(
+                                t.payloadMeta(meta.version, FileOps.formatSize(meta.blockSize), parts.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                     items(parts, key = { it.name }) { part ->
-                        ArchiveItemRow(ArchiveItem(part.name + ".img", false, part.size), null) {
+                        ArchiveItemRow(
+                            ArchiveItem(part.name + ".img", false, part.size),
+                            null,
+                            extra = opSummary(part.opCounts)
+                        ) {
                             onOpenPartition(part.name)
                         }
                     }
