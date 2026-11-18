@@ -378,17 +378,19 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            BoxWithConstraints(Modifier.height(68.dp)) {
+            BoxWithConstraints(Modifier.height(56.dp)) {
                 val tabWidth = maxWidth / 3
+                val pillW = tabWidth - 8.dp
                 val pillX by animateDpAsState(
-                    targetValue = tabWidth * homeTab + (tabWidth - 64.dp) / 2,
+                    targetValue = tabWidth * homeTab + 4.dp,
                     animationSpec = motion.fastSpatialSpec(),
                     label = "pillX"
                 )
-                // Pil meluncur (di belakang ikon tab aktif).
+                // Pil meluncur selebar tab (ikon + label sebaris di
+                // dalamnya) — gaya referensi 2026-11-18.
                 Box(
-                    Modifier.offset(x = pillX, y = 10.dp)
-                        .size(width = 64.dp, height = 32.dp)
+                    Modifier.offset(x = pillX, y = 8.dp)
+                        .size(width = pillW, height = 40.dp)
                         .clip(RoundedCornerShape(50))
                         .background(scheme.primaryContainer)
                 )
@@ -401,17 +403,13 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                             animationSpec = motion.fastEffectsSpec(),
                             label = "tabFg"
                         )
-                        Column(
+                        Row(
                             Modifier.weight(1f).fillMaxHeight().clickable { onSelect(index) },
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Spacer(Modifier.height(10.dp))
-                            Box(
-                                Modifier.height(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(icon, null, tint = fg, modifier = Modifier.size(24.dp))
-                            }
+                            Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 label,
                                 style = MaterialTheme.typography.labelMedium,
