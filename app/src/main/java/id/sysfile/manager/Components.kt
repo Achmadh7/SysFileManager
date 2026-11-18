@@ -81,7 +81,7 @@ fun SectionCard(
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -296,6 +296,7 @@ fun FileRow(
         ),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(28.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     )
 }
@@ -416,7 +417,7 @@ fun StorageCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
             .background(scheme.secondaryContainer)
             .clickable { onClick() }
     ) {

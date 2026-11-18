@@ -200,7 +200,7 @@ fun HomeScreen(
                     roots.forEach { root ->
                         if (root.kind != "internal" && root.total > 0) {
                             Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
                                     .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .clickable { onOpenRoot(root.path) }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -296,7 +296,7 @@ fun HomeScreen(
                             val color = categoryColor(cat)
                             Row(
                                 Modifier.weight(1f).height(76.dp)
-                                    .clip(RoundedCornerShape(24.dp))
+                                    .clip(RoundedCornerShape(28.dp))
                                     .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 14.dp),
@@ -322,7 +322,7 @@ fun HomeScreen(
                             val trashColor = Color(0xFFEF5350)
                             Row(
                                 Modifier.weight(1f).height(76.dp)
-                                    .clip(RoundedCornerShape(24.dp))
+                                    .clip(RoundedCornerShape(28.dp))
                                     .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 14.dp),

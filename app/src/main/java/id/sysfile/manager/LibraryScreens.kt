@@ -197,7 +197,7 @@ fun RecentScreen(
         items(groups, key = { it.first }) { (parentPath, items) ->
             val root = roots.firstOrNull { it.path == parentPath }
             val parentName = root?.let { rootLabel(it, t) } ?: File(parentPath).name
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                 Column(Modifier.padding(20.dp)) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
@@ -243,6 +243,7 @@ fun RecentScreen(
                             leadingContent = { FileThumbTile(entry, 48) },
                             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(28.dp))
                                 .clickable { onOpenEntry(entry) }
                         )
                     }
@@ -994,7 +995,7 @@ fun AnalysisScreen(
                 item(key = "root-" + root.path) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Card(
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(28.dp),
                             colors = CardDefaults.cardColors(containerColor = if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF00696D))
                         ) {
                             Row(
@@ -1034,7 +1035,7 @@ fun AnalysisScreen(
                         }
                         if (res == null) {
                             Card(
-                                shape = RoundedCornerShape(24.dp),
+                                shape = RoundedCornerShape(28.dp),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                             ) {
                                 Row(
@@ -1059,7 +1060,7 @@ fun AnalysisScreen(
                             val maxCat = (res.byCategory.values.maxOrNull() ?: 1).coerceAtLeast(1)
                             res.byCategory.entries.sortedByDescending { it.value }.forEach { (cat, size) ->
                                 Card(
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = RoundedCornerShape(28.dp),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                                 ) {
                                     Row(
@@ -1114,7 +1115,7 @@ fun AnalysisScreen(
                                 val shownLargest = if (expandedLargest.contains(root.path)) res.largest else res.largest.take(5)
                                 shownLargest.forEach { entry ->
                                     Card(
-                                        shape = RoundedCornerShape(24.dp),
+                                        shape = RoundedCornerShape(28.dp),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                                     ) {
                                         Row(
