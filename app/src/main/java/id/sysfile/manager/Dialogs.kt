@@ -676,7 +676,7 @@ fun CompressDialog(
     var name by remember { mutableStateOf("archive") }
     var kind by remember { mutableStateOf("zip") }
     var password by remember { mutableStateOf("") }
-    val kinds = listOf("zip" to "ZIP", "tar" to "TAR", "tar.gz" to "TAR.GZ", "tar.bz2" to "TAR.BZ2", "tar.xz" to "TAR.XZ")
+    val kinds = listOf("zip" to "ZIP", "tar" to "TAR")
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(t.compress) },

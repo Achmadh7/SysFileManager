@@ -72,7 +72,7 @@ object FileOps {
     private val AUDIO_EXT = setOf("mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "amr")
     private val DOC_EXT = setOf("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "odt", "epub")
     private val APP_EXT = setOf("apk", "xapk", "apks", "aab")
-    private val ARCHIVE_EXT = setOf("zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz", "tbz2", "txz")
+    private val ARCHIVE_EXT = setOf("zip", "rar", "7z", "tar")
 
     fun extOf(name: String): String {
         val dot = name.lastIndexOf('.')
@@ -689,24 +689,18 @@ object FileOps {
     }
 }
 
-/** Mesin arsip tambahan: TAR & tarball (Commons Compress), 7Z ekstrak, ZIP terenkripsi (zip4j). */
+/** Mesin arsip tambahan: TAR (Commons Compress), 7Z ekstrak, ZIP terenkripsi (zip4j). */
 object ArchiveOps {
 
-    /** Jenis arsip dari nama berkas, mis. "tar.gz"; null bila bukan yang didukung. */
+    /** Jenis arsip dari nama berkas, mis. "tar"; null bila bukan yang didukung. */
     fun kindOf(name: String): String? {
         val n = name.lowercase()
         return when {
-            n.endsWith(".tar.gz") || n.endsWith(".tgz") -> "tar.gz"
-            n.endsWith(".tar.bz2") || n.endsWith(".tbz2") -> "tar.bz2"
-            n.endsWith(".tar.xz") || n.endsWith(".txz") -> "tar.xz"
             n.endsWith(".tar") -> "tar"
             n.endsWith(".zip") -> "zip"
             n.endsWith(".7z") -> "7z"
             n.endsWith(".rar") -> "rar"
             n.endsWith(".apk") || n.endsWith(".apks") || n.endsWith(".xapk") || n.endsWith(".aab") -> "zip"
-            n.endsWith(".gz") -> "gz"
-            n.endsWith(".bz2") -> "bz2"
-            n.endsWith(".xz") -> "xz"
             else -> null
         }
     }
@@ -717,14 +711,8 @@ object ArchiveOps {
             when (kindOf(file.name)) {
                 "zip" -> FileOps.unzip(file, destDir)
                 "7z" -> extract7z(file, destDir)
-                "tar" -> extractTar(file, destDir, "tar")
-                "tar.gz" -> extractTar(file, destDir, "tar.gz")
-                "tar.bz2" -> extractTar(file, destDir, "tar.bz2")
-                "tar.xz" -> extractTar(file, destDir, "tar.xz")
+                "tar" -> extractTar(file, destDir)
                 "rar" -> extractRar(file, destDir)
-                "gz" -> decompressSingle(file, destDir, "gz")
-                "bz2" -> decompressSingle(file, destDir, "bz2")
-                "xz" -> decompressSingle(file, destDir, "xz")
                 else -> false
             }
         } catch (e: Exception) {
@@ -732,13 +720,13 @@ object ArchiveOps {
         }
     }
 
-    /** Buat arsip [kind] ("zip"/"tar"/"tar.gz"/"tar.bz2"/"tar.xz"); kata sandi hanya untuk ZIP. */
+    /** Buat arsip [kind] ("zip"/"tar"); kata sandi hanya untuk ZIP. */
     fun create(sources: List<File>, destDir: File, baseName: String, kind: String, password: String?): File? {
         return try {
             when (kind) {
                 "zip" -> if (password.isNullOrBlank()) FileOps.zipFiles(sources, destDir, baseName)
                          else createEncryptedZip(sources, destDir, baseName, password)
-                "tar", "tar.gz", "tar.bz2", "tar.xz" -> createTar(sources, destDir, baseName, kind)
+                "tar" -> createTar(sources, destDir, baseName, kind)
                 else -> null
             }
         } catch (e: Exception) {
@@ -751,13 +739,7 @@ object ArchiveOps {
         if (clean.isBlank()) return null
         val dest = uniqueDest(destDir, "$clean.$kind")
         val raw = BufferedOutputStream(FileOutputStream(dest))
-        val compressed = when (kind) {
-            "tar.gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream(raw)
-            "tar.bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream(raw)
-            "tar.xz" -> org.apache.commons.compress.compressors.xz.XZCompressorOutputStream(raw)
-            else -> raw
-        }
-        org.apache.commons.compress.archivers.tar.TarArchiveOutputStream(compressed).use { tos ->
+        org.apache.commons.compress.archivers.tar.TarArchiveOutputStream(raw).use { tos ->
             tos.setLongFileMode(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream.LONGFILE_POSIX)
             for (src in sources) addToTar(tos, src, src.name)
         }
@@ -782,16 +764,10 @@ object ArchiveOps {
         }
     }
 
-    private fun extractTar(archive: File, destDir: File, kind: String): Boolean {
+    private fun extractTar(archive: File, destDir: File): Boolean {
         val raw = BufferedInputStream(FileInputStream(archive))
-        val decompressed = when (kind) {
-            "tar.gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream(raw)
-            "tar.bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(raw)
-            "tar.xz" -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(raw)
-            else -> raw
-        }
         val destPath = destDir.canonicalPath
-        org.apache.commons.compress.archivers.tar.TarArchiveInputStream(decompressed).use { tis ->
+        org.apache.commons.compress.archivers.tar.TarArchiveInputStream(raw).use { tis ->
             while (true) {
                 val entry = tis.nextEntry ?: break
                 val out = File(destDir, entry.name)
@@ -855,26 +831,6 @@ object ArchiveOps {
         return true
     }
 
-    /** Dekompresi aliran berkas tunggal (.gz/.bz2/.xz) menjadi satu berkas tanpa ekstensi kompresi. */
-    private fun decompressSingle(file: File, destDir: File, kind: String): Boolean {
-        val stripped = file.name.dropLast(kind.length + 1)
-        val outName = if (stripped.isBlank()) file.name + ".out" else stripped
-        val out = uniqueDest(destDir, outName)
-        return try {
-            val raw = BufferedInputStream(FileInputStream(file))
-            val stream = when (kind) {
-                "gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream(raw)
-                "bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(raw)
-                "xz" -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(raw)
-                else -> raw
-            }
-            stream.use { input -> FileOutputStream(out).use { input.copyTo(it, 64 * 1024) } }
-            true
-        } catch (e: Exception) {
-            out.delete()
-            false
-        }
-    }
 
     /** Daftar isi berkas ZIP/APK (nama + ukuran) untuk Inspeksi; null bila bukan ZIP valid. */
     fun listZipContents(file: File): List<Pair<String, Long>>? {
@@ -896,14 +852,13 @@ object ArchiveOps {
     /** Daftar isi arsip (ZIP/7Z/TAR/RAR) untuk dibuka tanpa ekstrak; null bila gagal/tidak didukung. */
     fun listContents(file: File): List<ArchiveItem>? {
         return try {
-            when (val kind = kindOf(file.name)) {
+            when (kindOf(file.name)) {
                 "zip" -> listZipContents(file)?.map { (name, size) ->
                     ArchiveItem(name, size < 0L, if (size < 0L) 0L else size)
                 }
                 "7z" -> list7z(file)
-                "tar", "tar.gz", "tar.bz2", "tar.xz" -> listTar(file, kind!!)
+                "tar" -> listTar(file)
                 "rar" -> listRar(file)
-                "gz", "bz2", "xz" -> listSingle(file, kind)
                 else -> null
             }
         } catch (e: Exception) {
@@ -911,30 +866,7 @@ object ArchiveOps {
         }
     }
 
-    /** Isi berkas aliran tunggal (gz/bz2/xz): tepat satu berkas hasil dekompresi. */
-    private fun listSingle(file: File, kind: String): List<ArchiveItem> {
-        val stripped = file.name.dropLast(kind.length + 1)
-        val inner = if (stripped.isBlank()) file.name + ".out" else stripped
-        // Ukuran hasil hanya diketahui untuk GZIP (trailer ISIZE); bz2/xz = 0 (disembunyikan UI).
-        val size = if (kind == "gz") gzipSize(file) else 0L
-        return listOf(ArchiveItem(inner, false, size))
-    }
 
-    /** Ukuran hasil dekompresi dari trailer GZIP (ISIZE, 4 byte terakhir); 0 bila tak terbaca. */
-    private fun gzipSize(file: File): Long {
-        return try {
-            java.io.RandomAccessFile(file, "r").use { raf ->
-                if (raf.length() < 18) return 0L
-                raf.seek(raf.length() - 4)
-                val b = ByteArray(4)
-                raf.readFully(b)
-                (b[0].toLong() and 0xFF) or ((b[1].toLong() and 0xFF) shl 8) or
-                    ((b[2].toLong() and 0xFF) shl 16) or ((b[3].toLong() and 0xFF) shl 24)
-            }
-        } catch (e: Exception) {
-            0L
-        }
-    }
 
     private fun list7z(archive: File): List<ArchiveItem> {
         val result = mutableListOf<ArchiveItem>()
@@ -952,22 +884,15 @@ object ArchiveOps {
     }
 
     private fun openTar(
-        archive: File,
-        kind: String
+        archive: File
     ): org.apache.commons.compress.archivers.tar.TarArchiveInputStream {
         val raw = BufferedInputStream(FileInputStream(archive))
-        val decompressed = when (kind) {
-            "tar.gz" -> org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream(raw)
-            "tar.bz2" -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(raw)
-            "tar.xz" -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(raw)
-            else -> raw
-        }
-        return org.apache.commons.compress.archivers.tar.TarArchiveInputStream(decompressed)
+        return org.apache.commons.compress.archivers.tar.TarArchiveInputStream(raw)
     }
 
-    private fun listTar(archive: File, kind: String): List<ArchiveItem> {
+    private fun listTar(archive: File): List<ArchiveItem> {
         val result = mutableListOf<ArchiveItem>()
-        openTar(archive, kind).use { tis ->
+        openTar(archive).use { tis ->
             while (true) {
                 val e = tis.nextEntry ?: break
                 result += ArchiveItem(e.name, e.isDirectory, if (e.isDirectory) 0L else e.size)
@@ -993,8 +918,7 @@ object ArchiveOps {
     fun archiveBaseName(name: String): String {
         val lower = name.lowercase()
         val suffixes = listOf(
-            ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz",
-            ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz",
+            ".zip", ".7z", ".rar", ".tar",
             ".apk", ".apks", ".xapk"
         )
         for (suffix in suffixes) {
@@ -1019,13 +943,11 @@ object ArchiveOps {
         if (base.isBlank()) return null
         val out = uniqueDest(destDir, base)
         val ok = try {
-            when (val kind = kindOf(file.name)) {
+            when (kindOf(file.name)) {
                 "zip" -> extractSingleZip(file, entryName, out)
                 "7z" -> extractSingle7z(file, entryName, out)
-                "tar", "tar.gz", "tar.bz2", "tar.xz" -> extractSingleTar(file, kind!!, entryName, out)
+                "tar" -> extractSingleTar(file, entryName, out)
                 "rar" -> extractSingleRar(file, entryName, out)
-                // Aliran tunggal: dekompresi ke nama hasil yang sama dengan 'out'.
-                "gz", "bz2", "xz" -> decompressSingle(file, destDir, kind)
                 else -> false
             }
         } catch (e: Exception) {
@@ -1069,8 +991,8 @@ object ArchiveOps {
         return false
     }
 
-    private fun extractSingleTar(archive: File, kind: String, entryName: String, out: File): Boolean {
-        openTar(archive, kind).use { tis ->
+    private fun extractSingleTar(archive: File, entryName: String, out: File): Boolean {
+        openTar(archive).use { tis ->
             while (true) {
                 val e = tis.nextEntry ?: break
                 if (e.isDirectory || e.name != entryName) continue

@@ -49,20 +49,7 @@ class PureLogicTest {
 
     // --- ArchiveOps.kindOf: archive routing -------------------------------
 
-    @Test
-    fun kindOf_compoundTarNamesWinOverSingleStreams() {
-        assertEquals("tar.gz", ArchiveOps.kindOf("backup.tar.gz"))
-        assertEquals("tar.bz2", ArchiveOps.kindOf("backup.tar.bz2"))
-        assertEquals("tar.xz", ArchiveOps.kindOf("backup.tar.xz"))
-    }
 
-    @Test
-    fun kindOf_shortAliases() {
-        // Regression: .tgz/.tbz2/.txz once fell through to a plain stream.
-        assertEquals("tar.gz", ArchiveOps.kindOf("a.tgz"))
-        assertEquals("tar.bz2", ArchiveOps.kindOf("a.tbz2"))
-        assertEquals("tar.xz", ArchiveOps.kindOf("a.txz"))
-    }
 
     @Test
     fun kindOf_plainFormats() {
@@ -70,9 +57,14 @@ class PureLogicTest {
         assertEquals("zip", ArchiveOps.kindOf("a.zip"))
         assertEquals("7z", ArchiveOps.kindOf("a.7z"))
         assertEquals("rar", ArchiveOps.kindOf("a.rar"))
-        assertEquals("gz", ArchiveOps.kindOf("a.gz"))
-        assertEquals("bz2", ArchiveOps.kindOf("a.bz2"))
-        assertEquals("xz", ArchiveOps.kindOf("a.xz"))
+        // Tarball terkompresi + aliran tunggal dihapus: bukan lagi jenis yang didukung.
+        assertNull(ArchiveOps.kindOf("backup.tar.gz"))
+        assertNull(ArchiveOps.kindOf("a.tgz"))
+        assertNull(ArchiveOps.kindOf("a.tbz2"))
+        assertNull(ArchiveOps.kindOf("a.txz"))
+        assertNull(ArchiveOps.kindOf("a.gz"))
+        assertNull(ArchiveOps.kindOf("a.bz2"))
+        assertNull(ArchiveOps.kindOf("a.xz"))
     }
 
     @Test
@@ -85,7 +77,7 @@ class PureLogicTest {
 
     @Test
     fun kindOf_caseInsensitiveAndRejectsOthers() {
-        assertEquals("tar.gz", ArchiveOps.kindOf("BACKUP.TGZ"))
+        assertNull(ArchiveOps.kindOf("BACKUP.TGZ"))
         assertEquals("zip", ArchiveOps.kindOf("A.ZIP"))
         assertNull(ArchiveOps.kindOf("photo.jpg"))
         assertNull(ArchiveOps.kindOf("archive.tar.gz.bak"))
@@ -95,13 +87,16 @@ class PureLogicTest {
     // --- FileOps.categoryOf / extOf: category routing ----------------------
 
     @Test
-    fun categoryOf_archiveAliasesAreArchives() {
-        // Regression: .tgz/.tbz2/.txz used to be categorised as OTHER.
-        assertEquals(Category.ARCHIVE, FileOps.categoryOf("a.tgz"))
-        assertEquals(Category.ARCHIVE, FileOps.categoryOf("a.tbz2"))
-        assertEquals(Category.ARCHIVE, FileOps.categoryOf("a.txz"))
+    fun categoryOf_keptArchivesAreArchives() {
         assertEquals(Category.ARCHIVE, FileOps.categoryOf("a.zip"))
         assertEquals(Category.ARCHIVE, FileOps.categoryOf("a.tar"))
+        // Tarball terkompresi + aliran tunggal dihapus: bukan lagi arsip.
+        assertEquals(Category.OTHER, FileOps.categoryOf("a.tgz"))
+        assertEquals(Category.OTHER, FileOps.categoryOf("a.tbz2"))
+        assertEquals(Category.OTHER, FileOps.categoryOf("a.txz"))
+        assertEquals(Category.OTHER, FileOps.categoryOf("a.gz"))
+        assertEquals(Category.OTHER, FileOps.categoryOf("a.bz2"))
+        assertEquals(Category.OTHER, FileOps.categoryOf("a.xz"))
     }
 
     @Test
