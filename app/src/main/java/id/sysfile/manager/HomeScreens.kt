@@ -300,7 +300,7 @@ fun HomeScreen(
                             Row(
                                 Modifier.weight(1f).height(76.dp)
                                     .clip(RoundedCornerShape(28.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .background(color.copy(alpha = 0.16f))
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -326,7 +326,7 @@ fun HomeScreen(
                             Row(
                                 Modifier.weight(1f).height(76.dp)
                                     .clip(RoundedCornerShape(28.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .background(trashColor.copy(alpha = 0.16f))
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
