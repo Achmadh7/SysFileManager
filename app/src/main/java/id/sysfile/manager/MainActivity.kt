@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
@@ -961,6 +962,7 @@ fun SysFileApp() {
                                                     }
                                                     DropdownMenuItem(
                                                         text = { Text(t.sortBy) },
+                                                        leadingIcon = { Icon(Icons.Default.Sort, null) },
                                                         onClick = { menuOpen = false; dialog = DialogKind.Sort }
                                                     )
                                                     DropdownMenuItem(
