@@ -421,7 +421,37 @@ fun StorageCard(
             .background(scheme.secondaryContainer)
             .clickable { onClick() }
     ) {
-        Column {
+        StorageCardContent(
+            label = label,
+            usedText = usedText,
+            detailText = detailText,
+            percentText = percentText,
+            usedWord = usedWord,
+            statusText = statusText,
+            statusDot = statusDot,
+            icon = icon,
+            usedFraction = usedFraction
+        )
+    }
+}
+
+/** Isi kartu penyimpanan tanpa wadah kartu — dipakai Beranda saat
+ *  beberapa penyimpanan digabung dalam satu kartu (B1, 2026-11-18). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun StorageCardContent(
+    label: String,
+    usedText: String,
+    detailText: String,
+    percentText: String,
+    usedWord: String,
+    statusText: String,
+    statusDot: Color,
+    icon: ImageVector = Icons.Default.Storage,
+    usedFraction: Float = 0f
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column {
             Column(
                 Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -476,5 +506,4 @@ fun StorageCard(
                 )
             }
         }
-    }
 }

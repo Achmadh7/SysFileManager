@@ -200,74 +200,93 @@ fun HomeScreen(
                         Spacer(Modifier.width(10.dp))
                         Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     }
-                    roots.forEach { root ->
-                        if (root.kind != "internal" && root.total > 0) {
-                            Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                                    .clickable { onOpenRoot(root.path) }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    when (root.kind) {
-                                        "root" -> Icons.Default.Terminal
-                                        "sd" -> Icons.Default.SdStorage
-                                        "usb" -> Icons.Default.Usb
-                                        else -> Icons.Default.Storage
-                                    },
-                                    null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
-                                    LinearWavyProgressIndicator(
-                                        progress = { ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                    )
-                                    Text(
-                                        if (root.kind == "root") {
-                                            if (rootActive) t.rootActive else t.rootLimited
-                                        } else {
-                                            FileOps.formatSize(root.total - root.free) + " " + t.usedWord
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                    // B1 (2026-11-18): semua penyimpanan dalam SATU kartu.
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                    ) {
+                        Column {
+                            roots.forEachIndexed { index, root ->
+                                if (index > 0) {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                                 }
-                                Spacer(Modifier.width(12.dp))
-                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                                    Text(
-                                        FileOps.formatSize(root.free),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        t.freeWord,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                if (root.kind != "internal" && root.total > 0) {
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .clickable { onOpenRoot(root.path) }
+                                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            when (root.kind) {
+                                                "root" -> Icons.Default.Terminal
+                                                "sd" -> Icons.Default.SdStorage
+                                                "usb" -> Icons.Default.Usb
+                                                else -> Icons.Default.Storage
+                                            },
+                                            null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                            Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
+                                            LinearWavyProgressIndicator(
+                                                progress = { ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f) },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                color = MaterialTheme.colorScheme.primary,
+                                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                            )
+                                            Text(
+                                                if (root.kind == "root") {
+                                                    if (rootActive) t.rootActive else t.rootLimited
+                                                } else {
+                                                    FileOps.formatSize(root.total - root.free) + " " + t.usedWord
+                                                },
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                            Text(
+                                                FileOps.formatSize(root.free),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                t.freeWord,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                } else if (root.total > 0) {
+                                    val (statusText, statusDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
+                                    Column(Modifier.clickable { onOpenRoot(root.path) }) {
+                                        StorageCardContent(
+                                            label = rootLabel(root, t),
+                                            usedText = FileOps.formatSize(root.total - root.free),
+                                            detailText = t.ofTotal(FileOps.formatSize(root.total)),
+                                            percentText = String.format(appLocale(), "%.1f%%", (root.total - root.free) * 100.0 / root.total),
+                                            usedWord = t.usedWord,
+                                            statusText = statusText,
+                                            statusDot = statusDot,
+                                            icon = Icons.Default.Smartphone,
+                                            usedFraction = ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f)
+                                        )
+                                    }
+                                } else {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                                        Spacer(Modifier.width(12.dp))
+                                        Column {
+                                            Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
+                                            Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
                                 }
-                            }
-                        } else if (root.total > 0) {
-                            val (statusText, statusDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
-                            StorageCard(
-                                label = rootLabel(root, t),
-                                usedText = FileOps.formatSize(root.total - root.free),
-                                detailText = t.ofTotal(FileOps.formatSize(root.total)),
-                                percentText = String.format(appLocale(), "%.1f%%", (root.total - root.free) * 100.0 / root.total),
-                                usedWord = t.usedWord,
-                                statusText = statusText,
-                                statusDot = statusDot,
-                                icon = Icons.Default.Smartphone,
-                                usedFraction = ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f),
-                                onClick = { onOpenRoot(root.path) }
-                            )
-                        } else {
-                            SectionCard(icon = Icons.Default.Storage, title = rootLabel(root, t)) {
-                                Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -290,31 +309,31 @@ fun HomeScreen(
                     Category.ARCHIVE to t.catArchivesS,
                     Category.OTHER to t.catOtherS
                 )
-                cats.chunked(2).forEach { rowCats ->
+                cats.chunked(3).forEach { rowCats ->
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         rowCats.forEach { (cat, label) ->
                             val color = categoryColor(cat)
-                            Row(
-                                Modifier.weight(1f).height(76.dp)
+                            Column(
+                                Modifier.weight(1f).height(84.dp)
                                     .clip(RoundedCornerShape(28.dp))
                                     .background(color.copy(alpha = 0.16f))
                                     .clickable { onOpenCategory(cat) }
-                                    .padding(horizontal = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
                             ) {
                                 Box(
-                                    Modifier.size(44.dp).clip(CircleShape).background(color),
+                                    Modifier.size(40.dp).clip(CircleShape).background(color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = Color.White, modifier = Modifier.size(23.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = Color.White, modifier = Modifier.size(20.dp))
                                 }
-                                Spacer(Modifier.width(12.dp))
                                 Text(
                                     label,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -323,31 +342,32 @@ fun HomeScreen(
                         }
                         if (rowCats.size == 1) {
                             val trashColor = Color(0xFFEF5350)
-                            Row(
-                                Modifier.weight(1f).height(76.dp)
+                            Column(
+                                Modifier.weight(1f).height(84.dp)
                                     .clip(RoundedCornerShape(28.dp))
                                     .background(trashColor.copy(alpha = 0.16f))
                                     .clickable { onOpenTrash() }
-                                    .padding(horizontal = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
                             ) {
                                 Box(
-                                    Modifier.size(44.dp).clip(CircleShape).background(trashColor),
+                                    Modifier.size(40.dp).clip(CircleShape).background(trashColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(23.dp))
+                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(20.dp))
                                 }
-                                Spacer(Modifier.width(12.dp))
                                 Text(
                                     t.trash,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+                            Spacer(Modifier.weight(1f))
                         } else {
-                            repeat(2 - rowCats.size) { Spacer(Modifier.weight(1f)) }
+                            repeat(3 - rowCats.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
