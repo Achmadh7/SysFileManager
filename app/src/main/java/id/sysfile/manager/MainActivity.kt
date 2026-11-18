@@ -1214,6 +1214,13 @@ fun SysFileApp() {
                                         canGoUp = currentRoot != null && animatedPath != currentRoot.path,
                                         onNewFolder = { dialog = DialogKind.NewFolder },
                                         onNewFile = { dialog = DialogKind.NewFile },
+                                        onSortClick = { dialog = DialogKind.Sort },
+                                        onSelectAll = { selected = entries.map { it.path }.toSet() },
+                                        showHidden = showHidden,
+                                        onToggleHidden = {
+                                            showHidden = !showHidden
+                                            prefs.edit().putBoolean("show_hidden", showHidden).apply()
+                                        },
                                         counts = entryCounts,
                                         lockedPaths = lockedFolders,
                                         safHasGrant = safGrantFor(animatedPath) != null,

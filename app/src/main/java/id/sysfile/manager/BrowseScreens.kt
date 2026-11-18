@@ -68,6 +68,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
@@ -93,6 +94,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -154,7 +156,7 @@ import java.io.File
 // Layar penjelajah berkas: breadcrumb, daftar/grid, bilah pilihan dan papan klip.
 
 /** Kepala jelajah: bar pencarian menyatu (urut + tampilan di ujungnya) dan baris jalur teks. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BrowseHeaderBar(
     currentPath: String,
@@ -186,14 +188,26 @@ fun BrowseHeaderBar(
                     modifier = Modifier.weight(1f),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
-                IconButton(onClick = onSortClick) { Icon(Icons.Default.Sort, t.sortBy) }
-                IconButton(onClick = onToggleView) {
-                    Icon(
-                        if (gridView) Icons.Default.ViewList else Icons.Default.GridView,
-                        if (gridView) t.listView else t.gridView
-                    )
-                }
             }
+        }
+        ButtonGroup(modifier = Modifier.padding(top = 8.dp)) {
+            toggleableItem(
+                checked = !gridView,
+                label = t.gridShort,
+                onCheckedChange = { if (it) onToggleView() },
+                icon = { Icon(Icons.Default.GridView, null) }
+            )
+            toggleableItem(
+                checked = gridView,
+                label = t.listShort,
+                onCheckedChange = { if (it) onToggleView() },
+                icon = { Icon(Icons.Default.ViewList, null) }
+            )
+            clickableItem(
+                onClick = onSortClick,
+                label = t.sortBy,
+                icon = { Icon(Icons.Default.Sort, null) }
+            )
         }
         Text(
             pathText,
@@ -220,6 +234,10 @@ fun BrowseScreen(
     canGoUp: Boolean,
     onNewFolder: () -> Unit,
     onNewFile: () -> Unit,
+    onSortClick: () -> Unit,
+    onSelectAll: () -> Unit,
+    showHidden: Boolean,
+    onToggleHidden: () -> Unit,
     counts: Map<String, Int>,
     lockedPaths: Set<String> = emptySet(),
     safHasGrant: Boolean = false,
@@ -300,6 +318,20 @@ fun BrowseScreen(
                                 indication = null
                             ) { fabOpen = false }
                     )
+                }
+                HorizontalFloatingToolbar(
+                    expanded = true,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
+                ) {
+                    IconButton(onClick = onSortClick) { Icon(Icons.Default.Sort, t.sortBy) }
+                    IconButton(onClick = onSelectAll) { Icon(Icons.Default.DoneAll, t.selectAll) }
+                    IconButton(onClick = onToggleHidden) {
+                        Icon(
+                            Icons.Default.FilterList, t.showHidden,
+                            tint = if (showHidden) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Column(
                     Modifier.align(Alignment.BottomEnd).padding(16.dp),
