@@ -729,7 +729,6 @@ fun SysFileApp() {
                 },
                 onApps = { showApps = true },
                 onAbout = { showAbout = true },
-                onFormats = { showFormats = true },
                 exiting = settingsExiting,
                 onBack = { if (!settingsExiting) settingsExiting = true }
             )

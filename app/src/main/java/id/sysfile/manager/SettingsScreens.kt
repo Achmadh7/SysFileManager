@@ -180,7 +180,6 @@ fun SettingsScreen(
     onRootEntry: (Boolean) -> Unit,
     onApps: () -> Unit,
     onAbout: () -> Unit,
-    onFormats: () -> Unit,
     onBack: () -> Unit,
     exiting: Boolean = false
 ) {
@@ -212,58 +211,62 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            // ST1 Daftar Bersih (pilihan Achmad 2026-11-18): semua
-            // pengaturan jadi daftar baris berkelompok (Tampilan /
-            // Berkas / Aplikasi); petak cepat G3 dihapus.
+            // R1 Kartu per baris (pilihan Achmad 2026-11-18): tiap
+            // baris pengaturan jadi kartunya sendiri; judul grup
+            // (Tampilan / Berkas / Aplikasi) tetap sebagai pemisah.
             item { SettingsSectionLabel(t.tampilanSection) }
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
-                    Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                        SettingsRow(
-                            icon = when (themeMode) {
-                                "light" -> Icons.Default.LightMode
-                                "dark" -> Icons.Default.DarkMode
-                                else -> Icons.Default.BrightnessAuto
-                            },
-                            circleColor = Color(0xFFFFB020),
-                            title = t.theme,
-                            subtitle = when (themeMode) {
-                                "light" -> t.themeLight
-                                "dark" -> t.themeDark
-                                else -> t.themeSystem
-                            },
-                            // Ketuk 1x langsung ganti Gelap <-> Terang; opsi
-                            // "Ikuti Sistem" dihapus (nilai lama "system" ikut
-                            // hilang begitu petak ini diketuk).
-                            onClick = { onTheme(if (themeMode == "dark") "light" else "dark") }
-                        )
-                        HorizontalDivider(
-                            Modifier.padding(start = 60.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                        )
-                        SettingsRow(
-                            icon = Icons.Default.Translate,
-                            circleColor = Color(0xFF4DA3FF),
-                            title = t.language,
-                            subtitle = if (language == "id") "Indonesia" else "English",
-                            // Ketuk 1x langsung ganti Indonesia <-> English.
-                            onClick = { onLanguage(if (language == "id") "en" else "id") }
-                        )
-                        HorizontalDivider(
-                            Modifier.padding(start = 60.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                        )
-                        SettingsRow(
-                            icon = Icons.Default.Palette,
-                            circleColor = Color(0xFF2DD4BF),
-                            title = t.dynamicColor,
-                            subtitle = t.dynamicColorDesc,
-                            trailing = { Switch(checked = dynamicColor, onCheckedChange = onDynamicColor) }
-                        )
-                    }
+                    SettingsRow(
+                        icon = when (themeMode) {
+                            "light" -> Icons.Default.LightMode
+                            "dark" -> Icons.Default.DarkMode
+                            else -> Icons.Default.BrightnessAuto
+                        },
+                        circleColor = Color(0xFFFFB020),
+                        title = t.theme,
+                        subtitle = when (themeMode) {
+                            "light" -> t.themeLight
+                            "dark" -> t.themeDark
+                            else -> t.themeSystem
+                        },
+                        // Ketuk 1x langsung ganti Gelap <-> Terang; opsi
+                        // "Ikuti Sistem" dihapus (nilai lama "system" ikut
+                        // hilang begitu petak ini diketuk).
+                        onClick = { onTheme(if (themeMode == "dark") "light" else "dark") }
+                    )
+                }
+            }
+            item {
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Translate,
+                        circleColor = Color(0xFF4DA3FF),
+                        title = t.language,
+                        subtitle = if (language == "id") "Indonesia" else "English",
+                        // Ketuk 1x langsung ganti Indonesia <-> English.
+                        onClick = { onLanguage(if (language == "id") "en" else "id") }
+                    )
+                }
+            }
+            item {
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Palette,
+                        circleColor = Color(0xFF2DD4BF),
+                        title = t.dynamicColor,
+                        subtitle = t.dynamicColorDesc,
+                        trailing = { Switch(checked = dynamicColor, onCheckedChange = onDynamicColor) }
+                    )
                 }
             }
             item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
@@ -272,25 +275,26 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
-                    Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                        SettingsRow(
-                            icon = Icons.Default.Folder,
-                            circleColor = Color(0xFFF06292),
-                            title = t.showHidden,
-                            trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
-                        )
-                        HorizontalDivider(
-                            Modifier.padding(start = 60.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                        )
-                        SettingsRow(
-                            icon = Icons.Default.Security,
-                            circleColor = Color(0xFFC62828),
-                            title = t.rootAccessTitle,
-                            subtitle = t.rootAccessDesc,
-                            trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
-                        )
-                    }
+                    SettingsRow(
+                        icon = Icons.Default.Folder,
+                        circleColor = Color(0xFFF06292),
+                        title = t.showHidden,
+                        trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
+                    )
+                }
+            }
+            item {
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Security,
+                        circleColor = Color(0xFFC62828),
+                        title = t.rootAccessTitle,
+                        subtitle = t.rootAccessDesc,
+                        trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
+                    )
                 }
             }
             item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
@@ -299,34 +303,25 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
-                    Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
-                        SettingsRow(
-                            icon = Icons.Default.Apps,
-                            circleColor = Color(0xFF7ED957),
-                            title = t.appsTitle,
-                            onClick = onApps
-                        )
-                        HorizontalDivider(
-                            Modifier.padding(start = 60.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                        )
-                        SettingsRow(
-                            icon = Icons.Default.Info,
-                            circleColor = Color(0xFFB39DDB),
-                            title = t.about,
-                            onClick = onAbout
-                        )
-                        HorizontalDivider(
-                            Modifier.padding(start = 60.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                        )
-                        SettingsRow(
-                            icon = Icons.Default.Archive,
-                            circleColor = Color(0xFF40C4FF),
-                            title = t.formatsTitle,
-                            onClick = onFormats
-                        )
-                    }
+                    SettingsRow(
+                        icon = Icons.Default.Apps,
+                        circleColor = Color(0xFF7ED957),
+                        title = t.appsTitle,
+                        onClick = onApps
+                    )
+                }
+            }
+            item {
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Info,
+                        circleColor = Color(0xFFB39DDB),
+                        title = t.about,
+                        onClick = onAbout
+                    )
                 }
             }
         }
@@ -357,7 +352,7 @@ private fun SettingsRow(
         Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(horizontal = 4.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
