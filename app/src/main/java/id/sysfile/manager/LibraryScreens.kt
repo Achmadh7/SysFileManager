@@ -994,7 +994,7 @@ fun AnalysisScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Card(
                             shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(containerColor = if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF2E5A88))
+                            colors = CardDefaults.cardColors(containerColor = if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF00696D))
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),

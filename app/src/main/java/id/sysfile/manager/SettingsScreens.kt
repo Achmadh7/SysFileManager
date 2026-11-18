@@ -450,7 +450,7 @@ private fun FormatGroupHeader(icon: ImageVector, title: String) {
 @Composable
 fun FormatsScreen(onBack: () -> Unit) {
     val t = txt()
-    val chipCreate = Triple(t.chipCreate, Color(0xFF2E5A88), Color.White)
+    val chipCreate = Triple(t.chipCreate, Color(0xFF00696D), Color.White)
     val chipExtract = Triple(
         t.chipExtract,
         MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -583,7 +583,7 @@ fun AboutScreen(
                         Modifier
                             .size(84.dp)
                             .clip(RoundedCornerShape(22.dp))
-                            .background(Color(0xFF2E5A88)),
+                            .background(Color(0xFF00696D)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -592,7 +592,7 @@ fun AboutScreen(
                         )
                         Icon(
                             Icons.Default.ArrowUpward, null,
-                            tint = Color(0xFF2E5A88),
+                            tint = Color(0xFF00696D),
                             modifier = Modifier.size(26.dp).offset(y = 6.dp)
                         )
                     }
@@ -603,7 +603,7 @@ fun AboutScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(8.dp))
-                    Surface(shape = RoundedCornerShape(50), color = Color(0xFF2E5A88)) {
+                    Surface(shape = RoundedCornerShape(50), color = Color(0xFF00696D)) {
                         Text(
                             t.version(BuildConfig.VERSION_NAME),
                             Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
