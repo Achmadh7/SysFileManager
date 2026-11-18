@@ -179,6 +179,7 @@ private sealed interface DialogKind {
     data class ArchiveActions(val entry: FEntry) : DialogKind
     data class PickExtractFolder(val entry: FEntry) : DialogKind
     data class ArchiveContents(val entry: FEntry, val items: List<Pair<String, Long>>) : DialogKind
+    data class PayloadExtract(val path: String, val partition: String?) : DialogKind
     data object Sort : DialogKind
 }
 
@@ -831,76 +832,8 @@ fun SysFileApp() {
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed) },
                         onUnsupported = { overlay = overlayReturn; overlayReturn = null; notify(t.payloadUnsupported) },
-                        onExtractAll = {
-                            val payloadFile = File(ov.path)
-                            overlay = null
-                            overlayReturn = null
-                            val flag = AtomicBoolean(false)
-                            workCancelFlag = flag
-                            workProgress = 0f
-                            working = true
-                            scope.launch {
-                                val outcome = withContext(Dispatchers.IO) {
-                                    PayloadOps.extract(
-                                        payloadFile, payloadFile.parentFile ?: payloadFile,
-                                        onProgress = { done, total ->
-                                            if (total > 0L) {
-                                                workProgress =
-                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                                            }
-                                        },
-                                        cancelFlag = flag
-                                    )
-                                }
-                                working = false
-                                workProgress = null
-                                workCancelFlag = null
-                                when {
-                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                    outcome.error != null -> notify(t.payloadInvalid)
-                                    else -> {
-                                        notify(t.payloadDone(outcome.partitions))
-                                        reloadKey++
-                                    }
-                                }
-                            }
-                        },
-                        onOpenPartition = { name ->
-                            val payloadFile = File(ov.path)
-                            val flag = AtomicBoolean(false)
-                            workCancelFlag = flag
-                            workProgress = 0f
-                            working = true
-                            scope.launch {
-                                val outcome = withContext(Dispatchers.IO) {
-                                    PayloadOps.extractOne(
-                                        payloadFile, name, payloadFile.parentFile ?: payloadFile,
-                                        onProgress = { done, total ->
-                                            if (total > 0L) {
-                                                workProgress =
-                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                                            }
-                                        },
-                                        cancelFlag = flag
-                                    )
-                                }
-                                working = false
-                                workProgress = null
-                                workCancelFlag = null
-                                when {
-                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                    outcome.error != null -> notify(t.opFailed)
-                                    outcome.file != null -> {
-                                        overlay = null
-                                        openEntry(FileOps.entryOf(outcome.file))
-                                    }
-                                }
-                            }
-                        }
+                        onExtractAll = { dialog = DialogKind.PayloadExtract(ov.path, null) },
+                        onOpenPartition = { name -> dialog = DialogKind.PayloadExtract(ov.path, name) }
                     )
                     null -> {
                         Scaffold(
@@ -1447,6 +1380,86 @@ fun SysFileApp() {
                             viewingPath = null
                         }
                     }) { Text(t.delete) }
+                },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
+            )
+            is DialogKind.PayloadExtract -> AlertDialog(
+                onDismissRequest = { dialog = null },
+                title = { Text(if (d.partition == null) t.extractAll else "${d.partition}.img") },
+                text = { Text(if (d.partition == null) t.payloadExtractAllConfirm else t.payloadExtractOneConfirm(d.partition)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        dialog = null
+                        val payloadFile = File(d.path)
+                        val part = d.partition
+                        if (part == null) {
+                            overlay = null
+                            overlayReturn = null
+                            val flag = AtomicBoolean(false)
+                            workCancelFlag = flag
+                            workProgress = 0f
+                            working = true
+                            scope.launch {
+                                val outcome = withContext(Dispatchers.IO) {
+                                    PayloadOps.extract(
+                                        payloadFile, payloadFile.parentFile ?: payloadFile,
+                                        onProgress = { done, total ->
+                                            if (total > 0L) {
+                                                workProgress =
+                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                            }
+                                        },
+                                        cancelFlag = flag
+                                    )
+                                }
+                                working = false
+                                workProgress = null
+                                workCancelFlag = null
+                                when {
+                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                    outcome.error != null -> notify(t.payloadInvalid)
+                                    else -> {
+                                        notify(t.payloadDone(outcome.partitions))
+                                        reloadKey++
+                                    }
+                                }
+                            }
+                        } else {
+                            val flag = AtomicBoolean(false)
+                            workCancelFlag = flag
+                            workProgress = 0f
+                            working = true
+                            scope.launch {
+                                val outcome = withContext(Dispatchers.IO) {
+                                    PayloadOps.extractOne(
+                                        payloadFile, part, payloadFile.parentFile ?: payloadFile,
+                                        onProgress = { done, total ->
+                                            if (total > 0L) {
+                                                workProgress =
+                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                            }
+                                        },
+                                        cancelFlag = flag
+                                    )
+                                }
+                                working = false
+                                workProgress = null
+                                workCancelFlag = null
+                                when {
+                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                    outcome.error != null -> notify(t.opFailed)
+                                    outcome.file != null -> {
+                                        overlay = null
+                                        openEntry(FileOps.entryOf(outcome.file))
+                                    }
+                                }
+                            }
+                        }
+                    }) { Text(if (d.partition == null) t.extractAll else t.extract) }
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
             )
