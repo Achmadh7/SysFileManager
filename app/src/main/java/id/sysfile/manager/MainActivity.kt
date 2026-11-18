@@ -59,11 +59,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
@@ -76,10 +73,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.ViewList
@@ -250,7 +244,6 @@ fun SysFileApp() {
     var workCancelFlag by remember { mutableStateOf<AtomicBoolean?>(null) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
-    var favorites by remember { mutableStateOf(prefs.getStringSet("favorites", emptySet())?.toSet() ?: emptySet()) }
     var lockedFolders by remember {
         mutableStateOf(
             prefs.getStringSet("locked_folders", emptySet())?.filter { File(it).isDirectory }?.toSet() ?: emptySet()
@@ -930,49 +923,21 @@ fun SysFileApp() {
                                             }
                                         },
                                         actions = {
-                                            val isFav = favorites.contains(currentPath)
-                                            IconButton(onClick = { dialog = DialogKind.Sort }) { Icon(Icons.Default.Sort, t.sortBy) }
-                                            IconButton(onClick = { selected = entries.map { it.path }.toSet() }) { Icon(Icons.Default.DoneAll, t.selectAll) }
-                                            IconButton(onClick = {
-                                                showHidden = !showHidden
-                                                prefs.edit().putBoolean("show_hidden", showHidden).apply()
-                                            }) {
-                                                Icon(
-                                                    Icons.Default.FilterList, t.showHidden,
-                                                    tint = if (showHidden) MaterialTheme.colorScheme.primary
-                                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
                                             Box {
                                                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
                                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                                     DropdownMenuItem(
-                                                        text = { Text(if (isFav) t.removeFavorite else t.addFavorite) },
-                                                        leadingIcon = {
-                                                            Icon(if (isFav) Icons.Default.Star else Icons.Default.StarBorder, null)
-                                                        },
+                                                        text = { Text(t.selectAll) },
+                                                        leadingIcon = { Icon(Icons.Default.DoneAll, null) },
                                                         onClick = {
                                                             menuOpen = false
-                                                            val updated = if (isFav) favorites - currentPath else favorites + currentPath
-                                                            favorites = updated
-                                                            prefs.edit().putStringSet("favorites", updated).apply()
-                                                            notify(if (isFav) t.removeFavorite else t.addFavorite)
+                                                            selected = entries.map { it.path }.toSet()
                                                         }
                                                     )
                                                     DropdownMenuItem(
                                                         text = { Text(t.home) },
                                                         leadingIcon = { Icon(Icons.Default.Home, null) },
                                                         onClick = { menuOpen = false; browseStack = emptyList() }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = { Text(t.newFolder) },
-                                                        leadingIcon = { Icon(Icons.Default.CreateNewFolder, null) },
-                                                        onClick = { menuOpen = false; dialog = DialogKind.NewFolder }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = { Text(t.newFile) },
-                                                        leadingIcon = { Icon(Icons.Default.NoteAdd, null) },
-                                                        onClick = { menuOpen = false; dialog = DialogKind.NewFile }
                                                     )
                                                     if (clipboard != null) {
                                                         DropdownMenuItem(
