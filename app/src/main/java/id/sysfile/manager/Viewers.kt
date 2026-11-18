@@ -4,8 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitPointerEvent
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import android.view.MotionEvent
+import kotlin.math.abs
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -87,6 +93,7 @@ fun ImageViewerScreen(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
     var chrome by remember { mutableStateOf(true) }
+    var zooming by remember { mutableStateOf(false) }
     // Ganti halaman: zoom direset + laporkan berkas yang sedang tampil
     // (untuk Bagikan/Properti/Hapus + penanda hapus di MainActivity).
     LaunchedEffect(pagerState.currentPage) {
@@ -121,9 +128,10 @@ fun ImageViewerScreen(
         Box(Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
             HorizontalPager(
                 state = pagerState,
-                // Saat diperbesar, geser halaman dimatikan supaya cubit/pan
-                // milik gambar; saat skala 1, geser milik pager.
-                userScrollEnabled = scale == 1f,
+                // Saat diperbesar atau sedang dicubit dua jari, geser halaman
+                // dimatikan supaya cubit/pan milik gambar; saat skala 1 dan
+                // satu jari, geser milik pager.
+                userScrollEnabled = scale == 1f && !zooming,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 val pagePath = paths[page]
@@ -145,15 +153,48 @@ fun ImageViewerScreen(
                             translationY = offsetY
                         }
                             .pointerInput(pagePath) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(1f, 6f)
-                                    if (scale > 1f) {
-                                        offsetX += pan.x
-                                        offsetY += pan.y
-                                    } else {
-                                        offsetX = 0f
-                                        offsetY = 0f
-                                    }
+                                // Detektor sendiri (bukan detectTransformGestures):
+                                // yang lama menelan SEMUA seret — termasuk seret
+                                // satu jari saat skala 1 — sehingga pager di
+                                // atasnya tidak pernah menerima geser halaman.
+                                // Aturan baru: satu jari + skala 1 = jangan
+                                // konsumsi apa pun (pager yang geser); dua jari
+                                // = cubit-zoom milik gambar; skala > 1 = pan
+                                // satu jari milik gambar.
+                                awaitEachGesture {
+                                    awaitFirstDown()
+                                    var pinching = false
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.any { it.isConsumed }) break
+                                        val down = event.changes.count { it.pressed }
+                                        if (down >= 2) {
+                                            if (!pinching) {
+                                                pinching = true
+                                                zooming = true
+                                            }
+                                            val pan = event.calculatePan()
+                                            val newScale = (scale * event.calculateZoom())
+                                                .coerceIn(1f, 6f)
+                                            scale = newScale
+                                            if (newScale > 1f) {
+                                                offsetX += pan.x
+                                                offsetY += pan.y
+                                            } else {
+                                                offsetX = 0f
+                                                offsetY = 0f
+                                            }
+                                            event.changes.forEach { it.consume() }
+                                        } else if (scale > 1f) {
+                                            val pan = event.calculatePan()
+                                            offsetX += pan.x
+                                            offsetY += pan.y
+                                            event.changes.forEach { it.consume() }
+                                        }
+                                        // Skala 1 + satu jari: tidak konsumsi —
+                                        // seretnya diteruskan ke pager.
+                                    } while (event.changes.any { it.pressed })
+                                    if (pinching) zooming = false
                                 }
                             }
                     )
@@ -300,6 +341,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
 @Composable
 fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit) {
     val t = txt()
+    val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { paths.size })
     val currentPath = paths[pagerState.currentPage]
     LaunchedEffect(pagerState.currentPage) {
@@ -369,6 +411,52 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                             true
                         }
                         videoView.setOnPreparedListener { it.start() }
+                        // VideoView menelan semua sentuhan (untuk memunculkan
+                        // MediaController), jadi pager di atasnya tidak pernah
+                        // menerima geser. Tangkap seret horizontal di sini dan
+                        // pindahkan halaman secara manual; ketukan tetap
+                        // diteruskan ke VideoView (controller tetap muncul).
+                        var downX = 0f
+                        var downY = 0f
+                        var swiping = false
+                        videoView.setOnTouchListener { _, event ->
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> {
+                                    downX = event.x
+                                    downY = event.y
+                                    swiping = false
+                                    false
+                                }
+                                MotionEvent.ACTION_MOVE -> {
+                                    val dx = event.x - downX
+                                    val dy = event.y - downY
+                                    if (!swiping && abs(dx) > 24f && abs(dx) > abs(dy) * 1.5f) {
+                                        swiping = true
+                                    }
+                                    swiping
+                                }
+                                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                    if (swiping) {
+                                        val dx = event.x - downX
+                                        if (abs(dx) > 120f) {
+                                            val target = (pagerState.currentPage +
+                                                if (dx < 0) 1 else -1)
+                                                .coerceIn(0, pagerState.pageCount - 1)
+                                            if (target != pagerState.currentPage) {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(target)
+                                                }
+                                            }
+                                        }
+                                        swiping = false
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                                else -> false
+                            }
+                        }
                         videoView
                     },
                     onRelease = { it.stopPlayback() },
