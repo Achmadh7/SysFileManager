@@ -259,6 +259,7 @@ fun HomeScreen(
                                 statusText = statusText,
                                 statusDot = statusDot,
                                 icon = Icons.Default.Smartphone,
+                                usedFraction = ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f),
                                 onClick = { onOpenRoot(root.path) }
                             )
                         } else {

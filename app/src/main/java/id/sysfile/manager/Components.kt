@@ -1,7 +1,6 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -25,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
@@ -45,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,13 +52,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -398,13 +393,13 @@ fun storageStatus(freeFraction: Float): Pair<String, Color> {
     }
 }
 
-/** Kartu penyimpanan K4 "Gelombang Dasar" (pilihan pemilik 2026-11-11):
- *  kartu kaca bertepi terang; baris kepala berisi ikon + label volume dan
+/** Kartu penyimpanan (D1 Solid Murni, r37 — rombak total tanpa kaca):
+ *  kartu solid secondaryContainer; baris kepala berisi ikon + label volume dan
  *  chip status berwarna mengikuti kesehatan penyimpanan; angka terpakai
- *  besar dengan detail total di bawahnya; dasar kartu diisi gelombang
- *  cyan (isi transparan + garis puncak tegas) yang memuat baris persen.
+ *  besar dengan detail total di bawahnya; dasar kartu berisi bilah progres
+ *  wavy resmi (bukan lagi gelombang cyan transparan) + baris persen.
  *  Tanda tangan sama seperti kartu sebelumnya agar pemanggil tidak
- *  berubah. */
+ *  berubah (ditambah usedFraction sebelum onClick). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StorageCard(
@@ -416,6 +411,7 @@ fun StorageCard(
     statusText: String,
     statusDot: Color,
     icon: ImageVector = Icons.Default.Storage,
+    usedFraction: Float = 0f,
     onClick: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -462,34 +458,20 @@ fun StorageCard(
                 )
                 Text(detailText, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
             }
-            Box(Modifier.fillMaxWidth().height(64.dp)) {
-                Canvas(Modifier.fillMaxSize()) {
-                    val w = size.width
-                    val h = size.height
-                    fun waveY(x: Float): Float {
-                        val t = x / w
-                        return h * 0.58f - kotlin.math.sin(t * 5.2f) * (0.10f + 0.22f * t) * h - t * h * 0.30f
-                    }
-                    val crest = Path()
-                    var x = 0f
-                    crest.moveTo(0f, waveY(0f))
-                    while (x < w) {
-                        x = minOf(x + 8f, w)
-                        crest.lineTo(x, waveY(x))
-                    }
-                    val fill = Path()
-                    fill.addPath(crest)
-                    fill.lineTo(w, h)
-                    fill.lineTo(0f, h)
-                    fill.close()
-                    drawPath(fill, color = scheme.primary.copy(alpha = 0.28f))
-                    drawPath(crest, color = scheme.primary, style = Stroke(width = 2.5.dp.toPx()))
-                }
+            Column(
+                Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LinearWavyProgressIndicator(
+                    progress = { usedFraction.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = scheme.primary,
+                    trackColor = scheme.surfaceContainerHighest
+                )
                 Text(
                     percentText + " " + usedWord,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 12.dp)
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

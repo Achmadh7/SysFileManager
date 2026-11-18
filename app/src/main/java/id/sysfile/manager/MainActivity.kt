@@ -670,7 +670,6 @@ fun SysFileApp() {
     }
 
     SysFileTheme(themeMode, dynamicColor) {
-        AuroraBackground {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1522,7 +1521,6 @@ fun SysFileApp() {
                 onDismiss = { dialog = null }
             )
             null -> {}
-        }
         }
     }
 }

@@ -971,6 +971,7 @@ fun AnalysisScreen(
                         usedWord = t.usedWord,
                         statusText = statusText,
                         statusDot = statusDot,
+                        usedFraction = (if (totalStorage > 0) usedStorage.toFloat() / totalStorage.toFloat() else 0f).coerceIn(0f, 1f),
                         onClick = {}
                     )
                 }
