@@ -126,6 +126,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
@@ -840,8 +841,10 @@ fun SysFileApp() {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
                                                     Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
-                                                        // r50: logo M4 "SF" — monogram, solid
-                                                        // primaryContainer (peran container resmi).
+                                                        // r56: logo M11 "SF" terpotong diagonal —
+                                                        // pita warna ubin di atas huruf (rotate
+                                                        // 30° = diagonal "/"), lebih tinggi dari
+                                                        // ubin (kelebihan terpotong clip ubin).
                                                         .background(MaterialTheme.colorScheme.primaryContainer),
                                                     contentAlignment = Alignment.Center
                                                 ) {
@@ -850,6 +853,11 @@ fun SysFileApp() {
                                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         fontWeight = FontWeight.ExtraBold,
                                                         fontSize = 16.sp
+                                                    )
+                                                    Box(
+                                                        Modifier.size(width = 2.dp, height = 64.dp)
+                                                            .rotate(30f)
+                                                            .background(MaterialTheme.colorScheme.primaryContainer)
                                                     )
                                                 }
                                                 Spacer(Modifier.width(12.dp))

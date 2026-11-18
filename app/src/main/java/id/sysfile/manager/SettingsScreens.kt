@@ -145,6 +145,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -573,7 +574,9 @@ fun AboutScreen(
                     Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Ubin logo M4 "SF" (sama seperti bilah atas Beranda, lebih besar).
+                    // Ubin logo M11 "SF" terpotong diagonal (sama seperti
+                    // bilah atas Beranda, lebih besar) — pita warna ubin
+                    // di atas huruf (rotate 30° = diagonal "/").
                     Box(
                         Modifier
                             .size(84.dp)
@@ -586,6 +589,11 @@ fun AboutScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 36.sp
+                        )
+                        Box(
+                            Modifier.size(width = 4.dp, height = 130.dp)
+                                .rotate(30f)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                         )
                     }
                     Spacer(Modifier.height(16.dp))
