@@ -93,7 +93,6 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -117,7 +116,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -177,10 +175,6 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val t = txt()
-    var themeDialog by remember { mutableStateOf(false) }
-    var langDialog by remember { mutableStateOf(false) }
-    val themeOptions = listOf("light" to t.themeLight, "dark" to t.themeDark, "system" to t.themeSystem)
-    val langOptions = listOf("id" to "Indonesia", "en" to "English")
     Scaffold(
         topBar = {
             TopAppBar(
@@ -207,17 +201,25 @@ fun SettingsScreen(
                         },
                         circleColor = Color(0xFFFFB020),
                         title = t.theme,
-                        state = themeOptions.firstOrNull { it.first == themeMode }?.second ?: "",
+                        state = when (themeMode) {
+                            "light" -> t.themeLight
+                            "dark" -> t.themeDark
+                            else -> t.themeSystem
+                        },
                         modifier = Modifier.weight(1f),
-                        onClick = { themeDialog = true }
+                        // Ketuk 1x langsung ganti Gelap <-> Terang; opsi
+                        // "Ikuti Sistem" dihapus (nilai lama "system" ikut
+                        // hilang begitu petak ini diketuk).
+                        onClick = { onTheme(if (themeMode == "dark") "light" else "dark") }
                     )
                     SettingsQuickTile(
                         icon = Icons.Default.Translate,
                         circleColor = Color(0xFF4DA3FF),
                         title = t.language,
-                        state = langOptions.firstOrNull { it.first == language }?.second ?: "",
+                        state = if (language == "id") "Indonesia" else "English",
                         modifier = Modifier.weight(1f),
-                        onClick = { langDialog = true }
+                        // Ketuk 1x langsung ganti Indonesia <-> English.
+                        onClick = { onLanguage(if (language == "id") "en" else "id") }
                     )
                 }
             }
@@ -279,24 +281,6 @@ fun SettingsScreen(
                     }
                 }
             }
-        }
-        if (themeDialog) {
-            SettingsChoiceDialog(
-                title = t.theme,
-                options = themeOptions,
-                selected = themeMode,
-                onPick = { onTheme(it); themeDialog = false },
-                onDismiss = { themeDialog = false }
-            )
-        }
-        if (langDialog) {
-            SettingsChoiceDialog(
-                title = t.language,
-                options = langOptions,
-                selected = language,
-                onPick = { onLanguage(it); langDialog = false },
-                onDismiss = { langDialog = false }
-            )
         }
     }
 }
@@ -404,38 +388,6 @@ private fun SettingsQuickTile(
             )
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SettingsChoiceDialog(
-    title: String,
-    options: List<Pair<String, String>>,
-    selected: String,
-    onPick: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val t = txt()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                options.forEach { (value, label) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onPick(value) }.padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = selected == value, onClick = { onPick(value) })
-                        Spacer(Modifier.width(12.dp))
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
-    )
 }
 
 // ---------------------------------------------------------------------------
