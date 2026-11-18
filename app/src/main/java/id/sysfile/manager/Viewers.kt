@@ -369,7 +369,9 @@ class ViewerMediaController(context: android.content.Context) :
 /** Penampil PDF bawaan: geser antar halaman, cubit-zoom, ketuk untuk
  *  menyembunyikan bilah atas. Render memakai PdfRenderer bawaan Android
  *  (tanpa dependensi baru); tiap halaman dirender saat tampil saja (IO
- *  thread, skala maks 2x, sisi terpanjang maks 2048px). PDF terenkripsi /
+ *  thread, skala maks 2x, sisi terpanjang maks 2048px). Bitmap diisi
+ *  putih dulu sebelum render (halaman PDF umumnya tanpa latar — kalau
+ *  tidak, teks hitam hilang di latar hitam penampil). PDF terenkripsi /
  *  rusak tidak bisa dibuka PdfRenderer — tampil pesan gagal + tombol buka
  *  dengan aplikasi lain. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -474,6 +476,10 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
                                             (pg.height * s).toInt().coerceAtLeast(1),
                                             Bitmap.Config.ARGB_8888
                                         )
+                                        // Halaman PDF umumnya tanpa latar:
+                                        // isi putih dulu, kalau tidak teks
+                                        // hitam hilang di latar hitam penampil.
+                                        b.eraseColor(android.graphics.Color.WHITE)
                                         pg.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                                         b
                                     }
