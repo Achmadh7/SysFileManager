@@ -375,7 +375,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         Surface(
             shape = RoundedCornerShape(50),
             color = scheme.surfaceContainer,
-            shadowElevation = 8.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             BoxWithConstraints(Modifier.height(68.dp)) {
