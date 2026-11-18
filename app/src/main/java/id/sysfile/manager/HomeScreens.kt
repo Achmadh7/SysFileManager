@@ -97,7 +97,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
@@ -200,91 +199,64 @@ fun HomeScreen(
                         Spacer(Modifier.width(10.dp))
                         Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     }
-                    // B1 (2026-11-18): semua penyimpanan dalam SATU kartu.
-                    Box(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                            .background(MaterialTheme.colorScheme.secondaryContainer)
-                    ) {
-                        Column {
-                            roots.forEachIndexed { index, root ->
-                                if (index > 0) {
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                                }
-                                if (root.kind != "internal" && root.total > 0) {
-                                    Row(
-                                        Modifier.fillMaxWidth()
-                                            .clickable { onOpenRoot(root.path) }
-                                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            when (root.kind) {
-                                                "root" -> Icons.Default.Terminal
-                                                "sd" -> Icons.Default.SdStorage
-                                                "usb" -> Icons.Default.Usb
-                                                else -> Icons.Default.Storage
-                                            },
-                                            null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)
-                                        )
-                                        Spacer(Modifier.width(12.dp))
-                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                            Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
-                                            LinearWavyProgressIndicator(
-                                                progress = { ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f) },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                            )
-                                            Text(
-                                                if (root.kind == "root") {
-                                                    if (rootActive) t.rootActive else t.rootLimited
-                                                } else {
-                                                    FileOps.formatSize(root.total - root.free) + " " + t.usedWord
-                                                },
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        Spacer(Modifier.width(12.dp))
-                                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                                            Text(
-                                                FileOps.formatSize(root.free),
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                t.freeWord,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                } else if (root.total > 0) {
-                                    val (statusText, statusDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
-                                    Column(Modifier.clickable { onOpenRoot(root.path) }) {
-                                        StorageCardContent(
-                                            label = rootLabel(root, t),
-                                            usedText = FileOps.formatSize(root.total - root.free),
-                                            detailText = t.ofTotal(FileOps.formatSize(root.total)),
-                                            percentText = String.format(appLocale(), "%.1f%%", (root.total - root.free) * 100.0 / root.total),
-                                            usedWord = t.usedWord,
-                                            statusText = statusText,
-                                            statusDot = statusDot,
-                                            icon = Icons.Default.Smartphone,
-                                            usedFraction = ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f)
-                                        )
-                                    }
+                    // r53 (2026-11-18, D1 Dua kartu hero — pilihannya):
+                    // Root/SD/USB dipisah jadi kartu hero sendiri, sama
+                    // seperti Internal (angka besar = sisa).
+                    roots.forEach { root ->
+                        if (root.kind != "internal" && root.total > 0) {
+                            // D1: kartu hero seperti Internal — angka besar
+                            // = sisa (tersisa); bar + persen mengikuti
+                            // fraksi sisa agar konsisten.
+                            val (healthText, healthDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
+                            StorageCard(
+                                label = rootLabel(root, t),
+                                usedText = FileOps.formatSize(root.free),
+                                detailText = t.ofTotal(FileOps.formatSize(root.total)),
+                                percentText = String.format(appLocale(), "%.1f%%", root.free * 100.0 / root.total),
+                                usedWord = t.freeWord,
+                                statusText = if (root.kind == "root") {
+                                    if (rootActive) t.rootActive else t.rootLimited
                                 } else {
-                                    Row(
-                                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                                        Spacer(Modifier.width(12.dp))
-                                        Column {
-                                            Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
-                                            Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
+                                    healthText
+                                },
+                                statusDot = healthDot,
+                                icon = when (root.kind) {
+                                    "root" -> Icons.Default.Terminal
+                                    "sd" -> Icons.Default.SdStorage
+                                    "usb" -> Icons.Default.Usb
+                                    else -> Icons.Default.Storage
+                                },
+                                usedFraction = (root.free.toFloat() / root.total.toFloat()).coerceIn(0f, 1f),
+                                onClick = { onOpenRoot(root.path) }
+                            )
+                        } else if (root.total > 0) {
+                            val (statusText, statusDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
+                            StorageCard(
+                                label = rootLabel(root, t),
+                                usedText = FileOps.formatSize(root.total - root.free),
+                                detailText = t.ofTotal(FileOps.formatSize(root.total)),
+                                percentText = String.format(appLocale(), "%.1f%%", (root.total - root.free) * 100.0 / root.total),
+                                usedWord = t.usedWord,
+                                statusText = statusText,
+                                statusDot = statusDot,
+                                icon = Icons.Default.Smartphone,
+                                usedFraction = ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f),
+                                onClick = { onOpenRoot(root.path) }
+                            )
+                        } else {
+                            Box(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
+                                        Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }
