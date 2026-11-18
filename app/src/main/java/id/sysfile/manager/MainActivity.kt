@@ -1134,7 +1134,6 @@ fun SysFileApp() {
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
-                                                    roots = roots,
                                                     accessGranted = accessGranted,
                                                     onOpenEntry = { entry ->
                                                         if (entry.isDir) {
@@ -1142,9 +1141,6 @@ fun SysFileApp() {
                                                         } else {
                                                             openEntry(entry, recentFiles)
                                                         }
-                                                    },
-                                                    onOpenFolder = { path ->
-                                                        openFolderGuarded(path) { browseStack = listOf(path) }
                                                     }
                                                 )
                                                 2 -> AnalysisScreen(

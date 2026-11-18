@@ -59,7 +59,6 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.RestoreFromTrash
@@ -156,10 +155,8 @@ import java.util.Date
 @Composable
 fun RecentScreen(
     files: List<FEntry>,
-    roots: List<RootInfo>,
     accessGranted: Boolean,
-    onOpenEntry: (FEntry) -> Unit,
-    onOpenFolder: (String) -> Unit
+    onOpenEntry: (FEntry) -> Unit
 ) {
     val t = txt()
     if (!accessGranted) {
@@ -184,70 +181,48 @@ fun RecentScreen(
         }
         return
     }
-    val groups = remember(files) {
-        files.groupBy { it.file.parentFile?.absolutePath ?: "" }
-            .entries
-            .map { (parent, items) -> parent to items.sortedByDescending { it.modified } }
-            .sortedByDescending { (_, items) -> items.firstOrNull()?.modified ?: 0L }
-    }
+    // T2 (r58): daftar datar terbaru dulu + pembatas tanggal kecil saat
+    // hari berganti — tanpa kartu grup per folder.
+    val sorted = remember(files) { files.sortedByDescending { it.modified } }
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        items(groups, key = { it.first }) { (parentPath, items) ->
-            val root = roots.firstOrNull { it.path == parentPath }
-            val parentName = root?.let { rootLabel(it, t) } ?: File(parentPath).name
-            Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                Column(Modifier.padding(20.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                            .clickable { onOpenFolder(parentPath) }
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Folder, null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
+        itemsIndexed(sorted, key = { _, entry -> entry.path }) { index, entry ->
+            val day = recentDay(entry.modified, t)
+            val prevDay = sorted.getOrNull(index - 1)?.let { recentDay(it.modified, t) }
+            Column {
+                if (index == 0 || day != prevDay) {
+                    Text(
+                        day,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+                    )
+                }
+                ListItem(
+                    headlineContent = {
                         Text(
-                            parentName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
+                            entry.name,
+                            style = MaterialTheme.typography.bodyLarge,
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
-                        Icon(
-                            Icons.Default.ChevronRight, null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    supportingContent = {
+                        Text(
+                            recentWhen(entry.modified, t) + " \u00b7 " + FileOps.formatSize(entry.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
                         )
-                    }
-                    items.forEach { entry ->
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    entry.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    recentWhen(entry.modified, t) + " \u00b7 " + FileOps.formatSize(entry.size),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                            },
-                            leadingContent = { FileThumbTile(entry, 48) },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                .clip(RoundedCornerShape(28.dp))
-                                .clickable { onOpenEntry(entry) }
-                        )
-                    }
-                }
+                    },
+                    leadingContent = { FileThumbTile(entry, 48) },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .clickable { onOpenEntry(entry) }
+                )
             }
         }
     }
@@ -266,6 +241,19 @@ private fun recentWhen(modified: Long, t: Txt): String {
         sameDay((now.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }) ->
             t.yesterday + " " + time
         else -> SimpleDateFormat("dd MMM yyyy", appLocale()).format(Date(modified)) + " " + time
+    }
+}
+/** Label hari saja untuk pembatas Terbaru T2: "Hari ini", "Kemarin", atau "dd MMM yyyy". */
+private fun recentDay(modified: Long, t: Txt): String {
+    val cal = Calendar.getInstance().apply { timeInMillis = modified }
+    val now = Calendar.getInstance()
+    fun sameDay(c: Calendar) =
+        cal.get(Calendar.YEAR) == c.get(Calendar.YEAR) &&
+            cal.get(Calendar.DAY_OF_YEAR) == c.get(Calendar.DAY_OF_YEAR)
+    return when {
+        sameDay(now) -> t.today
+        sameDay((now.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }) -> t.yesterday
+        else -> SimpleDateFormat("dd MMM yyyy", appLocale()).format(Date(modified))
     }
 }
 
