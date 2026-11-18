@@ -20,7 +20,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -356,7 +355,9 @@ fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
-/** Bilah tab bawah gaya kapsul melayang: item aktif menjadi pil terisi di dalam kapsul. */
+/** Bilah tab bawah gaya kapsul melayang: item aktif menjadi pil terisi di dalam kapsul.
+ *  TB1 Kapsul Warna (pilihan Achmad 2026-11-18): pil aktif primaryContainer
+ *  (ikut warna dinamis), tanpa garis tepi. */
 @Composable
 fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val t = txt()
@@ -368,7 +369,6 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     Surface(
         shape = RoundedCornerShape(percent = 50),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         shadowElevation = 6.dp
     ) {
         Row(
@@ -379,13 +379,13 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             items.forEach { (index, icon, label) ->
                 val active = homeTab == index
                 val fg = if (active) {
-                    MaterialTheme.colorScheme.inverseOnSurface
+                    MaterialTheme.colorScheme.onPrimaryContainer
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Row(
                     Modifier.clip(RoundedCornerShape(percent = 50))
-                        .background(if (active) MaterialTheme.colorScheme.inverseSurface else Color.Transparent)
+                        .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                         .clickable { onSelect(index) }
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
