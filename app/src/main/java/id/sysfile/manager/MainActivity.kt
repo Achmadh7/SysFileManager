@@ -218,6 +218,7 @@ fun SysFileApp() {
     val t = txt()
 
     var accessGranted by remember { mutableStateOf(context.hasFileAccess()) }
+    var showAccessDialog by remember { mutableStateOf(false) }
     var roots by remember { mutableStateOf<List<RootInfo>>(emptyList()) }
     val rootFs = remember { FileOps.rootFilesystem() }
     var rootActive by remember { mutableStateOf(false) }
@@ -373,6 +374,18 @@ fun SysFileApp() {
     }
 
     LaunchedEffect(Unit) { refreshRoots() }
+
+    // Dialog izin penyimpanan saat buka app (r6): muncul tiap buka app
+    // selama izin belum diberikan; "Nanti" menutupnya dan dialog muncul
+    // lagi di buka berikutnya.
+    LaunchedEffect(Unit) {
+        if (!accessGranted) showAccessDialog = true
+    }
+    // Pulang dari halaman Pengaturan sistem dengan izin diberikan:
+    // tutup dialog bila masih tampil.
+    LaunchedEffect(accessGranted) {
+        if (accessGranted) showAccessDialog = false
+    }
 
     LaunchedEffect(currentRoot?.kind) {
         if (currentRoot?.kind == "root" && RootShell.state == RootShell.UNKNOWN) {
@@ -1292,6 +1305,23 @@ fun SysFileApp() {
                     if (flag != null) {
                         TextButton(onClick = { flag.set(true) }) { Text(t.cancel) }
                     }
+                }
+            )
+        }
+
+        if (showAccessDialog) {
+            AlertDialog(
+                onDismissRequest = { showAccessDialog = false },
+                title = { Text(t.permissionTitle) },
+                text = { Text(t.permissionBody) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showAccessDialog = false
+                        requestAccess()
+                    }) { Text(t.permissionButton) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAccessDialog = false }) { Text(t.later) }
                 }
             )
         }
