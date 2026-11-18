@@ -913,7 +913,6 @@ fun AnalysisScreen(
     roots: List<RootInfo>,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (FEntry) -> Unit,
-    dynamicColor: Boolean = false
 ) {
     val t = txt()
     val context = LocalContext.current
@@ -984,7 +983,7 @@ fun AnalysisScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Card(
                             shape = RoundedCornerShape(28.dp),
-                            colors = CardDefaults.cardColors(containerColor = if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF00696D))
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF00696D))
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
@@ -997,7 +996,7 @@ fun AnalysisScreen(
                                         else -> Icons.Default.Storage
                                     },
                                     null,
-                                    tint = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer else Color.White,
+                                    tint = Color.White,
                                     modifier = Modifier.size(26.dp)
                                 )
                                 Spacer(Modifier.width(12.dp))
@@ -1006,7 +1005,7 @@ fun AnalysisScreen(
                                         rootLabel(root, t),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
+                                        color = Color.White
                                     )
                                     Text(
                                         if (res != null) {
@@ -1016,7 +1015,7 @@ fun AnalysisScreen(
                                             t.scanning
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else Color(0xFFC8DCF5)
+                                        color = Color(0xFFC8DCF5)
                                     )
                                 }
                             }

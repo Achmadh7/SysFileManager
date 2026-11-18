@@ -215,7 +215,6 @@ fun SysFileApp() {
     var safTreeUri by remember { mutableStateOf<String?>(null) }
     var safRelPath by remember { mutableStateOf("") }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
-    var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
     AppLang.code = language
     val t = txt()
@@ -665,7 +664,7 @@ fun SysFileApp() {
         }
     }
 
-    SysFileTheme(themeMode, dynamicColor) {
+    SysFileTheme(themeMode) {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -700,7 +699,6 @@ fun SysFileApp() {
                 themeMode = themeMode,
                 language = language,
                 showHidden = showHidden,
-                dynamicColor = dynamicColor,
                 showRootEntry = showRootEntry,
                 onTheme = { mode ->
                     themeMode = mode
@@ -714,10 +712,6 @@ fun SysFileApp() {
                 onHidden = { v ->
                     showHidden = v
                     prefs.edit().putBoolean("show_hidden", v).apply()
-                },
-                onDynamicColor = { v ->
-                    dynamicColor = v
-                    prefs.edit().putBoolean("dynamic_color", v).apply()
                 },
                 onRootEntry = { v ->
                     showRootEntry = v
@@ -1145,7 +1139,6 @@ fun SysFileApp() {
                                                 )
                                                 2 -> AnalysisScreen(
                                                     roots = roots,
-                                                    dynamicColor = dynamicColor,
                                                     onOpenFolder = { path -> homeTab = 0; browseStack = listOf(path) },
                                                     onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                                 )
