@@ -78,6 +78,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -976,6 +977,7 @@ fun SysFileApp() {
                                                     )
                                                     DropdownMenuItem(
                                                         text = { Text(t.showHidden) },
+                                                        leadingIcon = { Icon(Icons.Default.VisibilityOff, null) },
                                                         trailingIcon = {
                                                             Switch(checked = showHidden, onCheckedChange = { v ->
                                                                 showHidden = v
