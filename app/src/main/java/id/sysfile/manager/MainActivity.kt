@@ -16,6 +16,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
@@ -119,6 +120,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableTransitionState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -209,6 +211,8 @@ fun SysFileApp() {
     var showApps by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var showSpecs by remember { mutableStateOf(false) }
+    var showFormats by remember { mutableStateOf(false) }
+    var settingsExiting by remember { mutableStateOf(false) }
     var safTreeUri by remember { mutableStateOf<String?>(null) }
     var safRelPath by remember { mutableStateOf("") }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
@@ -639,16 +643,27 @@ fun SysFileApp() {
         }
     }
 
-    BackHandler(enabled = showSettings) { showSettings = false }
+    BackHandler(enabled = showSettings && !settingsExiting) { settingsExiting = true }
     BackHandler(enabled = !showSettings && overlay != null) { overlay = overlayReturn; overlayReturn = null }
     BackHandler(enabled = !showSettings && overlay == null && browseStack.isEmpty() && homeTab != 0) { homeTab = 0 }
     BackHandler(enabled = showTrash) { showTrash = false }
     BackHandler(enabled = showApps) { showApps = false }
     BackHandler(enabled = showAbout && !showSpecs) { showAbout = false }
     BackHandler(enabled = showSpecs) { showSpecs = false }
+    BackHandler(enabled = showFormats) { showFormats = false }
     BackHandler(enabled = overlay == null && selected.isNotEmpty()) { selected = emptySet() }
     BackHandler(enabled = overlay == null && selected.isEmpty() && browseStack.isNotEmpty() && safTreeUri == null) {
         browseStack = browseStack.dropLast(1)
+    }
+
+    // Animasi keluar Pengaturan: tunggu 300ms (durasi exit) sebelum
+    // benar-benar menutup, supaya layar sempat meluncur keluar.
+    LaunchedEffect(settingsExiting) {
+        if (settingsExiting) {
+            delay(300)
+            showSettings = false
+            settingsExiting = false
+        }
     }
 
     SysFileTheme(themeMode, dynamicColor) {
@@ -666,9 +681,12 @@ fun SysFileApp() {
             AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
         } else if (showSpecs) {
             SpecScreen(onBack = { showSpecs = false })
+        } else if (showFormats) {
+            FormatsScreen(onBack = { showFormats = false })
         } else if (showAbout) {
             AboutScreen(
                 onBack = { showAbout = false },
+                onFormats = { showFormats = true },
                 onOpenStorage = {
                     showAbout = false
                     showSettings = false
@@ -709,7 +727,9 @@ fun SysFileApp() {
                 },
                 onApps = { showApps = true },
                 onAbout = { showAbout = true },
-                onBack = { showSettings = false }
+                onFormats = { showFormats = true },
+                exiting = settingsExiting,
+                onBack = { if (!settingsExiting) settingsExiting = true }
             )
         } else {
             AnimatedContent(

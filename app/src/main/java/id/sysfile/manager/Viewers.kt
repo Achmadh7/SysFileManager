@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.awaitPointerEvent
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import android.view.KeyEvent
 import android.view.MotionEvent
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Box
@@ -336,6 +337,27 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
     }
 }
 
+/** MediaController yang tidak menelan tombol Back: jendela melayang
+ *  kontrol bawaan Android menelan Back sistem selama video diputar (hanya
+ *  menyembunyikan kontrol), sehingga penonton harus menunggu video selesai.
+ *  Subclass ini mengalihkan Back di dispatchKeyEvent langsung ke onBackPress
+ *  — satu ketukan keluar dari penampil. Bila kontrol sedang tersembunyi,
+ *  Back sampai ke Activity seperti biasa (BackHandler di atas). */
+class ViewerMediaController(context: android.content.Context) :
+    android.widget.MediaController(context) {
+    var onBackPress: (() -> Unit)? = null
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK &&
+            event.action == KeyEvent.ACTION_DOWN
+        ) {
+            onBackPress?.invoke()
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+}
+
 /** Pemutar video bawaan: geser antar video sefolder, VideoView dengan kontrol media, langsung putar di dalam aplikasi. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -347,8 +369,9 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
     LaunchedEffect(pagerState.currentPage) {
         onPathChange(paths[pagerState.currentPage])
     }
-    // Back ditangani di layar ini juga: jendela melayang MediaController bisa
-    // menelan tombol Back sistem selama video diputar.
+    // Back saat kontrol tersembunyi sampai ke sini (BackHandler). Saat kontrol
+    // tampil, Back ditangkap ViewerMediaController (lihat di bawah) karena
+    // kunci tidak pernah sampai ke Activity selama jendela kontrol ada.
     BackHandler { onBack() }
     Scaffold(
         topBar = {
@@ -386,25 +409,21 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                 AndroidView(
                     factory = { ctx ->
                         val videoView = android.widget.VideoView(ctx)
-                        val controller = android.widget.MediaController(ctx)
-                        // Jangkar controller HARUS VideoView-nya. Versi sebelumnya
+                        // ViewerMediaController: Back di jendela kontrol langsung
+                        // keluar dari penampil (bukan sekadar menyembunyikan
+                        // kontrol — itu yang membuat Back terasa mati selama
+                        // video diputar). OnKeyListener lama dihapus: kunci
+                        // tidak pernah sampai ke VideoView selama kontrol tampil.
+                        val controller = ViewerMediaController(ctx).apply {
+                            onBackPress = onBack
+                        }
+                        // Jangkar controller HARUS VideoView-nya. Versi lama
                         // memakai apply bersarang sehingga this@apply terikat ke
                         // MediaController (controller menjangkar ke dirinya sendiri)
-                        // dan jendela kontrolnya bisa menelan tombol Back & sentuhan
-                        // selama video diputar - kembali baru bisa setelah video selesai.
+                        // dan jendela kontrolnya menelan sentuhan selama video diputar.
                         controller.setAnchorView(videoView)
                         videoView.setMediaController(controller)
                         videoView.setVideoURI(android.net.Uri.fromFile(File(pagePath)))
-                        videoView.setOnKeyListener { _, keyCode, event ->
-                            if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
-                                event.action == android.view.KeyEvent.ACTION_UP
-                            ) {
-                                onBack()
-                                true
-                            } else {
-                                false
-                            }
-                        }
                         videoView.setOnErrorListener { _, _, _ ->
                             notify(t.opFailed)
                             onBack()

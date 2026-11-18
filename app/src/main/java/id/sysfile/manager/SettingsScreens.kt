@@ -15,11 +15,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -76,6 +78,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.foundation.rememberScrollState
@@ -128,6 +131,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableTransitionState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -171,9 +175,24 @@ fun SettingsScreen(
     onRootEntry: (Boolean) -> Unit,
     onApps: () -> Unit,
     onAbout: () -> Unit,
-    onBack: () -> Unit
+    onFormats: () -> Unit,
+    onBack: () -> Unit,
+    exiting: Boolean = false
 ) {
     val t = txt()
+    // Animasi perpindahan ke Pengaturan (S3, 300ms): masuk geser dari kanan
+    // + memudar; keluar (exiting) arah berlawanan. MainActivity menunda
+    // pergantian layar 300ms supaya animasi keluar sempat selesai.
+    val visState = remember { MutableTransitionState(false) }
+    LaunchedEffect(Unit) { visState.targetState = true }
+    LaunchedEffect(exiting) { visState.targetState = !exiting }
+    AnimatedVisibility(
+        visibleState = visState,
+        enter = slideInHorizontally(animationSpec = tween(300)) { it / 3 } +
+            fadeIn(animationSpec = tween(300)),
+        exit = slideOutHorizontally(animationSpec = tween(300)) { it / 3 } +
+            fadeOut(animationSpec = tween(300))
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -294,10 +313,21 @@ fun SettingsScreen(
                             title = t.about,
                             onClick = onAbout
                         )
+                        HorizontalDivider(
+                            Modifier.padding(start = 60.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Archive,
+                            circleColor = Color(0xFF40C4FF),
+                            title = t.formatsTitle,
+                            onClick = onFormats
+                        )
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -357,6 +387,141 @@ private fun SettingsRow(
 }
 
 // ---------------------------------------------------------------------------
+// Format yang Didukung (dikembalikan 2026-11-18 atas permintaan Achmad;
+// layar ini dihapus 2026-11-11, kini dibangun ulang dengan daftar SAAT INI:
+// tarball (.tar.gz/.tgz/.tar.bz2/.tar.xz) + aliran tunggal (.gz/.bz2/.xz)
+// TIDAK dikembalikan — dihapus r1).
+// ---------------------------------------------------------------------------
+
+@Composable
+fun FormatChip(text: String, container: Color, content: Color) {
+    Surface(shape = RoundedCornerShape(8.dp), color = container) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = content,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        )
+    }
+}
+
+@Composable
+fun FormatCard(name: String, desc: String, chips: List<Triple<String, Color, Color>>) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            chips.forEach { (label, bg, fg) -> FormatChip(label, bg, fg) }
+        }
+        Text(
+            desc,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun FormatGroupHeader(icon: ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FormatsScreen(onBack: () -> Unit) {
+    val t = txt()
+    val chipCreate = Triple(t.chipCreate, Color(0xFF2E5A88), Color.White)
+    val chipExtract = Triple(
+        t.chipExtract,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val chipEncrypt = Triple(t.chipEncrypt, Color(0xFFE3C8F5), Color(0xFF3B2B4D))
+    val chipRatio = Triple(
+        t.chipHighRatio,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val chipInspect = Triple(
+        t.chipInspect,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val chipNative = Triple(t.chipNative, Color(0xFFB71C1C), Color.White)
+    val chipView = Triple(
+        t.chipView,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val chipExternal = Triple(
+        t.chipExternal,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.onSurface
+    )
+    val visState = remember { MutableTransitionState(false) }
+    LaunchedEffect(Unit) { visState.targetState = true }
+    AnimatedVisibility(
+        visibleState = visState,
+        enter = slideInHorizontally(animationSpec = tween(300)) { it / 3 } +
+            fadeIn(animationSpec = tween(300))
+    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(t.formatsTitle) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
+                    FormatCard("ZIP (.zip)", t.fmtZipDesc, listOf(chipCreate, chipExtract, chipEncrypt))
+                    FormatCard("7Z (.7z)", t.fmt7zDesc, listOf(chipExtract, chipRatio))
+                    FormatCard("TAR (.tar)", t.fmtTarDesc, listOf(chipCreate, chipExtract))
+                }
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
+                    FormatCard("RAR (.rar)", t.fmtRarDesc, listOf(chipExtract, chipEncrypt))
+                    FormatCard("APK / APKS / XAPK / AAB", t.fmtApkDesc, listOf(chipExtract, chipInspect))
+                    FormatCard("PAYLOAD.BIN", t.fmtPayloadDesc, listOf(chipExtract, chipNative))
+                }
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
+                    FormatCard("Gambar", t.fmtImageDesc, listOf(chipView))
+                    FormatCard("Video", t.fmtVideoDesc, listOf(chipView))
+                    FormatCard("Audio", t.fmtAudioDesc, listOf(chipExternal))
+                    FormatCard("Teks", t.fmtTextDesc, listOf(chipView))
+                }
+            }
+        }
+    }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Layar Tentang (halaman penuh, menggantikan dialog Tentang lama)
 // ---------------------------------------------------------------------------
 
@@ -364,6 +529,7 @@ private fun SettingsRow(
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
+    onFormats: () -> Unit,
     onOpenStorage: () -> Unit,
     onOpenSpecs: () -> Unit
 ) {
@@ -454,6 +620,15 @@ fun AboutScreen(
                     title = t.appSpecs,
                     subtitle = "Kotlin • Jetpack Compose • Material 3",
                     onClick = onOpenSpecs
+                )
+            }
+            item {
+                AboutCard(
+                    icon = Icons.Default.Archive,
+                    color = Color(0xFF40C4FF),
+                    title = t.formatsTitle,
+                    subtitle = "ZIP · TAR · 7Z · RAR · APK · payload.bin",
+                    onClick = onFormats
                 )
             }
             item {
