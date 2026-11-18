@@ -539,7 +539,7 @@ fun AboutScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 24.dp)
         ) {
             item {
@@ -595,9 +595,9 @@ fun AboutScreen(
                 }
             }
             item {
-                AboutCard(
+                SettingsRow(
                     icon = Icons.Default.Storage,
-                    color = Color(0xFF4DA3FF),
+                    circleColor = Color(0xFF4DA3FF),
                     title = t.storage,
                     subtitle = internal?.let {
                         t.storageUsedLine(FileOps.formatSize(it.total - it.free), FileOps.formatSize(it.total))
@@ -606,118 +606,84 @@ fun AboutScreen(
                 )
             }
             item {
-                AboutCard(
+                HorizontalDivider(
+                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+            }
+            item {
+                SettingsRow(
                     icon = Icons.Default.Info,
-                    color = Color(0xFFB39DDB),
+                    circleColor = Color(0xFFB39DDB),
                     title = t.appSpecs,
                     subtitle = "Kotlin • Jetpack Compose • Material 3",
                     onClick = onOpenSpecs
                 )
             }
             item {
-                AboutCard(
+                HorizontalDivider(
+                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+            }
+            item {
+                SettingsRow(
                     icon = Icons.Default.Archive,
-                    color = Color(0xFF40C4FF),
+                    circleColor = Color(0xFF40C4FF),
                     title = t.formatsTitle,
                     subtitle = "ZIP · TAR · 7Z · RAR · APK · PDF · payload.bin",
                     onClick = onFormats
                 )
             }
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                HorizontalDivider(
+                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+            }
+            item {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF7ED957).copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFF7ED957).copy(alpha = 0.16f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Person, null,
-                                tint = Color(0xFF7ED957), modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                t.developer,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                "Reffan Lintang",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        Icon(
+                            Icons.Default.Person, null,
+                            tint = Color(0xFF7ED957), modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            t.developer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Reffan Lintang",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
             item {
                 Text(
                     "© 2026 Reffan Lintang",
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().padding(top = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun AboutCard(
-    icon: ImageVector,
-    color: Color,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-    ) {
-        Row(
-            Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(color.copy(alpha = 0.16f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
-            }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Icon(
-                Icons.Default.ChevronRight, null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
