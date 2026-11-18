@@ -93,6 +93,16 @@ object FileOps {
         }
     }
 
+    /** Daftar geser penampil media: semua berkas sejenis di folder saat ini,
+     *  dalam urutan tampil, beserta indeks berkas yang dibuka. Bila berkas
+     *  tidak ada di daftar (mis. dibuka dari hasil pencarian), kembalikan
+     *  hanya dirinya sendiri. */
+    fun mediaSiblings(entries: List<FEntry>, current: FEntry): Pair<List<String>, Int> {
+        val same = entries.filter { it.category == current.category }.map { it.path }
+        val idx = same.indexOf(current.path)
+        return if (idx >= 0) same to idx else listOf(current.path) to 0
+    }
+
     fun mimeOf(file: File): String {
         val ext = extOf(file.name)
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)

@@ -164,4 +164,30 @@ class PureLogicTest {
         File(dir, "README").createNewFile()
         assertEquals("README (1)", FileOps.uniqueName(dir, "README"))
     }
+
+    // --- mediaSiblings (geser penampil foto/video) ---
+
+    private fun ent(path: String, cat: Category) =
+        FEntry(path, File(path).name, false, 0L, 0L, cat)
+
+    @Test
+    fun mediaSiblings_hanyaSejenis_danIndeksBenar() {
+        val list = listOf(
+            ent("/a/foto1.jpg", Category.IMAGE),
+            ent("/a/klip.mp4", Category.VIDEO),
+            ent("/a/foto2.png", Category.IMAGE),
+            ent("/a/foto3.jpg", Category.IMAGE)
+        )
+        val (paths, idx) = FileOps.mediaSiblings(list, list[2])
+        assertEquals(listOf("/a/foto1.jpg", "/a/foto2.png", "/a/foto3.jpg"), paths)
+        assertEquals(1, idx)
+    }
+
+    @Test
+    fun mediaSiblings_tidakDiDaftar_kembalikanDirinya() {
+        val list = listOf(ent("/a/foto1.jpg", Category.IMAGE))
+        val (paths, idx) = FileOps.mediaSiblings(list, ent("/b/foto9.jpg", Category.IMAGE))
+        assertEquals(listOf("/b/foto9.jpg"), paths)
+        assertEquals(0, idx)
+    }
 }

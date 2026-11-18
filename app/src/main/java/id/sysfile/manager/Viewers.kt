@@ -60,32 +60,57 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Penampil foto layar penuh: cubit-zoom, geser, ketuk untuk mode imersif, toolbar aksi melayang. */
+/** Penampil foto layar penuh: geser antar foto sefolder, cubit-zoom, ketuk untuk mode imersif, toolbar aksi melayang. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ImageViewerScreen(
-    path: String,
+    paths: List<String>,
+    startIndex: Int,
     onBack: () -> Unit,
-    onShare: () -> Unit,
-    onInfo: () -> Unit,
-    onDelete: () -> Unit
+    onShare: (String) -> Unit,
+    onInfo: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onPathChange: (String) -> Unit
 ) {
     val t = txt()
+    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { paths.size })
+    val currentPath = paths[pagerState.currentPage]
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
     var chrome by remember { mutableStateOf(true) }
+    // Ganti halaman: zoom direset + laporkan berkas yang sedang tampil
+    // (untuk Bagikan/Properti/Hapus + penanda hapus di MainActivity).
+    LaunchedEffect(pagerState.currentPage) {
+        scale = 1f
+        offsetX = 0f
+        offsetY = 0f
+        onPathChange(paths[pagerState.currentPage])
+    }
     Scaffold(
         topBar = {
             AnimatedVisibility(visible = chrome, enter = fadeIn(), exit = fadeOut()) {
                 TopAppBar(
-                    title = { Text(File(path).name, maxLines = 1) },
+                    title = {
+                        Column {
+                            Text(File(currentPath).name, maxLines = 1)
+                            if (paths.size > 1) {
+                                Text(
+                                    "${pagerState.currentPage + 1} / ${paths.size}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
                     }
@@ -93,36 +118,47 @@ fun ImageViewerScreen(
             }
         }
     ) { padding ->
-        Box(
-            Modifier.fillMaxSize().padding(padding).background(Color.Black)
-                .pointerInput(path) {
-                    detectTapGestures { chrome = !chrome }
-                }
-                .pointerInput(path) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(1f, 6f)
-                        if (scale > 1f) {
-                            offsetX += pan.x
-                            offsetY += pan.y
-                        } else {
-                            offsetX = 0f
-                            offsetY = 0f
+        Box(Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
+            HorizontalPager(
+                state = pagerState,
+                // Saat diperbesar, geser halaman dimatikan supaya cubit/pan
+                // milik gambar; saat skala 1, geser milik pager.
+                userScrollEnabled = scale == 1f,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val pagePath = paths[page]
+                Box(
+                    Modifier.fillMaxSize()
+                        .pointerInput(pagePath) {
+                            detectTapGestures { chrome = !chrome }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = File(pagePath),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offsetX
+                            translationY = offsetY
                         }
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            AsyncImage(
-                model = File(path),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offsetX
-                    translationY = offsetY
+                            .pointerInput(pagePath) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    scale = (scale * zoom).coerceIn(1f, 6f)
+                                    if (scale > 1f) {
+                                        offsetX += pan.x
+                                        offsetY += pan.y
+                                    } else {
+                                        offsetX = 0f
+                                        offsetY = 0f
+                                    }
+                                }
+                            }
+                    )
                 }
-            )
+            }
             AnimatedVisibility(
                 visible = chrome,
                 enter = fadeIn(),
@@ -130,9 +166,9 @@ fun ImageViewerScreen(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)
             ) {
                 HorizontalFloatingToolbar(expanded = true) {
-                    IconButton(onClick = onShare) { Icon(Icons.Default.Share, t.share) }
-                    IconButton(onClick = onInfo) { Icon(Icons.Default.Info, t.properties) }
-                    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, t.delete) }
+                    IconButton(onClick = { onShare(currentPath) }) { Icon(Icons.Default.Share, t.share) }
+                    IconButton(onClick = { onInfo(currentPath) }) { Icon(Icons.Default.Info, t.properties) }
+                    IconButton(onClick = { onDelete(currentPath) }) { Icon(Icons.Default.Delete, t.delete) }
                 }
             }
         }
@@ -259,19 +295,34 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
     }
 }
 
-/** Pemutar video bawaan: VideoView dengan kontrol media, langsung putar di dalam aplikasi. */
+/** Pemutar video bawaan: geser antar video sefolder, VideoView dengan kontrol media, langsung putar di dalam aplikasi. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VideoViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit) {
+fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit) {
     val t = txt()
-    val file = remember(path) { File(path) }
+    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { paths.size })
+    val currentPath = paths[pagerState.currentPage]
+    LaunchedEffect(pagerState.currentPage) {
+        onPathChange(paths[pagerState.currentPage])
+    }
     // Back ditangani di layar ini juga: jendela melayang MediaController bisa
     // menelan tombol Back sistem selama video diputar.
     BackHandler { onBack() }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = {
+                    Column {
+                        Text(File(currentPath).name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (paths.size > 1) {
+                            Text(
+                                "${pagerState.currentPage + 1} / ${paths.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
                 },
@@ -284,43 +335,46 @@ fun VideoViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit
         },
         containerColor = Color.Black
     ) { padding ->
-        Box(
-            Modifier.fillMaxSize().padding(padding).background(Color.Black),
-            contentAlignment = Alignment.Center
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    val videoView = android.widget.VideoView(ctx)
-                    val controller = android.widget.MediaController(ctx)
-                    // Jangkar controller HARUS VideoView-nya. Versi sebelumnya
-                    // memakai apply bersarang sehingga this@apply terikat ke
-                    // MediaController (controller menjangkar ke dirinya sendiri)
-                    // dan jendela kontrolnya bisa menelan tombol Back & sentuhan
-                    // selama video diputar - kembali baru bisa setelah video selesai.
-                    controller.setAnchorView(videoView)
-                    videoView.setMediaController(controller)
-                    videoView.setVideoURI(android.net.Uri.fromFile(file))
-                    videoView.setOnKeyListener { _, keyCode, event ->
-                        if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
-                            event.action == android.view.KeyEvent.ACTION_UP
-                        ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().padding(padding).background(Color.Black)
+        ) { page ->
+            val pagePath = paths[page]
+            key(pagePath) {
+                AndroidView(
+                    factory = { ctx ->
+                        val videoView = android.widget.VideoView(ctx)
+                        val controller = android.widget.MediaController(ctx)
+                        // Jangkar controller HARUS VideoView-nya. Versi sebelumnya
+                        // memakai apply bersarang sehingga this@apply terikat ke
+                        // MediaController (controller menjangkar ke dirinya sendiri)
+                        // dan jendela kontrolnya bisa menelan tombol Back & sentuhan
+                        // selama video diputar - kembali baru bisa setelah video selesai.
+                        controller.setAnchorView(videoView)
+                        videoView.setMediaController(controller)
+                        videoView.setVideoURI(android.net.Uri.fromFile(File(pagePath)))
+                        videoView.setOnKeyListener { _, keyCode, event ->
+                            if (keyCode == android.view.KeyEvent.KEYCODE_BACK &&
+                                event.action == android.view.KeyEvent.ACTION_UP
+                            ) {
+                                onBack()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        videoView.setOnErrorListener { _, _, _ ->
+                            notify(t.opFailed)
                             onBack()
                             true
-                        } else {
-                            false
                         }
-                    }
-                    videoView.setOnErrorListener { _, _, _ ->
-                        notify(t.opFailed)
-                        onBack()
-                        true
-                    }
-                    videoView.setOnPreparedListener { it.start() }
-                    videoView
-                },
-                onRelease = { it.stopPlayback() },
-                modifier = Modifier.fillMaxSize()
-            )
+                        videoView.setOnPreparedListener { it.start() }
+                        videoView
+                    },
+                    onRelease = { it.stopPlayback() },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }

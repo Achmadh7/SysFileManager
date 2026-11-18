@@ -153,8 +153,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** Layar tambahan yang menimpa layar utama (Beranda/peramban). */
 private sealed interface Overlay {
     data class Search(val rootPath: String) : Overlay
-    data class ImageView(val path: String) : Overlay
-    data class VideoView(val path: String) : Overlay
+    data class ImageView(val paths: List<String>, val startIndex: Int) : Overlay
+    data class VideoView(val paths: List<String>, val startIndex: Int) : Overlay
     data class TextView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
     data class ArchiveView(val path: String) : Overlay
@@ -225,6 +225,9 @@ fun SysFileApp() {
     var browseStack by remember { mutableStateOf<List<String>>(emptyList()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     var overlayReturn by remember { mutableStateOf<Overlay?>(null) }
+    // Berkas yang sedang tampil di penampil foto/video (diperbarui tiap
+    // ganti halaman) — dipakai aksi Bagikan/Properti/Hapus + penanda hapus.
+    var viewingPath by remember { mutableStateOf<String?>(null) }
     var entries by remember { mutableStateOf<List<FEntry>>(emptyList()) }
     var entryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var entriesLoaded by remember { mutableStateOf(true) }
@@ -564,8 +567,14 @@ fun SysFileApp() {
             }
         }
         when {
-            entry.category == Category.IMAGE -> overlay = Overlay.ImageView(entry.path)
-            entry.category == Category.VIDEO -> overlay = Overlay.VideoView(entry.path)
+            entry.category == Category.IMAGE -> {
+                val (paths, idx) = FileOps.mediaSiblings(entries, entry)
+                overlay = Overlay.ImageView(paths, idx)
+            }
+            entry.category == Category.VIDEO -> {
+                val (paths, idx) = FileOps.mediaSiblings(entries, entry)
+                overlay = Overlay.VideoView(paths, idx)
+            }
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
             entry.category == Category.ARCHIVE -> {
                 val kind = ArchiveOps.kindOf(f.name)
@@ -706,14 +715,22 @@ fun SysFileApp() {
             ) { ov ->
                 when (ov) {
                     is Overlay.ImageView -> ImageViewerScreen(
-                        path = ov.path,
-                        onBack = { overlay = overlayReturn; overlayReturn = null },
-                        onShare = { shareFile(File(ov.path)) },
-                        onInfo = { dialog = DialogKind.Properties(FileOps.entryOf(File(ov.path))) },
-                        onDelete = { dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(ov.path)))) }
+                        paths = ov.paths,
+                        startIndex = ov.startIndex,
+                        onBack = { overlay = overlayReturn; overlayReturn = null; viewingPath = null },
+                        onShare = { p -> shareFile(File(p)) },
+                        onInfo = { p -> dialog = DialogKind.Properties(FileOps.entryOf(File(p))) },
+                        onDelete = { p -> dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(p)))) },
+                        onPathChange = { viewingPath = it }
                     )
                     is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
-                    is Overlay.VideoView -> VideoViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
+                    is Overlay.VideoView -> VideoViewerScreen(
+                        paths = ov.paths,
+                        startIndex = ov.startIndex,
+                        onBack = { overlay = overlayReturn; overlayReturn = null; viewingPath = null },
+                        onPathChange = { viewingPath = it },
+                        notify = { notify(it) }
+                    )
                     is Overlay.Search -> SearchScreen(
                         rootPath = ov.rootPath,
                         onBack = { overlay = null; overlayReturn = null },
@@ -1351,14 +1368,11 @@ fun SysFileApp() {
                         runOp(t.movedToTrash) {
                             d.entries.all { TrashOps.moveToTrash(it.file) }
                         }
-                        val viewingPath = when (val ov = overlay) {
-                            is Overlay.ImageView -> ov.path
-                            is Overlay.VideoView -> ov.path
-                            else -> null
-                        }
-                        if (viewingPath != null && d.entries.any { it.path == viewingPath }) {
+                        val viewing = viewingPath
+                        if (viewing != null && d.entries.any { it.path == viewing }) {
                             overlay = null
                             overlayReturn = null
+                            viewingPath = null
                         }
                     }) { Text(t.delete) }
                 },
