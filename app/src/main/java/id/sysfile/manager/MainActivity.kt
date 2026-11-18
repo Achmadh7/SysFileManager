@@ -62,7 +62,6 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
@@ -841,22 +840,16 @@ fun SysFileApp() {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
                                                     Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
-                                                        // r24: logo TIDAK gradasi — solid
+                                                        // r50: logo M4 "SF" — monogram, solid
                                                         // primaryContainer (peran container resmi).
                                                         .background(MaterialTheme.colorScheme.primaryContainer),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(
-                                                        Icons.Default.Folder, null,
-                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                        modifier = Modifier.size(25.dp)
-                                                    )
                                                     Text(
-                                                        "S",
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.55f),
+                                                        "SF",
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         fontWeight = FontWeight.ExtraBold,
-                                                        fontSize = 11.sp,
-                                                        modifier = Modifier.offset(y = 3.dp)
+                                                        fontSize = 16.sp
                                                     )
                                                 }
                                                 Spacer(Modifier.width(12.dp))

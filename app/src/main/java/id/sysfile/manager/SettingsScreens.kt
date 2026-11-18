@@ -61,7 +61,6 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -155,6 +154,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
@@ -573,22 +573,19 @@ fun AboutScreen(
                     Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Ubin ikon aplikasi (sama seperti bilah atas Beranda, lebih besar).
+                    // Ubin logo M4 "SF" (sama seperti bilah atas Beranda, lebih besar).
                     Box(
                         Modifier
                             .size(84.dp)
                             .clip(RoundedCornerShape(22.dp))
-                            .background(Color(0xFF00696D)),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Folder, null,
-                            tint = Color.White, modifier = Modifier.size(50.dp)
-                        )
-                        Icon(
-                            Icons.Default.ArrowUpward, null,
-                            tint = Color(0xFF00696D),
-                            modifier = Modifier.size(26.dp).offset(y = 6.dp)
+                        Text(
+                            "SF",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 36.sp
                         )
                     }
                     Spacer(Modifier.height(16.dp))
