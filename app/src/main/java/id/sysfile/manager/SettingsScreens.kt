@@ -165,7 +165,7 @@ import java.io.File
 
 // Layar Pengaturan dan Format yang Didukung.
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
     themeMode: String,
@@ -446,7 +446,7 @@ private fun FormatGroupHeader(icon: ImageVector, title: String) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FormatsScreen(onBack: () -> Unit) {
     val t = txt()
