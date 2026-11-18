@@ -63,6 +63,7 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
@@ -930,6 +931,18 @@ fun SysFileApp() {
                                         },
                                         actions = {
                                             val isFav = favorites.contains(currentPath)
+                                            IconButton(onClick = { dialog = DialogKind.Sort }) { Icon(Icons.Default.Sort, t.sortBy) }
+                                            IconButton(onClick = { selected = entries.map { it.path }.toSet() }) { Icon(Icons.Default.DoneAll, t.selectAll) }
+                                            IconButton(onClick = {
+                                                showHidden = !showHidden
+                                                prefs.edit().putBoolean("show_hidden", showHidden).apply()
+                                            }) {
+                                                Icon(
+                                                    Icons.Default.FilterList, t.showHidden,
+                                                    tint = if (showHidden) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                             Box {
                                                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
                                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -1208,13 +1221,6 @@ fun SysFileApp() {
                                         canGoUp = currentRoot != null && animatedPath != currentRoot.path,
                                         onNewFolder = { dialog = DialogKind.NewFolder },
                                         onNewFile = { dialog = DialogKind.NewFile },
-                                        onSortClick = { dialog = DialogKind.Sort },
-                                        onSelectAll = { selected = entries.map { it.path }.toSet() },
-                                        showHidden = showHidden,
-                                        onToggleHidden = {
-                                            showHidden = !showHidden
-                                            prefs.edit().putBoolean("show_hidden", showHidden).apply()
-                                        },
                                         counts = entryCounts,
                                         lockedPaths = lockedFolders,
                                         safHasGrant = safGrantFor(animatedPath) != null,

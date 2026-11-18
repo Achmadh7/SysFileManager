@@ -68,7 +68,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
@@ -103,7 +102,6 @@ import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.SearchBar
@@ -236,10 +234,6 @@ fun BrowseScreen(
     canGoUp: Boolean,
     onNewFolder: () -> Unit,
     onNewFile: () -> Unit,
-    onSortClick: () -> Unit,
-    onSelectAll: () -> Unit,
-    showHidden: Boolean,
-    onToggleHidden: () -> Unit,
     counts: Map<String, Int>,
     lockedPaths: Set<String> = emptySet(),
     safHasGrant: Boolean = false,
@@ -320,20 +314,6 @@ fun BrowseScreen(
                                 indication = null
                             ) { fabOpen = false }
                     )
-                }
-                HorizontalFloatingToolbar(
-                    expanded = true,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
-                ) {
-                    IconButton(onClick = onSortClick) { Icon(Icons.Default.Sort, t.sortBy) }
-                    IconButton(onClick = onSelectAll) { Icon(Icons.Default.DoneAll, t.selectAll) }
-                    IconButton(onClick = onToggleHidden) {
-                        Icon(
-                            Icons.Default.FilterList, t.showHidden,
-                            tint = if (showHidden) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
                 FloatingActionButtonMenu(
                     expanded = fabOpen,
