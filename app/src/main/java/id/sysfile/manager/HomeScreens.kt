@@ -20,6 +20,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -27,10 +29,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -107,8 +111,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -357,25 +360,76 @@ fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
-/** Nav bawah resmi (K1, konversi semua 2026-11-18): NavigationBar +
- *  NavigationBarItem menggantikan PillNavBar kustom (TA1 pensiun).
- *  Indikator aktif = pil per item dengan animasi morph resmi. */
+/** Nav bawah kapsul mengambang (G1, 2026-11-18): kapsul stadium yang
+ *  lepas dari tepi layar (margin 16dp + bayangan 8dp), satu pil teal
+ *  meluncur antar tab (animateDpAsState + MotionScheme fastSpatial),
+ *  warna ikon/label memudar (fastEffects). Menggantikan NavigationBar
+ *  full-width hasil konversi r33. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val t = txt()
+    val scheme = MaterialTheme.colorScheme
+    val motion = MaterialTheme.motionScheme
     val items = listOf(
         Triple(0, Icons.Default.Home, t.home),
         Triple(1, Icons.Default.History, t.recentShort),
         Triple(2, Icons.Default.Analytics, t.analysisShort)
     )
-    NavigationBar {
-        items.forEach { (index, icon, label) ->
-            NavigationBarItem(
-                selected = homeTab == index,
-                onClick = { onSelect(index) },
-                icon = { Icon(icon, null) },
-                label = { Text(label) }
-            )
+    Box(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = scheme.surfaceContainer,
+            shadowElevation = 8.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            BoxWithConstraints(Modifier.height(68.dp)) {
+                val tabWidth = maxWidth / 3
+                val pillX by animateDpAsState(
+                    targetValue = tabWidth * homeTab + (tabWidth - 64.dp) / 2,
+                    animationSpec = motion.fastSpatialSpec(),
+                    label = "pillX"
+                )
+                // Pil meluncur (di belakang ikon tab aktif).
+                Box(
+                    Modifier.offset(x = pillX, y = 10.dp)
+                        .size(width = 64.dp, height = 32.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(scheme.primaryContainer)
+                )
+                Row(Modifier.fillMaxSize()) {
+                    items.forEach { (index, icon, label) ->
+                        val selected = homeTab == index
+                        val fg by animateColorAsState(
+                            targetValue = if (selected) scheme.onPrimaryContainer
+                            else scheme.onSurfaceVariant,
+                            animationSpec = motion.fastEffectsSpec(),
+                            label = "tabFg"
+                        )
+                        Column(
+                            Modifier.weight(1f).fillMaxHeight().clickable { onSelect(index) },
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Spacer(Modifier.height(10.dp))
+                            Box(
+                                Modifier.height(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(icon, null, tint = fg, modifier = Modifier.size(24.dp))
+                            }
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = fg,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
