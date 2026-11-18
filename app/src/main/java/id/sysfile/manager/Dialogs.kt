@@ -192,7 +192,7 @@ fun NameDialog(
 }
 
 @Composable
-fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit, dynamicColor: Boolean = false) {
+fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
     val t = txt()
     val clipboard = LocalClipboardManager.current
     var stats by remember { mutableStateOf<FileOps.FolderStats?>(null) }
@@ -220,13 +220,13 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            // Kepala PD1 "Navy Solid" (pilihan Achmad 2026-11-18): pita
-            // navy pekat #0B1526, petak ikon cyan + nama putih
-            // (maks 2 baris). Warna dinamis nyala: pita + petak mengikuti
-            // skema dinamis (primaryContainer/primary).
+            // Kepala Properti (r23, pilihan Achmad 2026-11-18): pita
+            // primaryContainer, petak ikon primary, ikon onPrimary,
+            // nama onPrimaryContainer — selalu dari skema resmi
+            // (dulu navy #0B1526 + cyan, kini disamakan dengan skema).
             Box(
                 Modifier.clip(RoundedCornerShape(16.dp)).background(
-                    if (dynamicColor) MaterialTheme.colorScheme.primaryContainer else Color(0xFF0B1526)
+                    MaterialTheme.colorScheme.primaryContainer
                 )
             ) {
                 Row(
@@ -235,21 +235,21 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                 ) {
                     Box(
                         Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(
-                            if (dynamicColor) MaterialTheme.colorScheme.primary else Color(0xFF40C4FF)
+                            MaterialTheme.colorScheme.primary
                         ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
                             null,
-                            tint = if (dynamicColor) MaterialTheme.colorScheme.onPrimary else Color(0xFF0B1526),
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
                         entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }

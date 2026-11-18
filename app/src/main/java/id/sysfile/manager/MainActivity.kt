@@ -848,30 +848,25 @@ fun SysFileApp() {
                                                 Box(
                                                     Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
                                                         .background(
-                                                            if (dynamicColor) {
-                                                                Brush.verticalGradient(
-                                                                    listOf(
-                                                                        MaterialTheme.colorScheme.primaryContainer,
-                                                                        MaterialTheme.colorScheme.primary
-                                                                    )
+                                                            // r23: gradasi selalu dari skema resmi
+                                                            // (primaryContainer -> primary).
+                                                            Brush.verticalGradient(
+                                                                listOf(
+                                                                    MaterialTheme.colorScheme.primaryContainer,
+                                                                    MaterialTheme.colorScheme.primary
                                                                 )
-                                                            } else {
-                                                                // UX2 Kaca Penuh (2026-11-18): gradasi
-                                                                // cyan -> ungu (cabang dinamis tidak
-                                                                // diubah — tetap ikut skema dinamis).
-                                                                Brush.verticalGradient(listOf(Color(0xFF40C4FF), Color(0xFFA78BFA)))
-                                                            }
+                                                            )
                                                         ),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(
                                                         Icons.Default.Folder, null,
-                                                        tint = if (dynamicColor) MaterialTheme.colorScheme.onPrimary else Color.White,
+                                                        tint = MaterialTheme.colorScheme.onPrimary,
                                                         modifier = Modifier.size(25.dp)
                                                     )
                                                     Text(
                                                         "S",
-                                                        color = if (dynamicColor) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f) else Color(0xFF0B1526),
+                                                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.55f),
                                                         fontWeight = FontWeight.ExtraBold,
                                                         fontSize = 11.sp,
                                                         modifier = Modifier.offset(y = 3.dp)
@@ -1463,7 +1458,7 @@ fun SysFileApp() {
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
             )
-            is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) }, dynamicColor = dynamicColor)
+            is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) })
             is DialogKind.Sort -> SortDialog(
                 sortKey = sortKey, ascending = sortAsc,
                 onDismiss = { dialog = null },
