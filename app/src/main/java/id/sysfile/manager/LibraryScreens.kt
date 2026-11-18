@@ -278,7 +278,7 @@ fun CategoryScreen(
     showHidden: Boolean,
     accessGranted: Boolean,
     onBack: () -> Unit,
-    onOpenEntry: (FEntry) -> Unit
+    onOpenEntry: (FEntry, List<FEntry>) -> Unit
 ) {
     val t = txt()
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -359,7 +359,7 @@ fun CategoryScreen(
                                 selectionMode = false,
                                 isSelected = false,
                                 itemCount = null,
-                                onClick = { onOpenEntry(entry) },
+                                onClick = { onOpenEntry(entry, loaded.orEmpty()) },
                                 onLongClick = {}
                             )
                         }

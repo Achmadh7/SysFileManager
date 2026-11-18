@@ -542,7 +542,7 @@ fun SysFileApp() {
         }
     }
 
-    fun openEntry(entry: FEntry) {
+    fun openEntry(entry: FEntry, siblings: List<FEntry>? = null) {
         if (entry.isDir) {
             openFolderGuarded(entry.path) { browseStack = browseStack + entry.path }
             return
@@ -583,11 +583,11 @@ fun SysFileApp() {
         }
         when {
             entry.category == Category.IMAGE -> {
-                val (paths, idx) = FileOps.mediaSiblings(entries, entry)
+                val (paths, idx) = FileOps.mediaSiblings(siblings ?: entries, entry)
                 overlay = Overlay.ImageView(paths, idx)
             }
             entry.category == Category.VIDEO -> {
-                val (paths, idx) = FileOps.mediaSiblings(entries, entry)
+                val (paths, idx) = FileOps.mediaSiblings(siblings ?: entries, entry)
                 overlay = Overlay.VideoView(paths, idx)
             }
             FileOps.extOf(f.name) == "pdf" -> overlay = Overlay.PdfView(entry.path)
@@ -788,9 +788,9 @@ fun SysFileApp() {
                         showHidden = showHidden,
                         accessGranted = accessGranted,
                         onBack = { overlay = null; overlayReturn = null },
-                        onOpenEntry = { entry ->
+                        onOpenEntry = { entry, siblings ->
                             val before = overlay
-                            openEntry(entry)
+                            openEntry(entry, siblings)
                             overlayReturn = if (overlay !== before) ov else null
                         }
                     )
@@ -1139,7 +1139,7 @@ fun SysFileApp() {
                                                         if (entry.isDir) {
                                                             openFolderGuarded(entry.path) { browseStack = listOf(entry.path) }
                                                         } else {
-                                                            openEntry(entry)
+                                                            openEntry(entry, recentFiles)
                                                         }
                                                     },
                                                     onOpenFolder = { path ->
