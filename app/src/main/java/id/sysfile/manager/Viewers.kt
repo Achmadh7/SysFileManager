@@ -373,7 +373,7 @@ class ViewerMediaController(context: android.content.Context) :
  *  thread, skala maks 2x, sisi terpanjang maks 2048px). PDF terenkripsi /
  *  rusak tidak bisa dibuka PdfRenderer — tampil pesan gagal + tombol buka
  *  dengan aplikasi lain. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit) {
     val t = txt()
