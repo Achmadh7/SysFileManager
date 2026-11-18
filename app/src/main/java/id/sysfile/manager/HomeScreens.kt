@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -401,7 +402,7 @@ fun PillNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
         shadowElevation = 6.dp
     ) {
-        Box(Modifier.padding(6.dp)) {
+        Box(Modifier.padding(6.dp).height(IntrinsicSize.Min)) {
             // Satu pil bersama di belakang baris item — digambar hanya sesudah
             // item aktif terukur (bingkai pertama tanpa animasi dari 0).
             if (activeRect != null) {
