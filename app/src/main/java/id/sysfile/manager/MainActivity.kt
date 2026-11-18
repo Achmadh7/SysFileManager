@@ -927,17 +927,17 @@ fun SysFileApp() {
                                                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
                                                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                                     DropdownMenuItem(
+                                                        text = { Text(t.home) },
+                                                        leadingIcon = { Icon(Icons.Default.Home, null) },
+                                                        onClick = { menuOpen = false; browseStack = emptyList() }
+                                                    )
+                                                    DropdownMenuItem(
                                                         text = { Text(t.selectAll) },
                                                         leadingIcon = { Icon(Icons.Default.DoneAll, null) },
                                                         onClick = {
                                                             menuOpen = false
                                                             selected = entries.map { it.path }.toSet()
                                                         }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = { Text(t.home) },
-                                                        leadingIcon = { Icon(Icons.Default.Home, null) },
-                                                        onClick = { menuOpen = false; browseStack = emptyList() }
                                                     )
                                                     if (clipboard != null) {
                                                         DropdownMenuItem(
