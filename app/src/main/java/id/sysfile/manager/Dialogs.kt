@@ -294,7 +294,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                 } else {
                     // PD1 "Navy Solid" (pilihan Achmad 2026-11-18): kartu
                     // tanpa border; kartu 1 info berkas, kartu 2 izin & kepemilikan.
-                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                         Column {
                             PropGroupRow(
                                 t.propParent,
@@ -332,7 +332,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     }
                     if (stat != null) {
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                             Column {
                                 Row(
                                     Modifier.padding(start = 20.dp, top = 16.dp, bottom = 2.dp),
@@ -372,7 +372,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         // Isi tombol LAGI: jalur lengkap (dengan salin) +
                         // rincian stat lanjutan bila tersedia.
                         Spacer(Modifier.height(12.dp))
-                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                             Column {
                                 PropGroupRow(t.propPath, ellipsizeMiddle(entry.path)) {
                                     IconButton(onClick = {

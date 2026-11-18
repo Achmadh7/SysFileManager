@@ -205,9 +205,8 @@ fun HomeScreen(
                     roots.forEach { root ->
                         if (root.kind != "internal" && root.total > 0) {
                             Row(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f))
-                                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .clickable { onOpenRoot(root.path) }
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -301,9 +300,8 @@ fun HomeScreen(
                             val color = categoryColor(cat)
                             Row(
                                 Modifier.weight(1f).height(76.dp)
-                                    .clip(RoundedCornerShape(28.dp))
-                                    .background(color.copy(alpha = 0.15f))
-                                    .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(28.dp))
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -328,9 +326,8 @@ fun HomeScreen(
                             val trashColor = Color(0xFFEF5350)
                             Row(
                                 Modifier.weight(1f).height(76.dp)
-                                    .clip(RoundedCornerShape(28.dp))
-                                    .background(trashColor.copy(alpha = 0.15f))
-                                    .border(1.dp, trashColor.copy(alpha = 0.35f), RoundedCornerShape(28.dp))
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically

@@ -23,7 +23,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -213,9 +212,8 @@ fun SettingsScreen(
             item { SettingsSectionLabel(t.tampilanSection) }
             item {
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
                 ) {
                     Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -265,9 +263,8 @@ fun SettingsScreen(
             item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
             item {
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
                 ) {
                     Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -293,9 +290,8 @@ fun SettingsScreen(
             item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
             item {
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
                 ) {
                     Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -409,9 +405,9 @@ fun FormatChip(text: String, container: Color, content: Color) {
 @Composable
 fun FormatCard(name: String, desc: String, chips: List<Triple<String, Color, Color>>) {
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -642,10 +638,10 @@ fun AboutScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    color = MaterialTheme.colorScheme.secondaryContainer
                 ) {
                     Row(
-                        Modifier.padding(16.dp),
+                        Modifier.padding(20.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
@@ -700,11 +696,11 @@ private fun AboutCard(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.secondaryContainer,
         onClick = onClick
     ) {
         Row(
-            Modifier.padding(16.dp),
+            Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -813,9 +809,9 @@ private fun SpecGroup(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+        color = MaterialTheme.colorScheme.secondaryContainer
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier

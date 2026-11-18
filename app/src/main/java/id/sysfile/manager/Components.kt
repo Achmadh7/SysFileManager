@@ -80,9 +80,11 @@ fun SectionCard(
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        shape = RoundedCornerShape(28.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        ),
+        shape = RoundedCornerShape(24.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -418,9 +420,8 @@ fun StorageCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(scheme.surfaceContainer.copy(alpha = 0.55f))
-            .border(1.dp, scheme.onSurface.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            .background(scheme.secondaryContainer)
             .clickable { onClick() }
     ) {
         Column {

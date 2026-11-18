@@ -196,8 +196,8 @@ fun RecentScreen(
         items(groups, key = { it.first }) { (parentPath, items) ->
             val root = roots.firstOrNull { it.path == parentPath }
             val parentName = root?.let { rootLabel(it, t) } ?: File(parentPath).name
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                Column(Modifier.padding(20.dp)) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                             .clickable { onOpenFolder(parentPath) }
@@ -1035,11 +1035,11 @@ fun AnalysisScreen(
                         }
                         if (res == null) {
                             Surface(
-                                shape = RoundedCornerShape(22.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer
                             ) {
                                 Row(
-                                    Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                    Modifier.padding(20.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     LoadingIndicator(Modifier.size(30.dp))
@@ -1060,8 +1060,8 @@ fun AnalysisScreen(
                             val maxCat = (res.byCategory.values.maxOrNull() ?: 1).coerceAtLeast(1)
                             res.byCategory.entries.sortedByDescending { it.value }.forEach { (cat, size) ->
                                 Surface(
-                                    shape = RoundedCornerShape(22.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer
                                 ) {
                                     Row(
                                         Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1115,8 +1115,8 @@ fun AnalysisScreen(
                                 val shownLargest = if (expandedLargest.contains(root.path)) res.largest else res.largest.take(5)
                                 shownLargest.forEach { entry ->
                                     Surface(
-                                        shape = RoundedCornerShape(22.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                        shape = RoundedCornerShape(24.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth()

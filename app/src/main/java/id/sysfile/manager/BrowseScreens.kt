@@ -500,9 +500,9 @@ fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh
+            color = MaterialTheme.colorScheme.secondaryContainer
         ) {
-            Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
