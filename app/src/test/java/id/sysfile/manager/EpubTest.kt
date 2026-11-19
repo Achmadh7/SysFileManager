@@ -24,12 +24,13 @@ class EpubTest {
         withContainer: Boolean = true,
         spine: List<String> = listOf("ch1.xhtml", "ch2.xhtml")
     ) {
-        val opfItems = spine.joinToString("\n") { href ->
-            val id = href.substringBefore('.')
-            "    <item id=\"$id\" href=\"$href\" media-type=\"application/xhtml+xml\"/>"
-        }
-        val opfSpine = spine.joinToString("\n") { href ->
-            "    <itemref idref=\"${href.substringBefore('.')}\"/>"
+        // Id berbasis indeks: substringBefore('.') menghasilkan id KOSONG
+        // untuk href yang diawali '.' (mis. "../../evil.xhtml").
+        val opfItems = spine.mapIndexed { idx, href ->
+            "    <item id=\"item$idx\" href=\"$href\" media-type=\"application/xhtml+xml\"/>"
+        }.joinToString("\n")
+        val opfSpine = spine.indices.joinToString("\n") { idx ->
+            "    <itemref idref=\"item$idx\"/>"
         }
         val ncxItem = if (withNcx) {
             "    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\"/>"
@@ -54,6 +55,10 @@ class EpubTest {
             "<dc:title>Buku Tes</dc:title></metadata><manifest>\n$opfItems\n$ncxItem\n</manifest>" +
             "<spine toc=\"ncx\">\n$opfSpine\n</spine></package>"
         for (href in spine) {
+            // Href jahat ("..") hanya ada di teks OPF, bukan sebagai berkas
+            // di ZIP — kalau ikut jadi entri, penjaga zip-slip unzip menolak
+            // seluruh ekstraksi dan open() mengembalikan null.
+            if (".." in href) continue
             entries += "OEBPS/$href" to
                 "<?xml version=\"1.0\"?><html xmlns=\"http://www.w3.org/1999/xhtml\">" +
                 "<head><title>$href</title></head><body><p>Isi $href</p></body></html>"

@@ -675,6 +675,12 @@ object FileOps {
                 var entry = zis.nextEntry
                 while (entry != null) {
                     if (!budget.allowEntry()) { ok = false; break }
+                    // Nama entri absolut bukan path relatif yang valid — tolak.
+                    // (File(dest, "/abs/...") diam-diam merelatifkannya ke dalam
+                    // dest, jadi penjaga isPathInside tidak melihatnya lolos.)
+                    if (entry.name.startsWith("/") || entry.name.startsWith("\\")
+                        || (entry.name.length >= 2 && entry.name[1] == ':')
+                    ) { ok = false; break }
                     val outFile = File(destDir, entry.name)
                     if (!isPathInside(destCanonical, outFile.canonicalPath)) { ok = false; break }
                     if (entry.isDirectory) {

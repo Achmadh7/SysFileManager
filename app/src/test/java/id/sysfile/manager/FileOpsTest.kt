@@ -76,15 +76,33 @@ class FileOpsTest {
     }
 
     @Test
-    fun moveInto_failingChildKeepsSource() {
+    fun moveInto_brokenSymlinkMovesViaRename() {
+        // renameTo (jalur cepat moveInto) memindahkan folder utuh termasuk
+        // tautan rusak — rename tidak membaca target tautan, jadi tidak gagal.
         val src = tmp.newFolder("mvbad")
         File(src, "ok.txt").writeText("ok")
         Files.createSymbolicLink(File(src, "badlink").toPath(), File(src, "tidak-ada").toPath())
         val dest = tmp.newFolder("mvbdest")
+        assertEquals(1, FileOps.moveInto(listOf(src), dest))
+        assertFalse(src.exists())
+        val moved = File(dest, "mvbad")
+        assertTrue(moved.exists())
+        assertEquals("ok", File(moved, "ok.txt").readText())
+        assertTrue(Files.isSymbolicLink(File(moved, "badlink").toPath()))
+    }
+
+    @Test
+    fun moveInto_copyFailureKeepsSource() {
+        // destDir yang tidak ada membuat renameTo gagal -> jalur salin
+        // berjalan -> tautan rusak menggagalkan salinan (B1 untuk moveInto).
+        val src = tmp.newFolder("mvbad2")
+        File(src, "ok.txt").writeText("ok")
+        Files.createSymbolicLink(File(src, "badlink").toPath(), File(src, "tidak-ada").toPath())
+        val dest = File(tmp.root, "tidak-ada-dest") // sengaja tidak dibuat
         assertEquals(0, FileOps.moveInto(listOf(src), dest))
         assertTrue(src.exists())
         assertTrue(File(src, "ok.txt").exists()) // sumber TIDAK dihapus (B1)
-        assertFalse(File(dest, "mvbad").exists()) // dest parsial dibersihkan
+        assertFalse(File(dest, "mvbad2").exists()) // dest parsial dibersihkan
     }
 
     @Test
