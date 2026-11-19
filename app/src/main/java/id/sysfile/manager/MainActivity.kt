@@ -820,6 +820,9 @@ fun SysFileApp() {
                 onBack = { if (!settingsExiting) settingsExiting = true }
             )
         } else {
+            // r88: Box pembungkus supaya pill audio bisa melayang
+            // di atas layar overlay (kategori/arsip/viewer).
+            Box(Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = overlay,
                 transitionSpec = {
@@ -1312,6 +1315,26 @@ fun SysFileApp() {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+                // r88: pill audio di layar overlay — Scaffold +
+                // bottomBar hanya ada saat overlay == null, jadi
+                // tanpa ini audio dari kategori Audio tidak pernah
+                // memunculkan pill. Aturan r82 tetap: hanya di layar
+                // asal audio dimulai.
+                if (overlay != null && audioOrigin == currentScreenId()) {
+                    audioPath?.let { path ->
+                        Box(Modifier.align(Alignment.BottomCenter)) {
+                            MiniPlayerBar(
+                                name = File(path).name,
+                                positionMs = audioPositionMs,
+                                durationMs = audioDurationMs,
+                                playing = audioPlaying,
+                                onToggle = { toggleAudio() },
+                                onClose = { stopAudio() }
+                            )
                         }
                     }
                 }
