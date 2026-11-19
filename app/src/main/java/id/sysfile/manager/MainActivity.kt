@@ -994,6 +994,7 @@ fun SysFileApp() {
                                         currentPath = currentPath,
                                         currentRoot = currentRoot,
                                         gridView = gridView,
+                                        onNavigate = { browseStack = it },
                                         onSearch = { overlay = Overlay.Search(currentPath) },
                                         onSortClick = { dialog = DialogKind.Sort },
                                         onToggleView = {

@@ -26,6 +26,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -156,7 +158,7 @@ import java.io.File
 
 // Layar penjelajah berkas: breadcrumb, daftar/grid, bilah pilihan dan papan klip.
 
-/** Kepala jelajah: bar pencarian menyatu (urut + tampilan di ujungnya) dan baris jalur teks. */
+/** Kepala jelajah: bar pencarian menyatu (urut + tampilan di ujungnya) dan baris jalur berupa pil yang bisa diketuk (KS2 r69). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BrowseHeaderBar(
@@ -165,14 +167,24 @@ fun BrowseHeaderBar(
     gridView: Boolean,
     onSearch: () -> Unit,
     onSortClick: () -> Unit,
-    onToggleView: () -> Unit
+    onToggleView: () -> Unit,
+    onNavigate: (List<String>) -> Unit
 ) {
     val t = txt()
     val rootPath = currentRoot?.path ?: currentPath
     val relative = currentPath.removePrefix(rootPath).trim('/')
     val segments = if (relative.isEmpty()) emptyList() else relative.split('/')
-    val pathText = (listOf(currentRoot?.let { rootLabel(it, t) } ?: rootPath) + segments)
-        .joinToString(" \u203a ")
+    // KS2 (r69): jalur jadi pil — tumpukan dibangun ulang dari root ke
+    // tiap segmen, jadi ketuk pil = lompat ke folder itu.
+    val ancestorPaths = buildList {
+        add(rootPath)
+        var acc = rootPath
+        for (seg in segments) {
+            acc = if (acc.endsWith("/")) acc + seg else "$acc/$seg"
+            add(acc)
+        }
+    }
+    val labels = listOf(currentRoot?.let { rootLabel(it, t) } ?: rootPath) + segments
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
         SearchBar(
             inputField = {
@@ -209,13 +221,39 @@ fun BrowseHeaderBar(
                 icon = { Icon(Icons.Default.Sort, null) }
             )
         }
-        Text(
-            pathText,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-        )
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            labels.forEachIndexed { index, label ->
+                val active = index == labels.lastIndex
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (active) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    onClick = { onNavigate(ancestorPaths.take(index + 1)) },
+                    enabled = !active
+                ) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (active) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+                if (index < labels.lastIndex) {
+                    Text(
+                        " \u203a ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 
