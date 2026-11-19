@@ -396,9 +396,9 @@ fun storageStatus(freeFraction: Float): Pair<String, Color> {
 
 /** Kartu penyimpanan (D1 Solid Murni, r37 — rombak total tanpa kaca):
  *  kartu solid secondaryContainer; baris kepala berisi ikon + label volume dan
- *  chip status berwarna mengikuti kesehatan penyimpanan; angka terpakai
- *  besar dengan detail total di bawahnya; dasar kartu berisi bilah progres
- *  wavy resmi (bukan lagi gelombang cyan transparan) + baris persen.
+ *  chip status berwarna mengikuti kesehatan penyimpanan; persen besar
+ *  (headlineLarge, HE1 r68) dengan rincian ukuran + total di bawahnya;
+ *  dasar kartu berisi bilah progres wavy resmi (baris persen dihapus).
  *  Tanda tangan sama seperti kartu sebelumnya agar pemanggil tidak
  *  berubah (ditambah usedFraction sebelum onClick). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -483,27 +483,24 @@ fun StorageCardContent(
                     }
                 }
                 Text(
-                    usedText + " " + usedWord,
-                    style = MaterialTheme.typography.headlineSmall,
+                    percentText,
+                    style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold
-                )
-                Text(detailText, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
-            }
-            Column(
-                Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                LinearWavyProgressIndicator(
-                    progress = { usedFraction.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = scheme.primary,
-                    trackColor = scheme.surfaceContainerHighest
                 )
                 Text(
-                    percentText + " " + usedWord,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    usedText + " " + usedWord + " \u00b7 " + detailText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+            LinearWavyProgressIndicator(
+                progress = { usedFraction.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
+                color = scheme.primary,
+                trackColor = scheme.surfaceContainerHighest
+            )
         }
 }
