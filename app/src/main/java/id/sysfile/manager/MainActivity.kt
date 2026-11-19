@@ -1407,7 +1407,6 @@ fun SysFileApp() {
                                                     onOpenRoot = { browseStack = listOf(it) },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
                                                     onOpenTrash = { showTrash = true },
-                    onOpenUsbSaf = { safLauncher.launch(null) }
                                                 )
                                             }
                                         }
