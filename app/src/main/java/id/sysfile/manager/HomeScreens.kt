@@ -285,12 +285,14 @@ fun HomeScreen(
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(t.categories, style = MaterialTheme.typography.titleMedium)
                 }
+                // KG1 (r114): ubin rapat — 64dp, lingkaran 32dp +
+                // ikon 18dp, sudut 16dp, jarak antar ubin 8dp.
                 val cats = listOf(
                     Category.IMAGE to t.catImagesS,
                     Category.VIDEO to t.catVideosS,
@@ -303,24 +305,24 @@ fun HomeScreen(
                 cats.chunked(3).forEach { rowCats ->
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         rowCats.forEach { (cat, label) ->
                             val color = MaterialTheme.colorScheme.primary
                             Column(
-                                Modifier.weight(1f).height(84.dp)
-                                    .clip(RoundedCornerShape(28.dp))
+                                Modifier.weight(1f).height(64.dp)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(color.copy(alpha = 0.16f))
                                     .clickable { onOpenCategory(cat) }
-                                    .padding(vertical = 8.dp),
+                                    .padding(vertical = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
                             ) {
                                 Box(
-                                    Modifier.size(40.dp).clip(CircleShape).background(color),
+                                    Modifier.size(32.dp).clip(CircleShape).background(color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                                 }
                                 Text(
                                     label,
@@ -334,19 +336,19 @@ fun HomeScreen(
                         if (rowCats.size == 1) {
                             val trashColor = Color(0xFFEF5350)
                             Column(
-                                Modifier.weight(1f).height(84.dp)
-                                    .clip(RoundedCornerShape(28.dp))
+                                Modifier.weight(1f).height(64.dp)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(trashColor.copy(alpha = 0.16f))
                                     .clickable { onOpenTrash() }
-                                    .padding(vertical = 8.dp),
+                                    .padding(vertical = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
                             ) {
                                 Box(
-                                    Modifier.size(40.dp).clip(CircleShape).background(trashColor),
+                                    Modifier.size(32.dp).clip(CircleShape).background(trashColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(18.dp))
                                 }
                                 Text(
                                     t.trash,
