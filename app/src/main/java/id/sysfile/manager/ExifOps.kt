@@ -17,8 +17,6 @@ object ExifOps {
         val dateTaken: String?,
         val dimensions: String?,
         val size: String?,
-        val iso: String?,
-        val aperture: String?,
         val focalLength: String?,
         val exposure: String?,
         val location: String?
@@ -26,8 +24,8 @@ object ExifOps {
         /** True bila ada SATU saja data EXIF asli (ukuran tidak dihitung:
          *  ukuran selalu ada untuk berkas apa pun). */
         fun hasExif(): Boolean = camera != null || dateTaken != null ||
-            dimensions != null || iso != null || aperture != null ||
-            focalLength != null || exposure != null || location != null
+            dimensions != null || focalLength != null ||
+            exposure != null || location != null
     }
 
     /** "18/10" -> 1.8; "100" -> 100.0; null/rusak/"0/0" -> null. Murni. */
@@ -48,12 +46,6 @@ object ExifOps {
         val s = String.format(locale, "%.1f", value)
         val sep = if (locale.language == "id") ",0" else ".0"
         return if (s.endsWith(sep)) s.dropLast(2) else s
-    }
-
-    /** 1.8 -> "f/1,8" (ID) / "f/1.8" (EN). Murni. */
-    fun formatAperture(value: Double?, locale: Locale): String? {
-        if (value == null || value <= 0) return null
-        return "f/" + formatDecimal1(value, locale)
     }
 
     /** 4.7 -> "4,7 mm" (ID) / "4.7 mm" (EN). Murni. */
@@ -110,12 +102,6 @@ object ExifOps {
                     .takeIf { it > 0 }
             val dimensions = if (w != null && h != null) "$w \u00d7 $h" else null
             val size = if (file.isFile) FileOps.formatSize(file.length()) else null
-            val iso = exif.getAttributeInt(ExifInterface.TAG_ISO_SPEED_RATINGS, 0)
-                .takeIf { it > 0 }?.toString()
-            val aperture = formatAperture(
-                parseRational(exif.getAttribute(ExifInterface.TAG_F_NUMBER)),
-                appLocale()
-            )
             val focalLength = formatFocalLength(
                 parseRational(exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)),
                 appLocale()
@@ -131,8 +117,8 @@ object ExifOps {
                 null
             }
             val info = ExifInfo(
-                camera, dateTaken, dimensions, size, iso,
-                aperture, focalLength, exposure, location
+                camera, dateTaken, dimensions, size,
+                focalLength, exposure, location
             )
             if (info.hasExif()) info else null
         } catch (e: Exception) {

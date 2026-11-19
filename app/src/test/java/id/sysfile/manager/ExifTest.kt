@@ -39,15 +39,6 @@ class ExifTest {
     }
 
     @Test
-    fun formatAperture_localeDecimal() {
-        assertEquals("f/1,8", ExifOps.formatAperture(1.8, id))
-        assertEquals("f/1.8", ExifOps.formatAperture(1.8, us))
-        assertEquals("f/2", ExifOps.formatAperture(2.0, id))
-        assertNull(ExifOps.formatAperture(null, id))
-        assertNull(ExifOps.formatAperture(0.0, id))
-    }
-
-    @Test
     fun formatFocalLength_localeDecimal() {
         assertEquals("4,7 mm", ExifOps.formatFocalLength(4.7, id))
         assertEquals("50 mm", ExifOps.formatFocalLength(50.0, us))
@@ -84,15 +75,15 @@ class ExifTest {
     @Test
     fun hasExif_sizeAloneDoesNotCount() {
         assertFalse(
-            ExifOps.ExifInfo(null, null, null, "3,2 MB", null, null, null, null, null)
+            ExifOps.ExifInfo(null, null, null, "3,2 MB", null, null, null)
                 .hasExif()
         )
         assertTrue(
-            ExifOps.ExifInfo("POCO F5", null, null, "3,2 MB", null, null, null, null, null)
+            ExifOps.ExifInfo("POCO F5", null, null, "3,2 MB", null, null, null)
                 .hasExif()
         )
         assertTrue(
-            ExifOps.ExifInfo(null, null, "4032 \u00d7 3024", null, null, null, null, null, null)
+            ExifOps.ExifInfo(null, null, "4032 \u00d7 3024", null, null, null, null)
                 .hasExif()
         )
     }
