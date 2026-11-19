@@ -244,6 +244,9 @@ fun SysFileApp() {
 
     var accessGranted by remember { mutableStateOf(context.hasFileAccess()) }
     var showAccessDialog by remember { mutableStateOf(false) }
+    // WB4 Layar sambutan (r113, pilihannya): tampil sekali sampai
+    // selesai/dilewati; dialog izin lama baru muncul di buka berikutnya.
+    var welcomeDone by remember { mutableStateOf(prefs.getBoolean("welcome_done", false)) }
     var roots by remember { mutableStateOf<List<RootInfo>>(emptyList()) }
     val rootFs = remember { FileOps.rootFilesystem() }
     var rootActive by remember { mutableStateOf(false) }
@@ -484,9 +487,10 @@ fun SysFileApp() {
 
     // Dialog izin penyimpanan saat buka app (r6): muncul tiap buka app
     // selama izin belum diberikan; "Nanti" menutupnya dan dialog muncul
-    // lagi di buka berikutnya.
+    // lagi di buka berikutnya. r113: tidak muncul di buka pertama —
+    // layar sambutan WB4 yang meminta izin di sana.
     LaunchedEffect(Unit) {
-        if (!accessGranted) showAccessDialog = true
+        if (!accessGranted && welcomeDone) showAccessDialog = true
     }
     // Pulang dari halaman Pengaturan sistem dengan izin diberikan:
     // tutup dialog bila masih tampil.
@@ -888,6 +892,17 @@ fun SysFileApp() {
                 onAbout = { showAbout = true },
                 exiting = settingsExiting,
                 onBack = { if (!settingsExiting) settingsExiting = true }
+            )
+        } else if (!welcomeDone) {
+            // WB4 Layar sambutan (r113, pilihannya): pager 2 halaman —
+            // perkenalan, lalu izin. Selesai/dilewati = pref welcome_done.
+            WelcomeScreen(
+                accessGranted = accessGranted,
+                onRequestAccess = { requestAccess() },
+                onFinish = {
+                    prefs.edit().putBoolean("welcome_done", true).apply()
+                    welcomeDone = true
+                }
             )
         } else {
             // r88: Box pembungkus supaya pill audio bisa melayang
