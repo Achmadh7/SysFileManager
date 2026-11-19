@@ -69,6 +69,10 @@ object FileOps {
     /** Nama folder Tempat Sampah di akar penyimpanan internal; selalu dikecualikan dari pemindaian. */
     const val TRASH_DIR_NAME = ".SysFileTrash"
 
+    /** Batas ekstraksi arsip (zip-bomb): jumlah entri dan total byte hasil ekstrak. */
+    const val MAX_ARCHIVE_ENTRIES = 10_000
+    const val MAX_EXTRACT_BYTES = 2L * 1024L * 1024L * 1024L // 2 GiB
+
     private val IMAGE_EXT = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "svg", "avif")
     private val VIDEO_EXT = setOf("mp4", "mkv", "avi", "mov", "webm", "3gp", "m4v", "wmv", "ts")
     private val AUDIO_EXT = setOf("mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "amr", "mid", "midi")
@@ -199,15 +203,6 @@ object FileOps {
         return roots
     }
 
-    /** Ukuran rekursif sebuah file/folder. */
-    fun sizeOf(file: File): Long {
-        if (!file.exists()) return 0L
-        if (file.isFile) return file.length()
-        var total = 0L
-        file.walkTopDown().forEach { if (it.isFile) total += it.length() }
-        return total
-    }
-
     /** Statistik isi folder untuk Properti lengkap: total ukuran, jumlah berkas dan
      *  subfolder (rekursif), serta berkas terbesar di dalamnya. */
     data class FolderStats(
@@ -245,6 +240,15 @@ object FileOps {
         return FolderStats(total, files, dirs, largestName, largestSize)
     }
 
+    /** True bila [outCanonical] berada di dalam [destCanonical] (atau sama dengannya).
+     *  Batas separator wajib: tanpa itu, ".../out2" lolos karena berawalan ".../out"
+     *  (zip-slip). Akar "/" sudah berakhiran separator, jadi tidak digandakan. */
+    internal fun isPathInside(destCanonical: String, outCanonical: String): Boolean {
+        if (outCanonical == destCanonical) return true
+        val base = if (destCanonical.endsWith(File.separator)) destCanonical else destCanonical + File.separator
+        return outCanonical.startsWith(base)
+    }
+
     /** Nama unik di dalam folder tujuan: "nama (1).ext", "nama (2).ext", dst. */
     fun uniqueName(dir: File, name: String): String {
         if (!File(dir, name).exists()) return name
@@ -261,35 +265,52 @@ object FileOps {
 
     private fun copyOne(src: File, destDir: File): Boolean {
         val dest = File(destDir, uniqueName(destDir, src.name))
-        return try {
-            if (src.isDirectory) {
-                if (!dest.mkdirs()) return false
-                src.listFiles()?.forEach { child ->
-                    val childDest = File(dest, child.name)
-                    copyRaw(child, childDest)
+        var ok = false
+        try {
+            ok = if (src.isDirectory) {
+                if (!dest.mkdirs() && !dest.isDirectory) {
+                    false
+                } else {
+                    val children = src.listFiles()
+                    if (children == null) {
+                        false
+                    } else {
+                        var allOk = true
+                        for (child in children) {
+                            if (!copyRaw(child, File(dest, child.name))) { allOk = false; break }
+                        }
+                        allOk
+                    }
                 }
-                true
             } else {
                 copyRaw(src, dest)
             }
         } catch (e: Exception) {
-            false
+            ok = false
         }
+        // Gagal di tengah: dest (nama unik, baru dibuat) dibersihkan supaya
+        // tidak tertinggal salinan parsial; sumber tetap utuh di tangan pemanggil.
+        if (!ok) deleteRecursively(dest)
+        return ok
     }
 
     private fun copyRaw(src: File, dest: File): Boolean {
         return try {
             if (src.isDirectory) {
-                dest.mkdirs()
-                src.listFiles()?.forEach { copyRaw(it, File(dest, it.name)) }
+                if (!dest.mkdirs() && !dest.isDirectory) return false
+                val children = src.listFiles() ?: return false
+                for (child in children) {
+                    if (!copyRaw(child, File(dest, child.name))) return false
+                }
+                true
             } else {
                 dest.parentFile?.mkdirs()
                 FileInputStream(src).use { input ->
                     FileOutputStream(dest).use { output -> input.copyTo(output, 64 * 1024) }
                 }
                 dest.setLastModified(src.lastModified())
+                true
             }
-            true
         } catch (e: Exception) {
             false
         }
@@ -316,6 +337,10 @@ object FileOps {
             if (copyRaw(src, dest)) {
                 deleteRecursively(src)
                 ok++
+            } else {
+                // Salinan gagal: sumber TIDAK dihapus (perbaikan B1), dan
+                // dest parsial (nama unik, baru dibuat) dibersihkan.
+                deleteRecursively(dest)
             }
         }
         return ok
@@ -635,31 +660,41 @@ object FileOps {
         zos.closeEntry()
     }
 
-    /** Ekstrak berkas ZIP ke folder tujuan (dengan penjaga zip-slip). */
+    /** Ekstrak berkas ZIP ke folder tujuan (dengan penjaga zip-slip + batas ekstraksi).
+     *  Gagal di tengah (entri jahat / batas terlampaui / I/O): kembalikan false dan
+     *  hapus berkas yang sudah tertulis selama pemanggilan ini (E3) — kecuali yang
+     *  memang sudah ada sebelum ekstraksi (tidak dihapus). */
     fun unzip(zip: File, destDir: File): Boolean {
-        return try {
+        val written = mutableListOf<File>()
+        var ok = true
+        try {
             val destCanonical = destDir.canonicalPath
+            val budget = ExtractBudget()
             ZipInputStream(BufferedInputStream(FileInputStream(zip))).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
+                    if (!budget.allowEntry()) { ok = false; break }
                     val outFile = File(destDir, entry.name)
-                    if (!outFile.canonicalPath.startsWith(destCanonical)) {
-                        return false
-                    }
+                    if (!isPathInside(destCanonical, outFile.canonicalPath)) { ok = false; break }
                     if (entry.isDirectory) {
                         outFile.mkdirs()
                     } else {
+                        val existed = outFile.exists()
                         outFile.parentFile?.mkdirs()
-                        FileOutputStream(outFile).use { out -> zis.copyTo(out, 64 * 1024) }
+                        val counting = CountingOutputStream(FileOutputStream(outFile))
+                        counting.use { out -> zis.copyTo(out, 64 * 1024) }
+                        if (!existed) written += outFile
+                        if (!budget.addBytes(counting.count)) { ok = false; break }
                     }
                     zis.closeEntry()
                     entry = zis.nextEntry
                 }
             }
-            true
         } catch (e: Exception) {
-            false
+            ok = false
         }
+        if (!ok) written.forEach { it.delete() }
+        return ok
     }
 
     /** Pindai satu volume: ukuran per kategori + file terbesar. */
@@ -709,6 +744,41 @@ object FileOps {
         val sec = totalSec % 60
         return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, sec)
         else String.format(Locale.US, "%d:%02d", m, sec)
+    }
+}
+
+/** Anggaran ekstraksi arsip (C2): membatasi jumlah entri dan total byte yang ditulis,
+ *  supaya arsip jahat (zip-bomb) tidak memenuhi penyimpanan. Internal agar bisa
+ *  diuji langsung tanpa I/O. */
+internal class ExtractBudget {
+    var entries: Int = 0
+        private set
+    var bytes: Long = 0L
+        private set
+
+    /** Catat satu entri; false bila jumlah entri melewati batas. */
+    fun allowEntry(): Boolean {
+        entries++
+        return entries <= FileOps.MAX_ARCHIVE_ENTRIES
+    }
+
+    /** Catat [n] byte yang ditulis; false bila total melewati batas. */
+    fun addBytes(n: Long): Boolean {
+        bytes += n
+        return bytes <= FileOps.MAX_EXTRACT_BYTES
+    }
+}
+
+/** OutputStream yang menghitung byte tertulis (untuk anggaran ekstraksi). */
+private class CountingOutputStream(out: java.io.OutputStream) : java.io.FilterOutputStream(out) {
+    var count = 0L
+    override fun write(b: Int) {
+        super.write(b)
+        count++
+    }
+    override fun write(b: ByteArray, off: Int, len: Int) {
+        super.write(b, off, len)
+        count += len
     }
 }
 
@@ -788,74 +858,100 @@ object ArchiveOps {
     }
 
     private fun extractTar(archive: File, destDir: File): Boolean {
-        val raw = BufferedInputStream(FileInputStream(archive))
         val destPath = destDir.canonicalPath
-        org.apache.commons.compress.archivers.tar.TarArchiveInputStream(raw).use { tis ->
-            while (true) {
-                val entry = tis.nextEntry ?: break
-                val out = File(destDir, entry.name)
-                if (!out.canonicalPath.startsWith(destPath)) continue
-                if (entry.isDirectory) {
-                    out.mkdirs()
-                } else {
-                    out.parentFile?.mkdirs()
-                    FileOutputStream(out).use { tis.copyTo(it) }
+        val budget = ExtractBudget()
+        return try {
+            val raw = BufferedInputStream(FileInputStream(archive))
+            org.apache.commons.compress.archivers.tar.TarArchiveInputStream(raw).use { tis ->
+                while (true) {
+                    val entry = tis.nextEntry ?: break
+                    if (!budget.allowEntry()) return false
+                    val out = File(destDir, entry.name)
+                    if (!isPathInside(destPath, out.canonicalPath)) return false
+                    if (entry.isDirectory) {
+                        out.mkdirs()
+                    } else {
+                        out.parentFile?.mkdirs()
+                        val counting = CountingOutputStream(FileOutputStream(out))
+                        counting.use { tis.copyTo(it) }
+                        if (!budget.addBytes(counting.count)) return false
+                    }
                 }
             }
+            true
+        } catch (e: Exception) {
+            false
         }
-        return true
     }
 
     private fun extract7z(archive: File, destDir: File): Boolean {
         val destPath = destDir.canonicalPath
-        org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
-            while (true) {
-                val entry = seven.nextEntry ?: break
-                val out = File(destDir, entry.name)
-                if (!out.canonicalPath.startsWith(destPath)) continue
-                if (entry.isDirectory) {
-                    out.mkdirs()
-                } else {
-                    out.parentFile?.mkdirs()
-                    FileOutputStream(out).use { fos ->
-                        val buffer = ByteArray(8192)
-                        var remaining = entry.size
-                        while (remaining > 0) {
-                            val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
-                            if (read <= 0) break
-                            fos.write(buffer, 0, read)
-                            remaining -= read
+        val budget = ExtractBudget()
+        return try {
+            org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
+                while (true) {
+                    val entry = seven.nextEntry ?: break
+                    if (!budget.allowEntry()) return false
+                    val out = File(destDir, entry.name)
+                    if (!isPathInside(destPath, out.canonicalPath)) return false
+                    if (entry.isDirectory) {
+                        out.mkdirs()
+                    } else {
+                        out.parentFile?.mkdirs()
+                        FileOutputStream(out).use { fos ->
+                            val buffer = ByteArray(8192)
+                            var remaining = entry.size
+                            var written = 0L
+                            while (remaining > 0) {
+                                val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                                if (read <= 0) break
+                                fos.write(buffer, 0, read)
+                                remaining -= read
+                                written += read
+                            }
+                            if (!budget.addBytes(written)) return false
                         }
                     }
                 }
             }
+            true
+        } catch (e: Exception) {
+            false
         }
-        return true
     }
 
     /** Ekstrak arsip RAR (junrar) dengan penjaga path-slip; arsip terenkripsi butuh kata sandi (lihat extractEncryptedRar). */
     private fun extractRar(archive: File, destDir: File): Boolean {
         val destPath = destDir.canonicalPath
-        com.github.junrar.Archive(archive).use { rar ->
-            while (true) {
-                val header = rar.nextFileHeader() ?: break
-                val name = header.fileName.replace('\\', '/')
-                if (name.isBlank()) continue
-                val out = File(destDir, name)
-                if (!out.canonicalPath.startsWith(destPath)) continue
-                if (header.isDirectory) {
-                    out.mkdirs()
-                } else {
-                    out.parentFile?.mkdirs()
-                    FileOutputStream(out).use { fos -> rar.extractFile(header, fos) }
+        val budget = ExtractBudget()
+        return try {
+            com.github.junrar.Archive(archive).use { rar ->
+                while (true) {
+                    val header = rar.nextFileHeader() ?: break
+                    val name = header.fileName.replace('\\', '/')
+                    if (name.isBlank()) continue
+                    if (!budget.allowEntry()) return false
+                    val out = File(destDir, name)
+                    if (!isPathInside(destPath, out.canonicalPath)) return false
+                    if (header.isDirectory) {
+                        out.mkdirs()
+                    } else {
+                        out.parentFile?.mkdirs()
+                        val counting = CountingOutputStream(FileOutputStream(out))
+                        counting.use { fos -> rar.extractFile(header, fos) }
+                        if (!budget.addBytes(counting.count)) return false
+                    }
                 }
             }
+            true
+        } catch (e: Exception) {
+            false
         }
-        return true
     }
 
 
-    /** Daftar isi berkas ZIP/APK (nama + ukuran) untuk Inspeksi; null bila bukan ZIP valid. */
+    /** Daftar isi berkas ZIP/APK (nama + ukuran) untuk Inspeksi; null bila bukan ZIP valid
+     *  atau jumlah entrinya melewati batas (C2 — jangan muat arsip raksasa ke memori). */
     fun listZipContents(file: File): List<Pair<String, Long>>? {
         return try {
             ZipFile(file).use { zip ->
@@ -863,6 +959,7 @@ object ArchiveOps {
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val e = entries.nextElement()
+                    if (result.size >= MAX_ARCHIVE_ENTRIES) return null
                     result += e.name to if (e.isDirectory) -1L else e.size
                 }
                 result
@@ -891,11 +988,12 @@ object ArchiveOps {
 
 
 
-    private fun list7z(archive: File): List<ArchiveItem> {
+    private fun list7z(archive: File): List<ArchiveItem>? {
         val result = mutableListOf<ArchiveItem>()
         org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
             while (true) {
                 val e = seven.nextEntry ?: break
+                if (result.size >= MAX_ARCHIVE_ENTRIES) return null
                 result += ArchiveItem(
                     e.name.replace('\\', '/'),
                     e.isDirectory,
@@ -913,24 +1011,26 @@ object ArchiveOps {
         return org.apache.commons.compress.archivers.tar.TarArchiveInputStream(raw)
     }
 
-    private fun listTar(archive: File): List<ArchiveItem> {
+    private fun listTar(archive: File): List<ArchiveItem>? {
         val result = mutableListOf<ArchiveItem>()
         openTar(archive).use { tis ->
             while (true) {
                 val e = tis.nextEntry ?: break
+                if (result.size >= MAX_ARCHIVE_ENTRIES) return null
                 result += ArchiveItem(e.name, e.isDirectory, if (e.isDirectory) 0L else e.size)
             }
         }
         return result
     }
 
-    private fun listRar(archive: File): List<ArchiveItem> {
+    private fun listRar(archive: File): List<ArchiveItem>? {
         val result = mutableListOf<ArchiveItem>()
         com.github.junrar.Archive(archive).use { rar ->
             while (true) {
                 val header = rar.nextFileHeader() ?: break
                 val name = header.fileName.replace('\\', '/')
                 if (name.isBlank()) continue
+                if (result.size >= MAX_ARCHIVE_ENTRIES) return null
                 result += ArchiveItem(name, header.isDirectory, if (header.isDirectory) 0L else header.unpSize)
             }
         }
@@ -1069,20 +1169,24 @@ object ArchiveOps {
 
     /** Ekstrak arsip RAR terenkripsi (junrar) dengan kata sandi; false bila sandi salah/gagal. */
     fun extractEncryptedRar(file: File, destDir: File, password: String): Boolean {
+        val destPath = destDir.canonicalPath
+        val budget = ExtractBudget()
         return try {
-            val destPath = destDir.canonicalPath
             com.github.junrar.Archive(file, password).use { rar ->
                 while (true) {
                     val header = rar.nextFileHeader() ?: break
                     val name = header.fileName.replace('\\', '/')
                     if (name.isBlank()) continue
+                    if (!budget.allowEntry()) return false
                     val out = File(destDir, name)
-                    if (!out.canonicalPath.startsWith(destPath)) continue
+                    if (!isPathInside(destPath, out.canonicalPath)) return false
                     if (header.isDirectory) {
                         out.mkdirs()
                     } else {
                         out.parentFile?.mkdirs()
-                        FileOutputStream(out).use { fos -> rar.extractFile(header, fos) }
+                        val counting = CountingOutputStream(FileOutputStream(out))
+                        counting.use { fos -> rar.extractFile(header, fos) }
+                        if (!budget.addBytes(counting.count)) return false
                     }
                 }
             }
@@ -1093,19 +1197,23 @@ object ArchiveOps {
     }
 
     fun extractEncryptedZip(file: File, destDir: File, password: String): Boolean {
+        val destPath = destDir.canonicalPath
+        val budget = ExtractBudget()
         return try {
             val zipFile = net.lingala.zip4j.ZipFile(file, password.toCharArray())
-            val destPath = destDir.canonicalPath
             for (header in zipFile.fileHeaders) {
+                if (!budget.allowEntry()) return false
                 val out = File(destDir, header.fileName)
-                if (!out.canonicalPath.startsWith(destPath)) continue
+                if (!isPathInside(destPath, out.canonicalPath)) return false
                 if (header.isDirectory) {
                     out.mkdirs()
                 } else {
                     out.parentFile?.mkdirs()
+                    val counting = CountingOutputStream(FileOutputStream(out))
                     zipFile.getInputStream(header).use { input ->
-                        FileOutputStream(out).use { input.copyTo(it) }
+                        counting.use { cos -> input.copyTo(cos) }
                     }
+                    if (!budget.addBytes(counting.count)) return false
                 }
             }
             true
