@@ -356,16 +356,17 @@ fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
-/** Nav bawah senada (r94 HS1, 2026-11-19): kapsul surfaceContainer
- *  #1C2024 48dp TANPA garis tepi (efek kaca di r93 dihapus) + pill
- *  primary #9ACBFA 35dp mengikuti konten (ikon 24dp + celah 8dp +
- *  label titleMedium + padding 11dp tiap sisi), ikon + label
- *  sebaris HANYA di tab aktif (gelap #003352 di atas pill); tab
- *  tidak aktif hanya ikon outline putih. Warna dari tema Senja
- *  supaya senada dengan elemen lain. Animasi halus (r93): pill
- *  meluncur + berubah lebar, warna ikon/label ikut dianimasikan
- *  dengan defaultSpatialSpec yang sama. Menggantikan kapsul navy
- *  + pill putih (r93 WP1). */
+/** Nav bawah NV23 "Lebar Biru" (r135, 2026-11-20): bentuk bar video
+ *  Auriya — bar lebar 296dp (margin samping 48dp, ~75% layar 393dp)
+ *  setinggi 60dp + pill primary #9ACBFA 44dp mengikuti konten
+ *  (ikon 24dp + celah 8dp + label titleMedium + padding 11dp tiap
+ *  sisi), ikon + label sebaris HANYA di tab aktif (gelap #003352
+ *  di atas pill); tab tidak aktif hanya ikon outline putih. Bar
+ *  #1C2024 (surfaceContainer — nyaris sama dengan #212121 di video).
+ *  Pill dijepit (coerceIn) supaya tidak keluar dari bar saat tab
+ *  Analisis aktif (pill ~126dp > slot ~99dp). Animasi halus (r93):
+ *  pill meluncur + berubah lebar, warna ikon/label ikut dianimasikan
+ *  dengan defaultSpatialSpec yang sama. Menggantikan HS1 rapat (r94). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
@@ -395,23 +396,20 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             ).size.width.toDp()
         }
     }
-    // r94 HS1: senada — kapsul surfaceContainer #1C2024 48dp TANPA
-    // garis tepi (efek kaca di r93 dihapus), pill primary #9ACBFA
-    // 35dp (ikon 24dp + celah 8dp + label + padding 11dp tiap
-    // sisi), ikon + label titleMedium sebaris HANYA di tab aktif
-    // (gelap #003352 di atas pill); tab tidak aktif hanya ikon
-    // outline putih. Warna dari tema Senja (bukan warna foto)
-    // supaya senada dengan elemen lain di kedua mode. ANIMASI
-    // HALUS (r93): lebar + posisi pill (pillW / pillX) dan warna
-    // ikon/label (fg) semuanya memakai defaultSpatialSpec yang
-    // sama — jadi warna berubah seiring pill meluncur.
+    // r135 NV23: bar lebar video (margin 48dp, tinggi 60dp), pill
+    // primary #9ACBFA 44dp. Posisi pill dijepit ke dalam bar
+    // (coerceIn) — pill Analisis ~126dp lebih lebar dari slot
+    // ~99dp, tanpa jepitan ia keluar dari bar. ANIMASI HALUS (r93):
+    // lebar + posisi pill (pillW / pillX) dan warna ikon/label (fg)
+    // semuanya memakai defaultSpatialSpec yang sama — jadi warna
+    // berubah seiring pill meluncur.
     val barColor = Color(0xFF1C2024)
     val pillColor = Color(0xFF9ACBFA)
     val onPillColor = Color(0xFF003352)
     Row(
         Modifier.fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-            .height(48.dp)
+            .padding(start = 48.dp, end = 48.dp, bottom = 16.dp)
+            .height(60.dp)
             .clip(RoundedCornerShape(50))
             .background(barColor),
         verticalAlignment = Alignment.CenterVertically
@@ -425,13 +423,13 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                 label = "pillW"
             )
             val pillX by animateDpAsState(
-                targetValue = tabWidth * homeTab + (tabWidth - pillW) / 2,
+                targetValue = (tabWidth * homeTab + (tabWidth - pillW) / 2).coerceIn(0.dp, maxWidth - pillW),
                 animationSpec = motion.defaultSpatialSpec(),
                 label = "pillX"
             )
             Box(
-                Modifier.offset(x = pillX, y = 6.5.dp)
-                    .size(width = pillW, height = 35.dp)
+                Modifier.offset(x = pillX, y = 8.dp)
+                    .size(width = pillW, height = 44.dp)
                     .clip(RoundedCornerShape(50))
                     .background(pillColor)
             )
