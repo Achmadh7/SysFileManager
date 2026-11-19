@@ -78,7 +78,7 @@ object FileOps {
     private val AUDIO_EXT = setOf("mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "amr", "mid", "midi")
     private val DOC_EXT = setOf("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "odt", "epub")
     private val APP_EXT = setOf("apk", "xapk", "apks", "aab")
-    private val ARCHIVE_EXT = setOf("zip", "rar", "7z", "tar")
+    private val ARCHIVE_EXT = setOf("zip", "rar", "7z", "tar", "obb")
 
     fun extOf(name: String): String {
         val dot = name.lastIndexOf('.')
@@ -794,6 +794,8 @@ object ArchiveOps {
             n.endsWith(".7z") -> "7z"
             n.endsWith(".rar") -> "rar"
             n.endsWith(".apk") || n.endsWith(".apks") || n.endsWith(".xapk") || n.endsWith(".aab") -> "zip"
+            // OBB expansion file adalah kontainer ZIP (preseden yang sama seperti APK).
+            n.endsWith(".obb") -> "zip"
             else -> null
         }
     }
@@ -1042,7 +1044,7 @@ object ArchiveOps {
         val lower = name.lowercase()
         val suffixes = listOf(
             ".zip", ".7z", ".rar", ".tar",
-            ".apk", ".apks", ".xapk"
+            ".apk", ".apks", ".xapk", ".obb"
         )
         for (suffix in suffixes) {
             if (lower.endsWith(suffix)) {

@@ -262,4 +262,33 @@ class FileOpsTest {
         assertTrue(ArchiveOps.extract(archive, dest))
         assertEquals("hello", File(dest, "a.txt").readText())
     }
+
+    // --- .obb: kontainer ZIP (r102) ---
+
+    @Test
+    fun obb_kindIsZipAndCategoryIsArchive() {
+        assertEquals("zip", ArchiveOps.kindOf("main.123.com.game.obb"))
+        assertEquals("zip", ArchiveOps.kindOf("game.OBB"))
+        assertEquals(Category.ARCHIVE, FileOps.categoryOf("main.123.com.game.obb"))
+        assertEquals(Category.ARCHIVE, FileOps.categoryOf("game.OBB"))
+    }
+
+    @Test
+    fun obb_listsContentsLikeZip() {
+        val obb = File(tmp.root, "main.1.com.game.obb")
+        makeZip(obb, listOf("assets/a.txt" to "hello", "b.txt" to "world"))
+        val items = FileOps.listContents(obb)
+        assertEquals(listOf("assets/a.txt", "b.txt"), items?.map { it.name })
+    }
+
+    @Test
+    fun archiveKinds_unchanged() {
+        assertEquals("zip", ArchiveOps.kindOf("game.zip"))
+        assertEquals("7z", ArchiveOps.kindOf("game.7z"))
+        assertEquals("rar", ArchiveOps.kindOf("game.rar"))
+        assertEquals("tar", ArchiveOps.kindOf("game.tar"))
+        assertNull(ArchiveOps.kindOf("game.txt"))
+        assertEquals(Category.ARCHIVE, FileOps.categoryOf("game.zip"))
+        assertEquals(Category.DOCUMENT, FileOps.categoryOf("game.txt"))
+    }
 }

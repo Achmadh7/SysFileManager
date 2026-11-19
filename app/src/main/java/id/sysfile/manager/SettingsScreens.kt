@@ -461,7 +461,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
                         Spacer(Modifier.height(8.dp))
-                        FormatRow("ZIP (.zip)", listOf(t.chipCreate, t.chipExtract, t.chipEncrypt), t.fmtZipDesc)
+                        FormatRow("ZIP (.zip, .obb)", listOf(t.chipCreate, t.chipExtract, t.chipEncrypt), t.fmtZipDesc)
                         HorizontalDivider(
                             Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
