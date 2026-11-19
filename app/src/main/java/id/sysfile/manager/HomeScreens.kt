@@ -177,6 +177,7 @@ fun HomeScreen(
     onOpenRoot: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
     onOpenTrash: () -> Unit,
+    onOpenUsbSaf: () -> Unit,
 ) {
     val t = txt()
     LazyColumn(
@@ -265,6 +266,21 @@ fun HomeScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+        // OT2 (r110): jalan darurat SAF bila tidak ada root USB yang
+        // terdeteksi sistem — pengguna memilih flashdisknya lewat
+        // pemilih folder sistem, lalu SafBrowseScreen membukanya.
+        if (roots.none { it.kind == "usb" }) {
+            item {
+                TextButton(
+                    onClick = onOpenUsbSaf,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Usb, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(t.usbOpenSaf)
                 }
             }
         }

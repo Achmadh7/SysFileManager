@@ -2,14 +2,17 @@ package id.sysfile.manager
 
 import android.media.MediaPlayer
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.hardware.usb.UsbManager
 import android.provider.Settings
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
@@ -279,6 +282,45 @@ fun SysFileApp() {
     }
     DisposableEffect(Unit) {
         onDispose { try { audioPlayer.value?.release() } catch (_: Exception) { } }
+    }
+    // OT1 (r110): pantau colok/cabut media + perangkat USB — daftar
+    // penyimpanan di-refresh seketika supaya kartu USB/OTG muncul (atau
+    // hilang) tanpa restart aplikasi. Media broadcast butuh skema "file";
+    // USB_DEVICE_* tidak membawa data, jadi filter-nya dipisah. Di API 33+
+    // registerReceiver butuh flag eksplisit (NOT_EXPORTED: siaran ini
+    // datang dari sistem).
+    DisposableEffect(Unit) {
+        val mediaReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) { refreshRoots() }
+        }
+        val mediaFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_MEDIA_MOUNTED)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+            addAction(Intent.ACTION_MEDIA_EJECT)
+            addAction(Intent.ACTION_MEDIA_REMOVED)
+            addAction(Intent.ACTION_MEDIA_BAD_REMOVAL)
+            addDataScheme("file")
+        }
+        val usbReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) { refreshRoots() }
+        }
+        val usbFilter = IntentFilter().apply {
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        fun register(receiver: BroadcastReceiver, filter: IntentFilter) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+        }
+        register(mediaReceiver, mediaFilter)
+        register(usbReceiver, usbFilter)
+        onDispose {
+            try { context.unregisterReceiver(mediaReceiver) } catch (_: Exception) { }
+            try { context.unregisterReceiver(usbReceiver) } catch (_: Exception) { }
+        }
     }
     // Berkas yang sedang tampil di penampil foto/video (diperbarui tiap
     // ganti halaman) — dipakai aksi Bagikan/Properti/Hapus + penanda hapus.
@@ -1345,7 +1387,8 @@ fun SysFileApp() {
                                                     onRequestAccess = { requestAccess() },
                                                     onOpenRoot = { browseStack = listOf(it) },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
-                                                    onOpenTrash = { showTrash = true }
+                                                    onOpenTrash = { showTrash = true },
+                    onOpenUsbSaf = { safLauncher.launch(null) }
                                                 )
                                             }
                                         }

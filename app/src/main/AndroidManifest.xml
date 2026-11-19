@@ -13,6 +13,8 @@
     <!-- Pengelola Aplikasi: daftar semua aplikasi terpasang + ukuran total (data & cache). -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+    <!-- OTG: baca flashdisk USB (opsional — perangkat tanpa host USB tetap bisa pasang). -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <application
         android:allowBackup="true"
