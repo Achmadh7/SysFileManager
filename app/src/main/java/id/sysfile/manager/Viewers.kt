@@ -770,21 +770,6 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                     }
                 }
             }
-            // Tombol putar besar di tengah saat dijeda.
-            if (!isPlaying && controlsVisible) {
-                IconButton(
-                    onClick = {
-                        currentView()?.let { vv ->
-                            vv.start()
-                            isPlaying = true
-                        }
-                    },
-                    modifier = Modifier.align(Alignment.Center).size(72.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(40.dp))
-                }
-            }
         }
     }
 }
