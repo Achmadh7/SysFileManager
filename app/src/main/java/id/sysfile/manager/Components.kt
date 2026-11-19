@@ -78,7 +78,7 @@ fun SectionCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
         shape = RoundedCornerShape(28.dp),
