@@ -213,87 +213,99 @@ fun SettingsScreen(
             // dihapus sekalian: fitur dynamic color dicabut seluruhnya.
             item { SettingsSectionLabel(t.tampilanSection) }
             item {
-                SettingsRow(
-                    icon = when (themeMode) {
-                        "light" -> Icons.Default.LightMode
-                        "dark" -> Icons.Default.DarkMode
-                        else -> Icons.Default.BrightnessAuto
-                    },
-                    circleColor = Color(0xFFFFB020),
-                    title = t.theme,
-                    subtitle = when (themeMode) {
-                        "light" -> t.themeLight
-                        "dark" -> t.themeDark
-                        else -> t.themeSystem
-                    },
-                    // Ketuk 1x langsung ganti Gelap <-> Terang; opsi
-                    // "Ikuti Sistem" dihapus (nilai lama "system" ikut
-                    // hilang begitu petak ini diketuk).
-                    onClick = { onTheme(if (themeMode == "dark") "light" else "dark") }
-                )
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                        SettingsRow(
+                            icon = when (themeMode) {
+                                "light" -> Icons.Default.LightMode
+                                "dark" -> Icons.Default.DarkMode
+                                else -> Icons.Default.BrightnessAuto
+                            },
+                            circleColor = Color(0xFFFFB020),
+                            title = t.theme,
+                            subtitle = when (themeMode) {
+                                "light" -> t.themeLight
+                                "dark" -> t.themeDark
+                                else -> t.themeSystem
+                            },
+                            // Ketuk 1x langsung ganti Gelap <-> Terang; opsi
+                            // "Ikuti Sistem" dihapus (nilai lama "system" ikut
+                            // hilang begitu petak ini diketuk).
+                            onClick = { onTheme(if (themeMode == "dark") "light" else "dark") }
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Translate,
+                            circleColor = Color(0xFF4DA3FF),
+                            title = t.language,
+                            subtitle = if (language == "id") "Indonesia" else "English",
+                            // Ketuk 1x langsung ganti Indonesia <-> English.
+                            onClick = { onLanguage(if (language == "id") "en" else "id") }
+                        )
+                    }
+                }
             }
+item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
             item {
-                HorizontalDivider(
-                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                        SettingsRow(
+                            icon = Icons.Default.Folder,
+                            circleColor = Color(0xFFF06292),
+                            title = t.showHidden,
+                            trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Security,
+                            circleColor = Color(0xFFC62828),
+                            title = t.rootAccessTitle,
+                            subtitle = t.rootAccessDesc,
+                            trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
+                        )
+                    }
+                }
             }
+item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
             item {
-                SettingsRow(
-                    icon = Icons.Default.Translate,
-                    circleColor = Color(0xFF4DA3FF),
-                    title = t.language,
-                    subtitle = if (language == "id") "Indonesia" else "English",
-                    // Ketuk 1x langsung ganti Indonesia <-> English.
-                    onClick = { onLanguage(if (language == "id") "en" else "id") }
-                )
-            }
-            item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Folder,
-                    circleColor = Color(0xFFF06292),
-                    title = t.showHidden,
-                    trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
-                )
-            }
-            item {
-                HorizontalDivider(
-                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Security,
-                    circleColor = Color(0xFFC62828),
-                    title = t.rootAccessTitle,
-                    subtitle = t.rootAccessDesc,
-                    trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
-                )
-            }
-            item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Apps,
-                    circleColor = Color(0xFF7ED957),
-                    title = t.appsTitle,
-                    onClick = onApps
-                )
-            }
-            item {
-                HorizontalDivider(
-                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Info,
-                    circleColor = Color(0xFFB39DDB),
-                    title = t.about,
-                    onClick = onAbout
-                )
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                        SettingsRow(
+                            icon = Icons.Default.Apps,
+                            circleColor = Color(0xFF7ED957),
+                            title = t.appsTitle,
+                            onClick = onApps
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Info,
+                            circleColor = Color(0xFFB39DDB),
+                            title = t.about,
+                            onClick = onAbout
+                        )
+                    }
+                }
             }
         }
     }
@@ -369,12 +381,22 @@ private fun FormatRow(name: String, caps: List<String>, desc: String) {
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text(
-            caps.joinToString(" · "),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            caps.forEach { cap ->
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                ) {
+                    Text(
+                        cap,
+                        Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
         Text(
             desc,
             style = MaterialTheme.typography.bodyMedium,
@@ -425,66 +447,90 @@ fun FormatsScreen(onBack: () -> Unit) {
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
-                    Spacer(Modifier.height(8.dp))
-                    FormatRow("ZIP (.zip)", listOf(t.chipCreate, t.chipExtract, t.chipEncrypt), t.fmtZipDesc)
-                    HorizontalDivider(
-                        Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    FormatRow("7Z (.7z)", listOf(t.chipExtract, t.chipHighRatio), t.fmt7zDesc)
-                    HorizontalDivider(
-                        Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    FormatRow("TAR (.tar)", listOf(t.chipCreate, t.chipExtract), t.fmtTarDesc)
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
+                        Spacer(Modifier.height(8.dp))
+                        FormatRow("ZIP (.zip)", listOf(t.chipCreate, t.chipExtract, t.chipEncrypt), t.fmtZipDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("7Z (.7z)", listOf(t.chipExtract, t.chipHighRatio), t.fmt7zDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("TAR (.tar)", listOf(t.chipCreate, t.chipExtract), t.fmtTarDesc)
+                    }
                 }
             }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
-                    Spacer(Modifier.height(8.dp))
-                    FormatRow("RAR (.rar)", listOf(t.chipExtract, t.chipEncrypt), t.fmtRarDesc)
-                    HorizontalDivider(
-                        Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    FormatRow("APK / APKS / XAPK / AAB", listOf(t.chipExtract, t.chipInspect), t.fmtApkDesc)
-                    HorizontalDivider(
-                        Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    FormatRow("PAYLOAD.BIN", listOf(t.chipExtract, t.chipNative), t.fmtPayloadDesc)
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
+                        Spacer(Modifier.height(8.dp))
+                        FormatRow("RAR (.rar)", listOf(t.chipExtract, t.chipEncrypt), t.fmtRarDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("APK / APKS / XAPK / AAB", listOf(t.chipExtract, t.chipInspect), t.fmtApkDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("PAYLOAD.BIN", listOf(t.chipExtract, t.chipNative), t.fmtPayloadDesc)
+                    }
                 }
             }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
-                    Spacer(Modifier.height(8.dp))
-                    FormatRow("Gambar", listOf(t.chipView), t.fmtImageDesc)
-                    HorizontalDivider(
-                        Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    FormatRow("Video", listOf(t.chipView), t.fmtVideoDesc)
-                    HorizontalDivider(
-                        Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    FormatRow("Audio", listOf(t.chipExternal), t.fmtAudioDesc)
-                    HorizontalDivider(
-                        Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    FormatRow("Teks", listOf(t.chipView), t.fmtTextDesc)
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
+                        Spacer(Modifier.height(8.dp))
+                        FormatRow("Gambar", listOf(t.chipView), t.fmtImageDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("Video", listOf(t.chipView), t.fmtVideoDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("Audio", listOf(t.chipExternal), t.fmtAudioDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("Teks", listOf(t.chipView), t.fmtTextDesc)
+                    }
                 }
             }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
-                    Spacer(Modifier.height(8.dp))
-                    FormatRow("Dokumen (PDF)", listOf(t.chipView), t.fmtPdfDesc)
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
+                        Spacer(Modifier.height(8.dp))
+                        FormatRow("Dokumen (PDF)", listOf(t.chipView), t.fmtPdfDesc)
+                    }
                 }
             }
         }
@@ -577,46 +623,47 @@ fun AboutScreen(
                     Spacer(Modifier.height(12.dp))
                 }
             }
+
             item {
-                SettingsRow(
-                    icon = Icons.Default.Storage,
-                    circleColor = Color(0xFF4DA3FF),
-                    title = t.storage,
-                    subtitle = internal?.let {
-                        t.storageUsedLine(FileOps.formatSize(it.total - it.free), FileOps.formatSize(it.total))
-                    } ?: "",
-                    onClick = onOpenStorage
-                )
-            }
-            item {
-                HorizontalDivider(
-                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Info,
-                    circleColor = Color(0xFFB39DDB),
-                    title = t.appSpecs,
-                    subtitle = "Kotlin • Jetpack Compose • Material 3",
-                    onClick = onOpenSpecs
-                )
-            }
-            item {
-                HorizontalDivider(
-                    Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Archive,
-                    circleColor = Color(0xFF40C4FF),
-                    title = t.formatsTitle,
-                    subtitle = "ZIP · TAR · 7Z · RAR · APK · PDF · payload.bin",
-                    onClick = onFormats
-                )
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                        SettingsRow(
+                            icon = Icons.Default.Storage,
+                            circleColor = Color(0xFF4DA3FF),
+                            title = t.storage,
+                            subtitle = internal?.let {
+                                t.storageUsedLine(FileOps.formatSize(it.total - it.free), FileOps.formatSize(it.total))
+                            } ?: "",
+                            onClick = onOpenStorage
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Info,
+                            circleColor = Color(0xFFB39DDB),
+                            title = t.appSpecs,
+                            subtitle = "Kotlin • Jetpack Compose • Material 3",
+                            onClick = onOpenSpecs
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Archive,
+                            circleColor = Color(0xFF40C4FF),
+                            title = t.formatsTitle,
+                            subtitle = "ZIP · TAR · 7Z · RAR · APK · PDF · payload.bin",
+                            onClick = onFormats
+                        )
+                    }
+                }
             }
             item {
                 HorizontalDivider(

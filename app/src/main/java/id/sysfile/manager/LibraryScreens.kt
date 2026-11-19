@@ -1058,58 +1058,54 @@ fun AnalysisScreen(
                                 Category.OTHER to t.catOther
                             )
                             val maxCat = (res.byCategory.values.maxOrNull() ?: 1).coerceAtLeast(1)
-                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                                HorizontalDivider(
-                                    Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                )
-                                val entries = res.byCategory.entries.sortedByDescending { it.value }.toList()
-                                entries.forEachIndexed { idx, (cat, size) ->
-                                    Row(
-                                        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                            val entries = res.byCategory.entries.sortedByDescending { it.value }.toList()
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                entries.forEach { (cat, size) ->
+                                    Card(
+                                        shape = RoundedCornerShape(28.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Box(
-                                            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
-                                            contentAlignment = Alignment.Center
+                                        Row(
+                                            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                categoryIcon(cat, ""), null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
-                                        Spacer(Modifier.width(12.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    labels[cat] ?: cat.name,
-                                                    Modifier.weight(1f),
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    maxLines = 1
-                                                )
-                                                Text(
-                                                    FileOps.formatSize(size),
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontWeight = FontWeight.Bold
+                                            Box(
+                                                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    categoryIcon(cat, ""), null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(22.dp)
                                                 )
                                             }
-                                            Spacer(Modifier.height(7.dp))
-                                            LinearWavyProgressIndicator(
-                                                progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        labels[cat] ?: cat.name,
+                                                        Modifier.weight(1f),
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        maxLines = 1
+                                                    )
+                                                    Text(
+                                                        FileOps.formatSize(size),
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                                Spacer(Modifier.height(7.dp))
+                                                LinearWavyProgressIndicator(
+                                                    progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                                )
+                                            }
                                         }
-                                    }
-                                    if (idx < entries.lastIndex) {
-                                        HorizontalDivider(
-                                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                        )
                                     }
                                 }
                             }

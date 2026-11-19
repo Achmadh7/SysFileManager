@@ -252,53 +252,61 @@ fun FileRow(
     } else {
         formatDate(entry.modified)
     }
-    ListItem(
-        headlineContent = {
-            Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
-        supportingContent = { Text(sub) },
-        leadingContent = {
-            Box {
-                FileThumbTile(entry, 54)
-                if (locked) {
-                    Box(
-                        Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(11.dp))
-                    }
-                }
-            }
-        },
-        trailingContent = {
-            if (selectionMode) {
-                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
-            } else if (entry.isDir) {
-                Icon(
-                    Icons.Default.ChevronRight, null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Text(
-                    FileOps.formatSize(entry.size),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        colors = ListItemDefaults.colors(
+    // KD2 (r73): baris dibungkus Card — warna kartu lebih halus
+    // (surfaceContainerHighest, bukan secondaryContainer).
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
             } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
+                MaterialTheme.colorScheme.surfaceContainerHighest
             }
         ),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-    )
+    ) {
+        ListItem(
+            headlineContent = {
+                Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            },
+            supportingContent = { Text(sub) },
+            leadingContent = {
+                Box {
+                    FileThumbTile(entry, 54)
+                    if (locked) {
+                        Box(
+                            Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                        }
+                    }
+                }
+            },
+            trailingContent = {
+                if (selectionMode) {
+                    Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+                } else if (entry.isDir) {
+                    Icon(
+                        Icons.Default.ChevronRight, null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        FileOps.formatSize(entry.size),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        )
+    }
 }
 
 /** Ubin kotak membulat untuk kartu daftar: foto/video memenuhi ubin, lainnya ikon berwarna. */
