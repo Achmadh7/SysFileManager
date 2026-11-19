@@ -361,6 +361,14 @@ class FileOpsTest {
     }
 
     @Test
+    fun isTextFile_log_returnsTrueAndIsDocument() {
+        assertTrue(FileOps.isTextFile(File("app.log")))
+        assertTrue(FileOps.isTextFile(File("DEBUG.LOG")))
+        assertEquals(Category.DOCUMENT, FileOps.categoryOf("app.log"))
+        assertFalse(FileOps.isTextFile(File("foto.png")))
+    }
+
+    @Test
     fun isTextFile_toml_returnsTrueAndIsDocument() {
         assertTrue(FileOps.isTextFile(File("cargo.toml")))
         assertTrue(FileOps.isTextFile(File("CONFIG.TOML")))
