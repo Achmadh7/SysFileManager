@@ -981,13 +981,14 @@ fun AnalysisScreen(
                 val res = results[root.path]
                 item(key = "root-" + root.path) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Card(
-                            shape = RoundedCornerShape(28.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF00696D))
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     when (root.kind) {
@@ -996,28 +997,27 @@ fun AnalysisScreen(
                                         else -> Icons.Default.Storage
                                     },
                                     null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(26.dp)
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
                                 )
-                                Spacer(Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        rootLabel(root, t),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        if (res != null) {
-                                            t.items(res.totalFiles) + " \u00b7 " +
-                                                FileOps.formatSize(res.byCategory.values.sum())
-                                        } else {
-                                            t.scanning
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFFC8DCF5)
-                                    )
-                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    rootLabel(root, t),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    if (res != null) {
+                                        t.items(res.totalFiles) + " \u00b7 " +
+                                            FileOps.formatSize(res.byCategory.values.sum())
+                                    } else {
+                                        t.scanning
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                         if (res == null) {
@@ -1045,24 +1045,26 @@ fun AnalysisScreen(
                                 Category.OTHER to t.catOther
                             )
                             val maxCat = (res.byCategory.values.maxOrNull() ?: 1).coerceAtLeast(1)
-                            res.byCategory.entries.sortedByDescending { it.value }.forEach { (cat, size) ->
-                                Card(
-                                    shape = RoundedCornerShape(28.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                                ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                HorizontalDivider(
+                                    Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                                val entries = res.byCategory.entries.sortedByDescending { it.value }.toList()
+                                entries.forEachIndexed { idx, (cat, size) ->
                                     Row(
-                                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Box(
-                                            Modifier.size(54.dp).clip(RoundedCornerShape(16.dp))
+                                            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
                                                 .background(categoryColor(cat).copy(alpha = 0.16f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 categoryIcon(cat, ""), null,
                                                 tint = categoryColor(cat),
-                                                modifier = Modifier.size(28.dp)
+                                                modifier = Modifier.size(22.dp)
                                             )
                                         }
                                         Spacer(Modifier.width(12.dp))
@@ -1089,6 +1091,12 @@ fun AnalysisScreen(
                                                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                                             )
                                         }
+                                    }
+                                    if (idx < entries.lastIndex) {
+                                        HorizontalDivider(
+                                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                        )
                                     }
                                 }
                             }
