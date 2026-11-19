@@ -3,6 +3,7 @@ package id.sysfile.manager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -51,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -557,7 +559,9 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
  *  buatan sendiri (VI1, r74) — tombol play/pause, slider + waktu,
  *  ketuk video untuk tampil/sembunyi, Back selalu keluar. VideoView
  *  tetap dipakai untuk pemutaran (framework, tanpa library baru);
- *  kontrol bawaan Android diganti sepenuhnya. */
+ *  kontrol bawaan Android diganti sepenuhnya. Kontrol bawah berupa
+ *  kapsul mengambang (VP2, r76): slider + waktu di atas kapsul,
+ *  tombol prev/play/next di dalam kapsul. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit) {
@@ -717,12 +721,14 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                     )
                 }
             }
-            // Kontrol bawah (tampil saat controlsVisible).
+            // Kontrol kapsul mengambang (VP2, r76): slider + waktu di
+            // atas kapsul, tombol di dalam kapsul (seperti nav bar).
             if (controlsVisible) {
                 Column(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.55f))
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -748,37 +754,53 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
-                            }
-                        }) {
-                            Icon(Icons.Default.SkipPrevious, null, tint = Color.White)
-                        }
-                        IconButton(onClick = {
-                            currentView()?.let { vv ->
-                                if (vv.isPlaying) {
-                                    vv.pause()
-                                    isPlaying = false
-                                } else {
-                                    vv.start()
-                                    isPlaying = true
+                    Surface(
+                        shape = RoundedCornerShape(28.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        tonalElevation = 3.dp,
+                        shadowElevation = 6.dp
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
                                 }
+                            }) {
+                                Icon(Icons.Default.SkipPrevious, null, tint = Color.White)
                             }
-                        }) {
-                            Icon(
-                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                null,
-                                tint = Color.White
-                            )
-                        }
-                        IconButton(onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(pagerState.pageCount - 1))
+                            IconButton(
+                                onClick = {
+                                    currentView()?.let { vv ->
+                                        if (vv.isPlaying) {
+                                            vv.pause()
+                                            isPlaying = false
+                                        } else {
+                                            vv.start()
+                                            isPlaying = true
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(48.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            ) {
+                                Icon(
+                                    if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(28.dp)
+                                )
                             }
-                        }) {
-                            Icon(Icons.Default.SkipNext, null, tint = Color.White)
+                            IconButton(onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(pagerState.pageCount - 1))
+                                }
+                            }) {
+                                Icon(Icons.Default.SkipNext, null, tint = Color.White)
+                            }
                         }
                     }
                 }
