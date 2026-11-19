@@ -286,6 +286,14 @@ fun SysFileApp() {
     DisposableEffect(Unit) {
         onDispose { try { audioPlayer.value?.release() } catch (_: Exception) { } }
     }
+
+    // r116: refreshRoots dideklarasikan di sini — receiver OT1 di
+    // bawah memakainya, dan fungsi lokal harus dideklarasi sebelum
+    // pemakaian pertama.
+    fun refreshRoots() {
+        roots = FileOps.storageRoots(context)
+    }
+
     // OT1 (r110): pantau colok/cabut media + perangkat USB — daftar
     // penyimpanan di-refresh seketika supaya kartu USB/OTG muncul (atau
     // hilang) tanpa restart aplikasi. Media broadcast butuh skema "file";
@@ -410,10 +418,6 @@ fun SysFileApp() {
         } else {
             land()
         }
-    }
-
-    fun refreshRoots() {
-        roots = FileOps.storageRoots(context)
     }
 
     val settingsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {

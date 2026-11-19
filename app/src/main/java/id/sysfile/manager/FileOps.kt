@@ -870,7 +870,7 @@ object ArchiveOps {
                     val entry = tis.nextEntry ?: break
                     if (!budget.allowEntry()) return false
                     val out = File(destDir, entry.name)
-                    if (!isPathInside(destPath, out.canonicalPath)) return false
+                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
                     if (entry.isDirectory) {
                         out.mkdirs()
                     } else {
@@ -896,7 +896,7 @@ object ArchiveOps {
                     val entry = seven.nextEntry ?: break
                     if (!budget.allowEntry()) return false
                     val out = File(destDir, entry.name)
-                    if (!isPathInside(destPath, out.canonicalPath)) return false
+                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
                     if (entry.isDirectory) {
                         out.mkdirs()
                     } else {
@@ -935,7 +935,7 @@ object ArchiveOps {
                     if (name.isBlank()) continue
                     if (!budget.allowEntry()) return false
                     val out = File(destDir, name)
-                    if (!isPathInside(destPath, out.canonicalPath)) return false
+                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
                     if (header.isDirectory) {
                         out.mkdirs()
                     } else {
@@ -962,7 +962,7 @@ object ArchiveOps {
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val e = entries.nextElement()
-                    if (result.size >= MAX_ARCHIVE_ENTRIES) return null
+                    if (result.size >= FileOps.MAX_ARCHIVE_ENTRIES) return null
                     result += e.name to if (e.isDirectory) -1L else e.size
                 }
                 result
@@ -1025,7 +1025,7 @@ object ArchiveOps {
         org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
             while (true) {
                 val e = seven.nextEntry ?: break
-                if (result.size >= MAX_ARCHIVE_ENTRIES) return null
+                if (result.size >= FileOps.MAX_ARCHIVE_ENTRIES) return null
                 result += ArchiveItem(
                     e.name.replace('\\', '/'),
                     e.isDirectory,
@@ -1048,7 +1048,7 @@ object ArchiveOps {
         openTar(archive).use { tis ->
             while (true) {
                 val e = tis.nextEntry ?: break
-                if (result.size >= MAX_ARCHIVE_ENTRIES) return null
+                if (result.size >= FileOps.MAX_ARCHIVE_ENTRIES) return null
                 result += ArchiveItem(e.name, e.isDirectory, if (e.isDirectory) 0L else e.size)
             }
         }
@@ -1062,7 +1062,7 @@ object ArchiveOps {
                 val header = rar.nextFileHeader() ?: break
                 val name = header.fileName.replace('\\', '/')
                 if (name.isBlank()) continue
-                if (result.size >= MAX_ARCHIVE_ENTRIES) return null
+                if (result.size >= FileOps.MAX_ARCHIVE_ENTRIES) return null
                 result += ArchiveItem(name, header.isDirectory, if (header.isDirectory) 0L else header.unpSize)
             }
         }
@@ -1211,7 +1211,7 @@ object ArchiveOps {
                     if (name.isBlank()) continue
                     if (!budget.allowEntry()) return false
                     val out = File(destDir, name)
-                    if (!isPathInside(destPath, out.canonicalPath)) return false
+                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
                     if (header.isDirectory) {
                         out.mkdirs()
                     } else {
@@ -1236,7 +1236,7 @@ object ArchiveOps {
             for (header in zipFile.fileHeaders) {
                 if (!budget.allowEntry()) return false
                 val out = File(destDir, header.fileName)
-                if (!isPathInside(destPath, out.canonicalPath)) return false
+                if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
                 if (header.isDirectory) {
                     out.mkdirs()
                 } else {
