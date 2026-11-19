@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - APK dialog now lists the app's permissions (expandable section, short names).
 - Payload screen now reports the payload version, block size, and the per-partition operation breakdown (REPLACE / REPLACE_BZ / REPLACE_XZ / ZERO / DISCARD).
 - Storage-permission dialog at launch: appears when All Files Access is not yet granted, with a "Later" option (reappears on the next launch until granted); closes automatically once access is granted.
+- First-launch welcome screen (two-page pager): an intro page and an All Files Access permission page with a live status chip; shown once until finished or skipped, with all copy in English.
 - In-app audio player (MediaPlayer) with a mini-player bar; the video player was rebuilt with custom Compose controls in a floating capsule (previous/play/next, slider, tap to show/hide, 3 s auto-hide).
 - Markdown preview: `.md` files now render formatted in the built-in viewer, and `.srt` files open as text.
 - EPUB reader: `.epub` books open chapter by chapter with a table of contents, previous/next navigation, and a chapter counter.
@@ -26,14 +27,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Target SDK 34 → 35 (Android 15): edge-to-edge enabled (enableEdgeToEdge); the floating bottom bar now respects the system navigation-bar inset.
 - Photo and video viewers now swipe between same-type media in the folder, with an "N / M" counter; swipe is disabled while a photo is zoomed.
 - Root/SD/USB volume rows show the free-space label as "tersisa" instead of "kosong" (Indonesian; English "free" unchanged).
-- Category and Trash tiles, storage rows, and the StorageCard now use 28dp corners.
+- Storage rows and the StorageCard now use 28dp corners.
 - Logo is now the 'SF' mark with a diagonal slash.
 - Opening a text file inside an archive no longer extracts it next to the archive — it opens read-only from memory; other files open from the app-private cache.
 - Video player controls and the top bar now animate smoothly (fade + slide) when shown or hidden, including the 3 s auto-hide.
 - The long-press selection bar now animates in and out smoothly, matching the video controls.
 - Properties dialog redesigned as a compact two-column grid (label left, value right) with file info and permissions in a single card.
 - Extract Archive dialog redesigned as an action list: Extract Here, Extract to Custom Path, and Open Archive are full-width rows (the split button and its dropdown are gone).
-- The release APK is now named "SysFile Manager Release 1.3.0.apk".
+- Category tiles on the home screen are now compact (KG1): 64dp tall tiles with 32dp icon circles, 16dp corners, and 8dp gaps; the Trash tile follows the same sizing.
+- The release APK is now named "SysFileManager-1.3.0-Release.apk".
 
 ### Removed
 - Glass/aurora interface and Material You dynamic colour (replaced by the fixed Biru Senja theme and solid cards).
