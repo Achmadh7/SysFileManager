@@ -193,13 +193,19 @@ fun RecentScreen(
             val prevDay = sorted.getOrNull(index - 1)?.let { recentDay(it.modified, t) }
             Column {
                 if (index == 0 || day != prevDay) {
-                    Text(
-                        day,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                         modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
-                    )
+                    ) {
+                        Text(
+                            day,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
                 }
                 ListItem(
                     headlineContent = {
@@ -211,10 +217,17 @@ fun RecentScreen(
                     },
                     supportingContent = {
                         Text(
-                            recentWhen(entry.modified, t) + " \u00b7 " + FileOps.formatSize(entry.size),
+                            recentWhen(entry.modified, t),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
+                        )
+                    },
+                    trailingContent = {
+                        Text(
+                            FileOps.formatSize(entry.size),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
                         )
                     },
                     leadingContent = { FileThumbTile(entry, 48) },
