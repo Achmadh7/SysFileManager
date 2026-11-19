@@ -5,8 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -74,6 +78,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import android.webkit.WebView
 import androidx.activity.compose.BackHandler
@@ -598,6 +604,8 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
     var controlsVisible by remember { mutableStateOf(true) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekMs by remember { mutableStateOf(0) }
+    // Skema gerak M3 Expressive untuk animasi kontrol (r104).
+    val motion = MaterialTheme.motionScheme
 
     LaunchedEffect(pagerState.currentPage) {
         onPathChange(paths[pagerState.currentPage])
@@ -631,28 +639,38 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
     BackHandler { onBack() }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(File(currentPath).name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (paths.size > 1) {
-                            Text(
-                                "${pagerState.currentPage + 1} / ${paths.size}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                    slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                    expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Top),
+                exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                    slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                    shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
+            ) {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(File(currentPath).name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (paths.size > 1) {
+                                Text(
+                                    "${pagerState.currentPage + 1} / ${paths.size}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Black,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White
+                    )
                 )
-            )
+            }
         },
         containerColor = Color.Black
     ) { padding ->
@@ -709,11 +727,18 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
             )
             // Kontrol kapsul mengambang (VP2, r76; VP6 r85: slider +
             // waktu masuk ke dalam kapsul, baris atas; tombol di baris
-            // bawah — satu kesatuan kontrol).
-            if (controlsVisible) {
+            // bawah — satu kesatuan kontrol). Muncul/hilang dengan
+            // animasi halus (r104): fade + geser dari bawah.
+            AnimatedVisibility(
+                visible = controlsVisible,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                    slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it },
+                exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                    slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it }
+            ) {
                 Column(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Surface(
