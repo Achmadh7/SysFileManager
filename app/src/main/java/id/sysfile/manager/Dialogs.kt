@@ -76,6 +76,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
@@ -435,6 +436,88 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
             }
         )
     }
+}
+
+/** Dialog Detail EXIF foto (DF1, pilihan Achmad 2026-11-20): baris-baris
+ *  dari ExifOps.readExif; bila foto tidak punya data EXIF, tampilkan
+ *  pesan t.exifNoData. Kepala mengikuti gaya Properti (r23). */
+@Composable
+fun ExifDialog(entry: FEntry, onDismiss: () -> Unit) {
+    val t = txt()
+    var info by remember(entry.path) { mutableStateOf<ExifOps.ExifInfo?>(null) }
+    var done by remember(entry.path) { mutableStateOf(false) }
+    LaunchedEffect(entry.path) {
+        info = withContext(Dispatchers.IO) { ExifOps.readExif(entry.path) }
+        done = true
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Box(
+                Modifier.clip(RoundedCornerShape(16.dp)).background(
+                    MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(
+                            MaterialTheme.colorScheme.primary
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (!done) {
+                    Text("\u2026", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    val rows = listOfNotNull(
+                        info?.camera?.let { t.exifCamera to it },
+                        info?.dateTaken?.let { t.exifDateTaken to it },
+                        info?.dimensions?.let { t.exifDimensions to it },
+                        info?.size?.let { t.propSize to it },
+                        info?.iso?.let { t.exifIso to it },
+                        info?.aperture?.let { t.exifAperture to it },
+                        info?.focalLength?.let { t.exifFocalLength to it },
+                        info?.exposure?.let { t.exifExposure to it },
+                        info?.location?.let { t.exifLocation to it }
+                    )
+                    if (rows.isEmpty()) {
+                        Text(t.exifNoData, style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                            Column {
+                                rows.forEachIndexed { i, (label, value) ->
+                                    if (i > 0) PropGroupDivider()
+                                    PropGroupRow(label, value)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(t.close) }
+        }
+    )
 }
 
 /** Editor izin (chmod) ala pengelola berkas referensi: kotak centang

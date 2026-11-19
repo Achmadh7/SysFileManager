@@ -175,6 +175,7 @@ private sealed interface DialogKind {
     data class Rename(val entry: FEntry) : DialogKind
     data class Delete(val entries: List<FEntry>) : DialogKind
     data class Properties(val entry: FEntry) : DialogKind
+    data class Exif(val entry: FEntry) : DialogKind
     data class Compress(val entries: List<FEntry>) : DialogKind
     data class ZipPassword(val entry: FEntry) : DialogKind
     data class RarPassword(val entry: FEntry) : DialogKind
@@ -858,6 +859,7 @@ fun SysFileApp() {
                         onBack = { overlay = overlayReturn; overlayReturn = null; viewingPath = null },
                         onShare = { p -> shareFile(File(p)) },
                         onInfo = { p -> dialog = DialogKind.Properties(FileOps.entryOf(File(p))) },
+                        onExif = { p -> dialog = DialogKind.Exif(FileOps.entryOf(File(p))) },
                         onDelete = { p -> dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(p)))) },
                         onPathChange = { viewingPath = it }
                     )
@@ -1601,6 +1603,7 @@ fun SysFileApp() {
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
             )
             is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) })
+            is DialogKind.Exif -> ExifDialog(entry = d.entry, onDismiss = { dialog = null })
             is DialogKind.Sort -> SortDialog(
                 sortKey = sortKey, ascending = sortAsc,
                 onDismiss = { dialog = null },

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Code
@@ -106,6 +107,7 @@ fun ImageViewerScreen(
     onBack: () -> Unit,
     onShare: (String) -> Unit,
     onInfo: (String) -> Unit,
+    onExif: (String) -> Unit,
     onDelete: (String) -> Unit,
     onPathChange: (String) -> Unit
 ) {
@@ -118,7 +120,7 @@ fun ImageViewerScreen(
     var chrome by remember { mutableStateOf(true) }
     var zooming by remember { mutableStateOf(false) }
     // Ganti halaman: zoom direset + laporkan berkas yang sedang tampil
-    // (untuk Bagikan/Properti/Hapus + penanda hapus di MainActivity).
+    // (untuk Bagikan/Properti/Detail EXIF/Hapus + penanda hapus di MainActivity).
     LaunchedEffect(pagerState.currentPage) {
         scale = 1f
         offsetX = 0f
@@ -233,6 +235,7 @@ fun ImageViewerScreen(
                 HorizontalFloatingToolbar(expanded = true) {
                     IconButton(onClick = { onShare(currentPath) }) { Icon(Icons.Default.Share, t.share) }
                     IconButton(onClick = { onInfo(currentPath) }) { Icon(Icons.Default.Info, t.properties) }
+                    IconButton(onClick = { onExif(currentPath) }) { Icon(Icons.Default.CameraAlt, t.exifDetails) }
                     IconButton(onClick = { onDelete(currentPath) }) { Icon(Icons.Default.Delete, t.delete) }
                 }
             }
