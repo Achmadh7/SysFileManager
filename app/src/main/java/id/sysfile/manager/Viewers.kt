@@ -2,6 +2,7 @@ package id.sysfile.manager
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,7 +14,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
-import android.view.KeyEvent
 import android.view.MotionEvent
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
@@ -21,12 +21,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
@@ -45,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -56,6 +63,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -79,6 +87,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -345,27 +354,6 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
     }
 }
 
-/** MediaController yang tidak menelan tombol Back: jendela melayang
- *  kontrol bawaan Android menelan Back sistem selama video diputar (hanya
- *  menyembunyikan kontrol), sehingga penonton harus menunggu video selesai.
- *  Subclass ini mengalihkan Back di dispatchKeyEvent langsung ke onBackPress
- *  — satu ketukan keluar dari penampil. Bila kontrol sedang tersembunyi,
- *  Back sampai ke Activity seperti biasa (BackHandler di atas). */
-class ViewerMediaController(context: android.content.Context) :
-    android.widget.MediaController(context) {
-    var onBackPress: (() -> Unit)? = null
-
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.keyCode == KeyEvent.KEYCODE_BACK &&
-            event.action == KeyEvent.ACTION_DOWN
-        ) {
-            onBackPress?.invoke()
-            return true
-        }
-        return super.dispatchKeyEvent(event)
-    }
-}
-
 /** Penampil PDF bawaan: geser antar halaman, cubit-zoom, ketuk untuk
  *  menyembunyikan bilah atas. Render memakai PdfRenderer bawaan Android
  *  (tanpa dependensi baru); tiap halaman dirender saat tampil saja (IO
@@ -566,7 +554,11 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
     }
 }
 
-/** Pemutar video bawaan: geser antar video sefolder, VideoView dengan kontrol media, langsung putar di dalam aplikasi. */
+/** Pemutar video bawaan: geser antar video sefolder, kontrol Compose
+ *  buatan sendiri (VI1, r74) — tombol play/pause, slider + waktu,
+ *  ketuk video untuk tampil/sembunyi, Back selalu keluar. VideoView
+ *  tetap dipakai untuk pemutaran (framework, tanpa library baru);
+ *  kontrol bawaan Android diganti sepenuhnya. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit) {
@@ -574,12 +566,46 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { paths.size })
     val currentPath = paths[pagerState.currentPage]
+    // VideoView tiap halaman (pager memuat halaman tetangga juga);
+    // kontrol hanya mengendalikan halaman yang sedang tampil.
+    val views = remember { mutableStateMapOf<Int, android.widget.VideoView>() }
+    fun currentView() = views[pagerState.currentPage]
+    var isPlaying by remember { mutableStateOf(false) }
+    var positionMs by remember { mutableStateOf(0) }
+    var durationMs by remember { mutableStateOf(0) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekMs by remember { mutableStateOf(0) }
+
     LaunchedEffect(pagerState.currentPage) {
         onPathChange(paths[pagerState.currentPage])
+        views.forEach { (p, vv) -> if (p != pagerState.currentPage) vv.pause() }
+        currentView()?.let { vv ->
+            if (!vv.isPlaying) vv.start()
+            isPlaying = vv.isPlaying
+            durationMs = vv.duration
+            positionMs = vv.currentPosition
+        }
+        controlsVisible = true
     }
-    // Back saat kontrol tersembunyi sampai ke sini (BackHandler). Saat kontrol
-    // tampil, Back ditangkap ViewerMediaController (lihat di bawah) karena
-    // kunci tidak pernah sampai ke Activity selama jendela kontrol ada.
+    // Posisi berjalan selama video diputar.
+    LaunchedEffect(pagerState.currentPage, isPlaying) {
+        val vv = currentView()
+        if (vv != null && isPlaying) {
+            while (true) {
+                if (!isSeeking) positionMs = try { vv.currentPosition } catch (_: Exception) { positionMs }
+                isPlaying = vv.isPlaying
+                delay(250)
+            }
+        }
+    }
+    // Kontrol sembunyi sendiri 3 detik setelah tampil saat video jalan.
+    LaunchedEffect(controlsVisible, isPlaying) {
+        if (controlsVisible && isPlaying) {
+            delay(3000)
+            controlsVisible = false
+        }
+    }
     BackHandler { onBack() }
     Scaffold(
         topBar = {
@@ -608,87 +634,170 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
         },
         containerColor = Color.Black
     ) { padding ->
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize().padding(padding).background(Color.Black)
-        ) { page ->
-            val pagePath = paths[page]
-            key(pagePath) {
-                AndroidView(
-                    factory = { ctx ->
-                        val videoView = android.widget.VideoView(ctx)
-                        // ViewerMediaController: Back di jendela kontrol langsung
-                        // keluar dari penampil (bukan sekadar menyembunyikan
-                        // kontrol — itu yang membuat Back terasa mati selama
-                        // video diputar). OnKeyListener lama dihapus: kunci
-                        // tidak pernah sampai ke VideoView selama kontrol tampil.
-                        val controller = ViewerMediaController(ctx).apply {
-                            onBackPress = onBack
-                        }
-                        // Jangkar controller HARUS VideoView-nya. Versi lama
-                        // memakai apply bersarang sehingga this@apply terikat ke
-                        // MediaController (controller menjangkar ke dirinya sendiri)
-                        // dan jendela kontrolnya menelan sentuhan selama video diputar.
-                        controller.setAnchorView(videoView)
-                        videoView.setMediaController(controller)
-                        videoView.setVideoURI(android.net.Uri.fromFile(File(pagePath)))
-                        videoView.setOnErrorListener { _, _, _ ->
-                            notify(t.opFailed)
-                            onBack()
-                            true
-                        }
-                        videoView.setOnPreparedListener { it.start() }
-                        // VideoView menelan semua sentuhan (untuk memunculkan
-                        // MediaController), jadi pager di atasnya tidak pernah
-                        // menerima geser. Tangkap seret horizontal di sini dan
-                        // pindahkan halaman secara manual; ketukan tetap
-                        // diteruskan ke VideoView (controller tetap muncul).
-                        var downX = 0f
-                        var downY = 0f
-                        var swiping = false
-                        videoView.setOnTouchListener { _, event ->
-                            when (event.actionMasked) {
-                                MotionEvent.ACTION_DOWN -> {
-                                    downX = event.x
-                                    downY = event.y
-                                    swiping = false
-                                    false
+        Box(Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val pagePath = paths[page]
+                key(pagePath) {
+                    AndroidView(
+                        factory = { ctx ->
+                            android.widget.VideoView(ctx).apply {
+                                views[page] = this
+                                setVideoURI(android.net.Uri.fromFile(File(pagePath)))
+                                setOnErrorListener { _, _, _ ->
+                                    notify(t.opFailed)
+                                    onBack()
+                                    true
                                 }
-                                MotionEvent.ACTION_MOVE -> {
-                                    val dx = event.x - downX
-                                    val dy = event.y - downY
-                                    if (!swiping && abs(dx) > 24f && abs(dx) > abs(dy) * 1.5f) {
-                                        swiping = true
+                                setOnPreparedListener { mp ->
+                                    if (page == pagerState.currentPage) {
+                                        durationMs = mp.duration
+                                        mp.start()
+                                        isPlaying = true
                                     }
-                                    swiping
                                 }
-                                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                                    if (swiping) {
-                                        val dx = event.x - downX
-                                        if (abs(dx) > 120f) {
-                                            val target = (pagerState.currentPage +
-                                                if (dx < 0) 1 else -1)
-                                                .coerceIn(0, pagerState.pageCount - 1)
-                                            if (target != pagerState.currentPage) {
-                                                scope.launch {
-                                                    pagerState.animateScrollToPage(target)
+                                setOnCompletionListener {
+                                    if (page == pagerState.currentPage) {
+                                        isPlaying = false
+                                        positionMs = durationMs
+                                    }
+                                }
+                                // VideoView menelan semua sentuhan, jadi pager
+                                // di atasnya tidak pernah menerima geser. Tangkap
+                                // seret horizontal di sini dan pindahkan halaman
+                                // secara manual; ketukan (bukan geser) tampil/
+                                // sembunyikan kontrol.
+                                var downX = 0f
+                                var downY = 0f
+                                var swiping = false
+                                setOnTouchListener { _, event ->
+                                    when (event.actionMasked) {
+                                        MotionEvent.ACTION_DOWN -> {
+                                            downX = event.x
+                                            downY = event.y
+                                            swiping = false
+                                            false
+                                        }
+                                        MotionEvent.ACTION_MOVE -> {
+                                            val dx = event.x - downX
+                                            val dy = event.y - downY
+                                            if (!swiping && abs(dx) > 24f && abs(dx) > abs(dy) * 1.5f) {
+                                                swiping = true
+                                            }
+                                            swiping
+                                        }
+                                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                            if (swiping) {
+                                                val dx = event.x - downX
+                                                if (abs(dx) > 120f) {
+                                                    val target = (pagerState.currentPage +
+                                                        if (dx < 0) 1 else -1)
+                                                        .coerceIn(0, pagerState.pageCount - 1)
+                                                    if (target != pagerState.currentPage) {
+                                                        scope.launch {
+                                                            pagerState.animateScrollToPage(target)
+                                                        }
+                                                    }
                                                 }
+                                                swiping = false
+                                                true
+                                            } else {
+                                                controlsVisible = !controlsVisible
+                                                false
                                             }
                                         }
-                                        swiping = false
-                                        true
-                                    } else {
-                                        false
+                                        else -> false
                                     }
                                 }
-                                else -> false
                             }
+                        },
+                        onRelease = { it.stopPlayback(); views.remove(page) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            // Kontrol bawah (tampil saat controlsVisible).
+            if (controlsVisible) {
+                Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            FileOps.formatDuration(if (isSeeking) seekMs else positionMs),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = (if (isSeeking) seekMs else positionMs).toFloat()
+                                .coerceIn(0f, durationMs.toFloat().coerceAtLeast(1f)),
+                            onValueChange = { isSeeking = true; seekMs = it.toInt() },
+                            onValueChangeFinished = {
+                                currentView()?.seekTo(seekMs)
+                                positionMs = seekMs
+                                isSeeking = false
+                            },
+                            valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        )
+                        Text(
+                            FileOps.formatDuration(durationMs),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
+                            }
+                        }) {
+                            Icon(Icons.Default.SkipPrevious, null, tint = Color.White)
                         }
-                        videoView
+                        IconButton(onClick = {
+                            currentView()?.let { vv ->
+                                if (vv.isPlaying) {
+                                    vv.pause()
+                                    isPlaying = false
+                                } else {
+                                    vv.start()
+                                    isPlaying = true
+                                }
+                            }
+                        }) {
+                            Icon(
+                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                null,
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = {
+                            scope.launch {
+                                pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(pagerState.pageCount - 1))
+                            }
+                        }) {
+                            Icon(Icons.Default.SkipNext, null, tint = Color.White)
+                        }
+                    }
+                }
+            }
+            // Tombol putar besar di tengah saat dijeda.
+            if (!isPlaying && controlsVisible) {
+                IconButton(
+                    onClick = {
+                        currentView()?.let { vv ->
+                            vv.start()
+                            isPlaying = true
+                        }
                     },
-                    onRelease = { it.stopPlayback() },
-                    modifier = Modifier.fillMaxSize()
-                )
+                    modifier = Modifier.align(Alignment.Center).size(72.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                }
             }
         }
     }

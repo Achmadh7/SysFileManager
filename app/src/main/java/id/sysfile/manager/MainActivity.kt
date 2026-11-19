@@ -1,5 +1,6 @@
 package id.sysfile.manager
 
+import android.media.MediaPlayer
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -114,6 +115,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.MutableTransitionState
@@ -228,6 +230,28 @@ fun SysFileApp() {
     var browseStack by remember { mutableStateOf<List<String>>(emptyList()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     var overlayReturn by remember { mutableStateOf<Overlay?>(null) }
+
+    // AU2 (r74): pemutar audio mini — hidup di SysFileApp (bukan di
+    // overlay) supaya tetap berbunyi saat pengguna pindah folder/tab.
+    var audioPath by remember { mutableStateOf<String?>(null) }
+    var audioPlaying by remember { mutableStateOf(false) }
+    var audioPositionMs by remember { mutableStateOf(0) }
+    var audioDurationMs by remember { mutableStateOf(0) }
+    val audioPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
+
+    // Posisi berjalan selama audio diputar (500ms).
+    LaunchedEffect(audioPath, audioPlaying) {
+        val mp = audioPlayer.value
+        if (mp != null && audioPlaying) {
+            while (true) {
+                audioPositionMs = try { mp.currentPosition } catch (_: Exception) { 0 }
+                delay(500)
+            }
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { try { audioPlayer.value?.release() } catch (_: Exception) { } }
+    }
     // Berkas yang sedang tampil di penampil foto/video (diperbarui tiap
     // ganti halaman) — dipakai aksi Bagikan/Properti/Hapus + penanda hapus.
     var viewingPath by remember { mutableStateOf<String?>(null) }
@@ -527,6 +551,57 @@ fun SysFileApp() {
         }
     }
 
+    fun stopAudio() {
+        try { audioPlayer.value?.release() } catch (_: Exception) { }
+        audioPlayer.value = null
+        audioPath = null
+        audioPlaying = false
+        audioPositionMs = 0
+        audioDurationMs = 0
+    }
+
+    fun startAudio(entry: FEntry) {
+        stopAudio()
+        val mp = MediaPlayer()
+        try {
+            mp.setDataSource(entry.file.path)
+            mp.setOnPreparedListener {
+                audioDurationMs = it.duration
+                it.start()
+                audioPlaying = true
+            }
+            mp.setOnCompletionListener {
+                audioPlaying = false
+                audioPositionMs = 0
+            }
+            mp.setOnErrorListener { _, _, _ ->
+                notify(t.opFailed)
+                stopAudio()
+                true
+            }
+            audioPlayer.value = mp
+            audioPath = entry.file.path
+            mp.prepareAsync()
+        } catch (e: Exception) {
+            try { mp.release() } catch (_: Exception) { }
+            audioPlayer.value = null
+            audioPath = null
+            notify(t.opFailed)
+        }
+    }
+
+    fun toggleAudio() {
+        val mp = audioPlayer.value ?: return
+        if (mp.isPlaying) {
+            mp.pause()
+            audioPlaying = false
+            audioPositionMs = try { mp.currentPosition } catch (_: Exception) { audioPositionMs }
+        } else {
+            mp.start()
+            audioPlaying = true
+        }
+    }
+
     fun shareFile(file: File) {
         try {
             val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
@@ -586,8 +661,12 @@ fun SysFileApp() {
                 overlay = Overlay.ImageView(paths, idx)
             }
             entry.category == Category.VIDEO -> {
+                stopAudio()
                 val (paths, idx) = FileOps.mediaSiblings(siblings ?: entries, entry)
                 overlay = Overlay.VideoView(paths, idx)
+            }
+            entry.category == Category.AUDIO -> {
+                startAudio(entry)
             }
             FileOps.extOf(f.name) == "pdf" -> overlay = Overlay.PdfView(entry.path)
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
@@ -1006,98 +1085,110 @@ fun SysFileApp() {
                                 }
                             },
                             bottomBar = {
-                                if (selected.isNotEmpty() && currentPath != null) {
-                                    SelectionBar(
-                                        single = selected.size == 1,
-                                        singleEntry = entries.firstOrNull { it.path == selected.first() },
-                                        canExtract = entries.any { selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null },
-                                        onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
-                                        onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
-                                        onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
-                                        onShare = { entries.firstOrNull { it.path == selected.first() }?.let { shareFile(it.file) } },
-                                        onRename = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Rename(it) } },
-                                        onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
-                                        onProperties = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Properties(it) } },
-                                        onExtract = {
-                                            val targets = entries.filter {
-                                                selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null
-                                            }
-                                            val only = targets.singleOrNull()
-                                            if (only != null && ArchiveOps.kindOf(only.name) == "zip") {
-                                                working = true
-                                                scope.launch {
-                                                    val enc = withContext(Dispatchers.IO) { ArchiveOps.isZipEncrypted(only.file) }
-                                                    working = false
-                                                    if (enc) {
-                                                        dialog = DialogKind.ZipPassword(only)
-                                                    } else {
-                                                        runOp(t.extractDone) {
-                                                            ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
+                                Column {
+                                    audioPath?.let { path ->
+                                        MiniPlayerBar(
+                                            name = File(path).name,
+                                            positionMs = audioPositionMs,
+                                            durationMs = audioDurationMs,
+                                            playing = audioPlaying,
+                                            onToggle = { toggleAudio() },
+                                            onClose = { stopAudio() }
+                                        )
+                                    }
+                                    if (selected.isNotEmpty() && currentPath != null) {
+                                        SelectionBar(
+                                            single = selected.size == 1,
+                                            singleEntry = entries.firstOrNull { it.path == selected.first() },
+                                            canExtract = entries.any { selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null },
+                                            onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
+                                            onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
+                                            onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
+                                            onShare = { entries.firstOrNull { it.path == selected.first() }?.let { shareFile(it.file) } },
+                                            onRename = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Rename(it) } },
+                                            onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
+                                            onProperties = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Properties(it) } },
+                                            onExtract = {
+                                                val targets = entries.filter {
+                                                    selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null
+                                                }
+                                                val only = targets.singleOrNull()
+                                                if (only != null && ArchiveOps.kindOf(only.name) == "zip") {
+                                                    working = true
+                                                    scope.launch {
+                                                        val enc = withContext(Dispatchers.IO) { ArchiveOps.isZipEncrypted(only.file) }
+                                                        working = false
+                                                        if (enc) {
+                                                            dialog = DialogKind.ZipPassword(only)
+                                                        } else {
+                                                            runOp(t.extractDone) {
+                                                                ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
+                                                            }
                                                         }
                                                     }
-                                                }
-                                            } else if (only != null && ArchiveOps.kindOf(only.name) == "rar") {
-                                                working = true
-                                                scope.launch {
-                                                    val enc = withContext(Dispatchers.IO) { ArchiveOps.isRarEncrypted(only.file) }
-                                                    working = false
-                                                    if (enc) {
-                                                        dialog = DialogKind.RarPassword(only)
-                                                    } else {
-                                                        runOp(t.extractDone) {
-                                                            ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
+                                                } else if (only != null && ArchiveOps.kindOf(only.name) == "rar") {
+                                                    working = true
+                                                    scope.launch {
+                                                        val enc = withContext(Dispatchers.IO) { ArchiveOps.isRarEncrypted(only.file) }
+                                                        working = false
+                                                        if (enc) {
+                                                            dialog = DialogKind.RarPassword(only)
+                                                        } else {
+                                                            runOp(t.extractDone) {
+                                                                ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
+                                                            }
                                                         }
                                                     }
+                                                } else if (targets.isNotEmpty()) {
+                                                    runOp(t.extractDone) {
+                                                        targets.count {
+                                                            ArchiveOps.extract(it.file, it.file.parentFile ?: it.file)
+                                                        } > 0
+                                                    }
                                                 }
-                                            } else if (targets.isNotEmpty()) {
-                                                runOp(t.extractDone) {
-                                                    targets.count {
-                                                        ArchiveOps.extract(it.file, it.file.parentFile ?: it.file)
-                                                    } > 0
-                                                }
-                                            }
-                                        },
-                                        onSelectAll = { selected = entries.map { it.path }.toSet() },
-                                        singleIsDir = entries.firstOrNull { it.path == selected.first() }?.isDir == true,
-                                        singleLocked = selected.singleOrNull()?.let { it in lockedFolders } == true,
-                                        onToggleLock = {
-                                            entries.firstOrNull { it.path == selected.first() }?.let { entry ->
-                                                if (entry.path in lockedFolders) {
-                                                    requestUnlock(entry.path) {
-                                                        val updated = lockedFolders - entry.path
+                                            },
+                                            onSelectAll = { selected = entries.map { it.path }.toSet() },
+                                            singleIsDir = entries.firstOrNull { it.path == selected.first() }?.isDir == true,
+                                            singleLocked = selected.singleOrNull()?.let { it in lockedFolders } == true,
+                                            onToggleLock = {
+                                                entries.firstOrNull { it.path == selected.first() }?.let { entry ->
+                                                    if (entry.path in lockedFolders) {
+                                                        requestUnlock(entry.path) {
+                                                            val updated = lockedFolders - entry.path
+                                                            lockedFolders = updated
+                                                            prefs.edit().putStringSet("locked_folders", updated).apply()
+                                                            unlockedSession = unlockedSession - entry.path
+                                                            selected = emptySet()
+                                                            notify(t.folderUnlockedDone)
+                                                        }
+                                                    } else if (entry.name != FileOps.TRASH_DIR_NAME) {
+                                                        val updated = lockedFolders + entry.path
                                                         lockedFolders = updated
                                                         prefs.edit().putStringSet("locked_folders", updated).apply()
-                                                        unlockedSession = unlockedSession - entry.path
                                                         selected = emptySet()
-                                                        notify(t.folderUnlockedDone)
+                                                        notify(t.folderLockedDone)
                                                     }
-                                                } else if (entry.name != FileOps.TRASH_DIR_NAME) {
-                                                    val updated = lockedFolders + entry.path
-                                                    lockedFolders = updated
-                                                    prefs.edit().putStringSet("locked_folders", updated).apply()
-                                                    selected = emptySet()
-                                                    notify(t.folderLockedDone)
                                                 }
                                             }
-                                        }
-                                    )
-                                } else if (clipboard != null && currentPath != null) {
-                                    ClipboardBar(
-                                        count = clipboard!!.first.size,
-                                        onPaste = {
-                                            val (paths, mode) = clipboard!!
-                                            val destDir = File(currentPath)
-                                            runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
-                                                val files = paths.map { File(it) }
-                                                if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
-                                                else FileOps.moveInto(files, destDir) > 0
-                                            }
-                                            if (mode == ClipMode.CUT) clipboard = null
-                                        },
-                                        onClear = { clipboard = null }
-                                    )
-                                } else if (currentPath == null) {
-                                    SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                        )
+                                    } else if (clipboard != null && currentPath != null) {
+                                        ClipboardBar(
+                                            count = clipboard!!.first.size,
+                                            onPaste = {
+                                                val (paths, mode) = clipboard!!
+                                                val destDir = File(currentPath)
+                                                runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
+                                                    val files = paths.map { File(it) }
+                                                    if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
+                                                    else FileOps.moveInto(files, destDir) > 0
+                                                }
+                                                if (mode == ClipMode.CUT) clipboard = null
+                                            },
+                                            onClear = { clipboard = null }
+                                        )
+                                    } else if (currentPath == null) {
+                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                    }
                                 }
                             }
                         ) { padding ->

@@ -700,6 +700,16 @@ object FileOps {
         }
         return String.format(Locale.US, "%.1f %s", value, units[unit])
     }
+
+    /** Durasi m:ss (atau h:mm:ss bila >= 1 jam) untuk pemutar media. */
+    fun formatDuration(ms: Int): String {
+        val totalSec = (ms.coerceAtLeast(0) / 1000)
+        val h = totalSec / 3600
+        val m = (totalSec % 3600) / 60
+        val sec = totalSec % 60
+        return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, sec)
+        else String.format(Locale.US, "%d:%02d", m, sec)
+    }
 }
 
 /** Mesin arsip tambahan: TAR (Commons Compress), 7Z ekstrak, ZIP terenkripsi (zip4j). */

@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,6 +60,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
@@ -562,6 +566,58 @@ fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
         }
     }
 }
+/** AU2 (r74): bar mini-player audio — tetap tampil di bawah layar
+ *  selama audio diputar, walau pengguna pindah folder/tab. */
+@Composable
+fun MiniPlayerBar(
+    name: String,
+    positionMs: Int,
+    durationMs: Int,
+    playing: Boolean,
+    onToggle: () -> Unit,
+    onClose: () -> Unit
+) {
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            tonalElevation = 3.dp,
+            shadowElevation = 6.dp
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF2DD4BF).copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.MusicNote, null, tint = Color(0xFF2DD4BF), modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${FileOps.formatDuration(positionMs)} / ${FileOps.formatDuration(durationMs)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onToggle) {
+                    Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null)
+                }
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, null)
+                }
+            }
+        }
+    }
+}
+
 
 // ---------------------------------------------------------------------------
 // Layar pencarian
