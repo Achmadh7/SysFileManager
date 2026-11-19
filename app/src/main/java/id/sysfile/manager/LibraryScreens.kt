@@ -684,6 +684,8 @@ fun PayloadScreen(
 @Composable
 fun ArchiveScreen(
     path: String,
+    initialPrefix: String = "",
+    onPrefixChange: (String) -> Unit = {},
     onBack: () -> Unit,
     onError: () -> Unit,
     onExtractAll: () -> Unit,
@@ -693,14 +695,16 @@ fun ArchiveScreen(
     val archiveFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var items by remember(path) { mutableStateOf<List<ArchiveItem>?>(null) }
-    var prefix by remember(path) { mutableStateOf("") }
+    var prefix by remember(path) { mutableStateOf(initialPrefix) }
     LaunchedEffect(path) {
         val loaded = withContext(Dispatchers.IO) { ArchiveOps.listContents(archiveFile) }
         if (loaded == null) onError() else items = loaded
     }
     BackHandler(enabled = prefix.isNotEmpty()) {
         val parent = prefix.removeSuffix("/").substringBeforeLast('/', "")
-        prefix = if (parent.isEmpty()) "" else "$parent/"
+        val next = if (parent.isEmpty()) "" else "$parent/"
+        prefix = next
+        onPrefixChange(next)
     }
     Scaffold(
         topBar = {
@@ -760,7 +764,7 @@ fun ArchiveScreen(
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(children, key = { it.first.name }) { (item, count) ->
                                 ArchiveItemRow(item = item, count = count, onClick = {
-                                    if (item.isDir) prefix = item.name else onOpenFile(item.name)
+                                    if (item.isDir) { prefix = item.name; onPrefixChange(item.name) } else onOpenFile(item.name)
                                 })
                             }
                         }

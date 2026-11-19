@@ -241,6 +241,12 @@ fun SysFileApp() {
     var browseStack by remember { mutableStateOf<List<String>>(emptyList()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     var overlayReturn by remember { mutableStateOf<Overlay?>(null) }
+    // r108: subfolder arsip yang sedang dibuka — disimpan di sini supaya
+    // kembali dari berkas di dalam arsip mendarat di subfolder yang sama,
+    // bukan di akar arsip (remember() ArchiveScreen terbuang saat overlay
+    // berganti ke penampil berkas).
+    var archivePrefix by remember { mutableStateOf("") }
+    var archivePrefixPath by remember { mutableStateOf<String?>(null) }
 
     // AU2 (r74): pemutar audio mini — hidup di SysFileApp (bukan di
     // overlay) supaya tetap berbunyi saat pengguna pindah folder/tab.
@@ -917,12 +923,15 @@ fun SysFileApp() {
                     )
                     is Overlay.ArchiveView -> ArchiveScreen(
                         path = ov.path,
-                        onBack = { overlay = overlayReturn; overlayReturn = null },
-                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed) },
+                        initialPrefix = if (archivePrefixPath == ov.path) archivePrefix else "",
+                        onPrefixChange = { archivePrefixPath = ov.path; archivePrefix = it },
+                        onBack = { overlay = overlayReturn; overlayReturn = null; archivePrefix = ""; archivePrefixPath = null },
+                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed); archivePrefix = ""; archivePrefixPath = null },
                         onExtractAll = {
                             val archiveFile = File(ov.path)
                             overlay = null
                             overlayReturn = null
+                            archivePrefix = ""; archivePrefixPath = null
                             runOp(t.extractDone) { ArchiveOps.extract(archiveFile, archiveFile.parentFile ?: archiveFile) }
                         },
                         onOpenFile = { itemName ->
