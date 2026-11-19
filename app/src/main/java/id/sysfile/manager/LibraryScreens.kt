@@ -140,6 +140,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -270,6 +272,10 @@ private fun recentDay(modified: Long, t: Txt): String {
     }
 }
 
+/** Cache kategori dianggap segar selama ini (r128): buka ulang kategori
+ *  dalam jeda ini tidak memindai ulang bila tak ada perubahan berkas. */
+private const val CATEGORY_CACHE_FRESH_MS = 60_000L
+
 /** Layar satu kategori: semua berkas kategori itu lintas volume, terbaru dulu. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -279,6 +285,9 @@ fun CategoryScreen(
     showHidden: Boolean,
     accessGranted: Boolean,
     categoryCache: MutableMap<Category, List<FEntry>>,
+    categoryCacheAt: MutableMap<Category, Long>,
+    categoryCacheKey: MutableMap<Category, Int>,
+    reloadKey: Int,
     onBack: () -> Unit,
     onOpenEntry: (FEntry, List<FEntry>) -> Unit
 ) {
@@ -289,18 +298,34 @@ fun CategoryScreen(
         context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
             .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
     }
-    // r84: daftar dari sesi sebelumnya tampil seketika (bila ada);
-    // pindai segar tetap jalan di latar dan memperbarui cache.
+    // r84: daftar dari sesi sebelumnya tampil seketika (bila ada).
+    // r128: pindai segar dilewati bila cache masih segar (< 60 dtk)
+    // DAN tidak ada perubahan berkas sejak pindai itu (reloadKey) —
+    // buka-tutup kategori berulang tidak lagi menelusuri ulang.
     var files by remember { mutableStateOf<List<FEntry>?>(categoryCache[category]) }
-    LaunchedEffect(category, accessGranted) {
+    LaunchedEffect(category, accessGranted, reloadKey) {
         if (!accessGranted) {
             files = emptyList()
             return@LaunchedEffect
         }
+        val cached = categoryCache[category]
+        val at = categoryCacheAt[category] ?: 0L
+        val key = categoryCacheKey[category]
+        if (cached != null && key == reloadKey &&
+            System.currentTimeMillis() - at < CATEGORY_CACHE_FRESH_MS
+        ) {
+            files = cached
+            return@LaunchedEffect
+        }
         val fresh = withContext(Dispatchers.IO) {
-            FileOps.categoryFiles(roots.map { File(it.path) }, category, showHidden, lockedFolders)
+            loadCategoryFiles(
+                roots, category, showHidden, lockedFolders,
+                mediaQuery = { cat -> MediaStoreOps.queryMedia(context.contentResolver, cat, lockedFolders) }
+            )
         }
         categoryCache[category] = fresh
+        categoryCacheAt[category] = System.currentTimeMillis()
+        categoryCacheKey[category] = reloadKey
         files = fresh
     }
     Scaffold(
@@ -440,6 +465,43 @@ private fun ArchiveItemRow(item: ArchiveItem, count: Int?, extra: String? = null
  * Folder di dalam arsip bisa dimasuki; mengetuk berkas mengekstrak berkas itu
  * saja lalu membukanya; tombol Ekstrak Semua mengekstrak seluruh isi.
  */
+
+/**
+ * Pindai segar satu kategori (r128: L1+L2+L3).
+ * - Media (Gambar/Video/Audio) tanpa file tersembunyi: MediaStore
+ *   (mediaQuery) untuk root biasa; root USB tetap dipindai biasa
+ *   karena MediaStore belum tentu mengindeksnya. Bila MediaStore
+ *   gagal (null) -> jalan biasa untuk semua root.
+ * - File tersembunyi ditampilkan: MediaStore tidak bisa melihatnya,
+ *   jadi seluruh kategori dipindai biasa.
+ * - Jalan biasa: tiap root dipindai paralel (L2), digabung, terbaru
+ *   dulu, maks 1000. [mediaQuery] bisa diisi palsu di tes.
+ */
+internal suspend fun loadCategoryFiles(
+    roots: List<RootInfo>,
+    category: Category,
+    showHidden: Boolean,
+    locked: Set<String>,
+    mediaQuery: ((Category) -> List<FEntry>?)? = null
+): List<FEntry> = coroutineScope {
+    if (MediaStoreOps.isMediaCategory(category) && !showHidden && mediaQuery != null) {
+        val media = async(Dispatchers.IO) { mediaQuery(category) }.await()
+        if (media != null) {
+            val usb = roots.filter { it.kind == "usb" }.map { root ->
+                async(Dispatchers.IO) {
+                    FileOps.categoryFiles(listOf(File(root.path)), category, showHidden, locked)
+                }
+            }.awaitAll().flatten()
+            return@coroutineScope (media + usb).sortedByDescending { it.modified }.take(1000)
+        }
+    }
+    val perRoot = roots.map { root ->
+        async(Dispatchers.IO) {
+            FileOps.categoryFiles(listOf(File(root.path)), category, showHidden, locked)
+        }
+    }.awaitAll()
+    perRoot.flatten().sortedByDescending { it.modified }.take(1000)
+}
 
 /**
  * Layar Tempat Sampah: berkas yang dihapus (dipindah ke .SysFileTrash) bisa

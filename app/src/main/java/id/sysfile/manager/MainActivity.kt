@@ -347,6 +347,8 @@ fun SysFileApp() {
     // seluruh penyimpanan dari nol; daftar lama tampil seketika,
     // hasil segar menyusul di latar.
     val categoryCache = remember { mutableMapOf<Category, List<FEntry>>() }
+    val categoryCacheAt = remember { mutableMapOf<Category, Long>() }
+    val categoryCacheKey = remember { mutableMapOf<Category, Int>() }
     val countCache = remember { mutableMapOf<String, Int>() }
     var reloadKey by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -982,6 +984,9 @@ fun SysFileApp() {
                     is Overlay.CategoryView -> CategoryScreen(
                         category = ov.category,
                         categoryCache = categoryCache,
+                        categoryCacheAt = categoryCacheAt,
+                        categoryCacheKey = categoryCacheKey,
+                        reloadKey = reloadKey,
                         roots = roots,
                         showHidden = showHidden,
                         accessGranted = accessGranted,

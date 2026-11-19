@@ -625,17 +625,19 @@ object FileOps {
         var visited = 0
         for (root in roots) {
             if (!root.isDirectory || visited >= cap) continue
-            root.walkTopDown()
-                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && dir.absolutePath !in locked && (showHidden || !dir.name.startsWith(".") || dir == root) }
-                .forEach { f ->
-                    if (visited >= cap) return@forEach
-                    if (f.isFile) {
-                        visited++
-                        if ((showHidden || !f.name.startsWith(".")) && categoryOf(f.name) == category) {
-                            found += entryOf(f)
-                        }
+            // r128: for + break — begitu cap tercapai penelusuran BENAR-BENAR
+            // berhenti (dulu forEach hanya melewati sisa entri sementara
+            // walk tetap menjelajahi seluruh pohon).
+            for (f in root.walkTopDown()
+                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && dir.absolutePath !in locked && (showHidden || !dir.name.startsWith(".") || dir == root) }) {
+                if (visited >= cap) break
+                if (f.isFile) {
+                    visited++
+                    if ((showHidden || !f.name.startsWith(".")) && categoryOf(f.name) == category) {
+                        found += entryOf(f)
                     }
                 }
+            }
         }
         return found.sortedByDescending { it.modified }.take(limit)
     }
