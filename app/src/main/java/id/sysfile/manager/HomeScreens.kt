@@ -88,6 +88,9 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Analytics
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -368,6 +371,11 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         Triple(1, Icons.Default.History, t.recentShort),
         Triple(2, Icons.Default.Analytics, t.analysisShort)
     )
+    // r81 NV10: tab tidak aktif memakai ikon outline (filled hanya
+    // saat aktif). Urutan sejajar `items` di atas.
+    val outlined = listOf(
+        Icons.Outlined.Home, Icons.Outlined.History, Icons.Outlined.Analytics
+    )
     Box(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         contentAlignment = Alignment.Center
@@ -388,7 +396,8 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                 )
                 // Pil meluncur selebar tab (r66: NV1 label hanya di
                 // tab aktif, NV2 pil primary penuh; r79 NV6: kapsul
-                // 48dp, pil 32dp, ikon 18dp, label labelSmall).
+                // 48dp, pil 32dp, ikon 18dp, label labelSmall;
+                // r81 NV10: ikon outline saat tidak aktif).
                 Box(
                     Modifier.offset(x = pillX, y = 8.dp)
                         .size(width = pillW, height = 32.dp)
@@ -409,7 +418,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(icon, null, tint = fg, modifier = Modifier.size(18.dp))
+                            Icon(if (selected) icon else outlined[index], null, tint = fg, modifier = Modifier.size(18.dp))
                             if (selected) {
                                 Spacer(Modifier.width(6.dp))
                                 Text(
