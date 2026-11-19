@@ -14,14 +14,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -131,6 +128,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -364,8 +362,10 @@ fun HomeScreen(
  *  #1C2024 (surfaceContainer — nyaris sama dengan #212121 di video).
  *  Pill dijepit (coerceIn) supaya tidak keluar dari bar saat tab
  *  Analisis aktif (pill ~126dp > slot ~99dp). Animasi pill NP3
- *  Pudar (r136): pill lama memudar di tempatnya, pill baru muncul
- *  di tempatnya (~250 ms, effects spec) — tidak ada geser.
+ *  Pudar (r136, diperbaiki r138): pill lama memudar di tempatnya,
+ *  pill baru muncul di tempatnya (~250 ms) — tidak ada geser.
+ *  r138: TANPA AnimatedContent — r136 membuat pill melebar
+ *  selebar bar (308dp di screenshot, harusnya ~109dp).
  *  Menggantikan HS1 rapat (r94). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -401,9 +401,10 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     // (coerceIn) — pill Analisis ~126dp lebih lebar dari slot
     // ~99dp, tanpa jepitan ia keluar dari bar.
     // r136 NP3 Pudar: pill TIDAK bergeser — pill lama memudar di
-    // tempatnya, pill baru muncul di tempatnya (AnimatedContent
-    // fadeIn/fadeOut, effects spec ~250 ms). Warna ikon/label (fg)
-    // tetap memakai defaultSpatialSpec.
+    // tempatnya, pill baru muncul di tempatnya (~250 ms). Warna
+    // ikon/label (fg) tetap memakai defaultSpatialSpec.
+    // r138: displayedTab menahan posisi lama selama pudar-keluar,
+    // pindah saat alfa 0 (tak terlihat), lalu pudar-masuk.
     val barColor = Color(0xFF1C2024)
     val pillColor = Color(0xFF9ACBFA)
     val onPillColor = Color(0xFF003352)
@@ -421,25 +422,25 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             fun pillXFor(tab: Int) =
                 (tabWidth * tab + (tabWidth - pillWFor(tab)) / 2)
                     .coerceIn(0.dp, maxWidth - pillWFor(tab))
-            AnimatedContent(
-                targetState = homeTab,
-                transitionSpec = {
-                    fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) togetherWith
-                        fadeOut(animationSpec = motion.defaultEffectsSpec<Float>())
-                },
-                modifier = Modifier.fillMaxSize(),
-                label = "pillFade"
-            ) { tab ->
-                Box(
-                    Modifier.offset(x = pillXFor(tab), y = 8.dp)
-                        .size(width = pillWFor(tab), height = 44.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(pillColor)
-                )
+            var displayedTab by remember { mutableStateOf(homeTab) }
+            val pillAlpha = remember { Animatable(1f) }
+            LaunchedEffect(homeTab) {
+                if (homeTab != displayedTab) {
+                    pillAlpha.animateTo(0f, animationSpec = tween(125))
+                    displayedTab = homeTab
+                    pillAlpha.animateTo(1f, animationSpec = tween(125))
+                }
             }
+            Box(
+                Modifier.offset(x = pillXFor(displayedTab), y = 8.dp)
+                    .size(width = pillWFor(displayedTab), height = 44.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(pillColor)
+                    .alpha(pillAlpha.value)
+            )
             Row(Modifier.fillMaxSize()) {
                 items.forEach { (index, icon, label) ->
-                    val selected = homeTab == index
+                    val selected = displayedTab == index
                     val fg by animateColorAsState(
                         targetValue = if (selected) onPillColor
                         else Color.White,
