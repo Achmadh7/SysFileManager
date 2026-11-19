@@ -731,10 +731,12 @@ fun SysFileApp() {
             if (ok) {
                 notify(successMsg)
                 reloadKey++
+                // Seleksi hanya dibersihkan bila operasi berhasil (B5): bila
+                // gagal, seleksi dipertahankan supaya pengguna bisa mengulang.
+                selected = emptySet()
             } else {
                 notify(t.opFailed)
             }
-            selected = emptySet()
         }
     }
 
@@ -1043,7 +1045,7 @@ fun SysFileApp() {
                                                             leadingIcon = { Icon(Icons.Default.ContentPaste, null) },
                                                             onClick = {
                                                                 menuOpen = false
-                                                                val (paths, mode) = clipboard!!
+                                                                val (paths, mode) = clipboard ?: return@DropdownMenuItem
                                                                 val destDir = File(currentPath)
                                                                 runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
                                                                     val files = paths.map { File(it) }
@@ -1198,21 +1200,23 @@ fun SysFileApp() {
                                                 }
                                             }
                                         )
-                                    } else if (clipboard != null && currentPath != null) {
-                                        ClipboardBar(
-                                            count = clipboard!!.first.size,
-                                            onPaste = {
-                                                val (paths, mode) = clipboard!!
-                                                val destDir = File(currentPath)
-                                                runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
-                                                    val files = paths.map { File(it) }
-                                                    if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
-                                                    else FileOps.moveInto(files, destDir) > 0
-                                                }
-                                                if (mode == ClipMode.CUT) clipboard = null
-                                            },
-                                            onClear = { clipboard = null }
-                                        )
+                                    } else if (currentPath != null) {
+                                        clipboard?.let { clip ->
+                                            ClipboardBar(
+                                                count = clip.first.size,
+                                                onPaste = {
+                                                    val (paths, mode) = clip
+                                                    val destDir = File(currentPath)
+                                                    runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
+                                                        val files = paths.map { File(it) }
+                                                        if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
+                                                        else FileOps.moveInto(files, destDir) > 0
+                                                    }
+                                                    if (mode == ClipMode.CUT) clipboard = null
+                                                },
+                                                onClear = { clipboard = null }
+                                            )
+                                        }
                                     } else if (currentPath == null) {
                                         SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
                                     }
