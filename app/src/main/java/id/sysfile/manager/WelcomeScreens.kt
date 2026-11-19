@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -59,36 +60,53 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(Modifier.size(32.dp))
-            // Ubin logo M11 "SF" (sama seperti bilah atas Beranda + Tentang).
-            Box(
-                Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+            // WS7: hero dalam kartu — logo + judul + pitch terpusat dalam satu kartu.
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                ),
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    "SF",
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 24.sp
-                )
-                Box(
-                    Modifier.size(width = 3.dp, height = 88.dp)
-                        .rotate(30f)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                )
+                Column(
+                    Modifier.fillMaxWidth().padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Ubin logo M11 "SF" (sama seperti bilah atas Beranda + Tentang).
+                    Box(
+                        Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(19.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "SF",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 30.sp
+                        )
+                        Box(
+                            Modifier.size(width = 3.dp, height = 88.dp)
+                                .rotate(30f)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                        )
+                    }
+                    Text(
+                        t.welcomeTitle,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        t.welcomePitch,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
-            Text(
-                t.welcomeTitle,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                t.welcomePitch,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -97,21 +115,21 @@ fun WelcomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    Modifier.padding(16.dp),
+                    Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.Folder, null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                         Spacer(Modifier.width(12.dp))
