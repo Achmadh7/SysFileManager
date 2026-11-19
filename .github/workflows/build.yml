@@ -58,10 +58,10 @@ jobs:
         # A1: nama APK diambil dari versionName (bukan hardcode).
         run: |
           VERSION=$(grep -m1 -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/SysFile Manager Release $VERSION.apk"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/SysFileManager-$VERSION-Release.apk"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: SysFile Manager
-          path: app/build/outputs/apk/release/SysFile Manager Release ${{ env.VERSION }}.apk
+          path: app/build/outputs/apk/release/SysFileManager-${{ env.VERSION }}-Release.apk
