@@ -160,6 +160,7 @@ private sealed interface Overlay {
     data class TextView(val path: String) : Overlay
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
+    data class OfficeView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
     data class ArchiveView(val path: String) : Overlay
     data class PayloadView(val path: String) : Overlay
@@ -696,6 +697,7 @@ fun SysFileApp() {
             }
             FileOps.extOf(f.name) == "pdf" -> overlay = Overlay.PdfView(entry.path)
             FileOps.extOf(f.name) == "epub" -> overlay = Overlay.EpubView(entry.path)
+            FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> overlay = Overlay.OfficeView(entry.path)
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
             entry.category == Category.ARCHIVE -> {
                 val kind = ArchiveOps.kindOf(f.name)
@@ -867,6 +869,11 @@ fun SysFileApp() {
                     is Overlay.EpubView -> EpubReaderScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null }
+                    )
+                    is Overlay.OfficeView -> OfficeViewerScreen(
+                        path = ov.path,
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        notify = { notify(it) }
                     )
                     is Overlay.VideoView -> VideoViewerScreen(
                         paths = ov.paths,

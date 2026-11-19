@@ -238,10 +238,12 @@ fun ImageViewerScreen(
  *  .md dan .html/.htm punya tombol pratinjau di bilah atas: HTML tampil
  *  apa adanya, Markdown di-render dulu jadi HTML (Markdown.kt) — keduanya
  *  di WebView yang sama (JS mati, base file:// folder induk supaya gambar
- *  relatif termuat). Teks/kode tetap tampilan default. */
+ *  relatif termuat). Teks/kode tetap tampilan default. Bila dipanggil
+ *  dengan extractedText (teks hasil ekstrak Office, BC3), tampilannya
+ *  read-only: tidak ada tombol edit/simpan. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit) {
+fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit, extractedText: String? = null) {
     val t = txt()
     val scope = rememberCoroutineScope()
     var content by remember { mutableStateOf<String?>(null) }
@@ -255,6 +257,12 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
     var previewTick by remember { mutableStateOf(0) }
 
     LaunchedEffect(path) {
+        // BC3: teks hasil ekstrak (Office) ditampilkan apa adanya tanpa
+        // membaca berkas — dan tanpa tombol edit/simpan (read-only).
+        if (extractedText != null) {
+            content = extractedText
+            return@LaunchedEffect
+        }
         val text = withContext(Dispatchers.IO) {
             try {
                 val f = File(path)
@@ -305,7 +313,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                                     }
                                 }
                             }) { Icon(Icons.Default.Save, t.save) }
-                        } else if (!preview) {
+                        } else if (!preview && extractedText == null) {
                             IconButton(onClick = { editing = true }) { Icon(Icons.Default.Edit, t.edit) }
                         }
                     }
