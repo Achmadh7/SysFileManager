@@ -21,7 +21,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -364,9 +363,10 @@ fun HomeScreen(
  *  di atas pill); tab tidak aktif hanya ikon outline putih. Bar
  *  #1C2024 (surfaceContainer — nyaris sama dengan #212121 di video).
  *  Pill dijepit (coerceIn) supaya tidak keluar dari bar saat tab
- *  Analisis aktif (pill ~126dp > slot ~99dp). Animasi halus (r93):
- *  pill meluncur + berubah lebar, warna ikon/label ikut dianimasikan
- *  dengan defaultSpatialSpec yang sama. Menggantikan HS1 rapat (r94). */
+ *  Analisis aktif (pill ~126dp > slot ~99dp). Animasi pill NP3
+ *  Pudar (r136): pill lama memudar di tempatnya, pill baru muncul
+ *  di tempatnya (~250 ms, effects spec) — tidak ada geser.
+ *  Menggantikan HS1 rapat (r94). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
@@ -399,10 +399,11 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     // r135 NV23: bar lebar video (margin 48dp, tinggi 60dp), pill
     // primary #9ACBFA 44dp. Posisi pill dijepit ke dalam bar
     // (coerceIn) — pill Analisis ~126dp lebih lebar dari slot
-    // ~99dp, tanpa jepitan ia keluar dari bar. ANIMASI HALUS (r93):
-    // lebar + posisi pill (pillW / pillX) dan warna ikon/label (fg)
-    // semuanya memakai defaultSpatialSpec yang sama — jadi warna
-    // berubah seiring pill meluncur.
+    // ~99dp, tanpa jepitan ia keluar dari bar.
+    // r136 NP3 Pudar: pill TIDAK bergeser — pill lama memudar di
+    // tempatnya, pill baru muncul di tempatnya (AnimatedContent
+    // fadeIn/fadeOut, effects spec ~250 ms). Warna ikon/label (fg)
+    // tetap memakai defaultSpatialSpec.
     val barColor = Color(0xFF1C2024)
     val pillColor = Color(0xFF9ACBFA)
     val onPillColor = Color(0xFF003352)
@@ -416,23 +417,26 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val tabWidth = maxWidth / 3
-            val pillWTarget = 24.dp + 8.dp + labelWidths[homeTab] + 22.dp
-            val pillW by animateDpAsState(
-                targetValue = pillWTarget,
-                animationSpec = motion.defaultSpatialSpec(),
-                label = "pillW"
-            )
-            val pillX by animateDpAsState(
-                targetValue = (tabWidth * homeTab + (tabWidth - pillW) / 2).coerceIn(0.dp, maxWidth - pillW),
-                animationSpec = motion.defaultSpatialSpec(),
-                label = "pillX"
-            )
-            Box(
-                Modifier.offset(x = pillX, y = 8.dp)
-                    .size(width = pillW, height = 44.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(pillColor)
-            )
+            fun pillWFor(tab: Int) = 24.dp + 8.dp + labelWidths[tab] + 22.dp
+            fun pillXFor(tab: Int) =
+                (tabWidth * tab + (tabWidth - pillWFor(tab)) / 2)
+                    .coerceIn(0.dp, maxWidth - pillWFor(tab))
+            AnimatedContent(
+                targetState = homeTab,
+                transitionSpec = {
+                    fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) togetherWith
+                        fadeOut(animationSpec = motion.defaultEffectsSpec<Float>())
+                },
+                modifier = Modifier.fillMaxSize(),
+                label = "pillFade"
+            ) { tab ->
+                Box(
+                    Modifier.offset(x = pillXFor(tab), y = 8.dp)
+                        .size(width = pillWFor(tab), height = 44.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(pillColor)
+                )
+            }
             Row(Modifier.fillMaxSize()) {
                 items.forEach { (index, icon, label) ->
                     val selected = homeTab == index
