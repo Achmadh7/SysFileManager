@@ -590,7 +590,7 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
  *  kontrol bawaan Android diganti sepenuhnya. Kontrol bawah berupa
  *  kapsul mengambang (VP2, r76; VP6 r85: slider + waktu di dalam
  *  kapsul, baris atas; tombol prev/play/next di baris bawah). */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit) {
     val t = txt()
