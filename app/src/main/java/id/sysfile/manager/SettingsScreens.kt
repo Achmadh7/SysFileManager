@@ -27,6 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
@@ -377,11 +378,16 @@ private fun SettingsRow(
 @Composable
 private fun FormatRow(name: String, caps: List<String>, desc: String) {
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // FM1 (r87): judul + chip sebaris; chip membungkus ke baris
+        // berikut bila judul panjang (mis. APK / APKS / XAPK / AAB).
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             caps.forEach { cap ->
                 Surface(
                     shape = RoundedCornerShape(50),
@@ -399,7 +405,7 @@ private fun FormatRow(name: String, caps: List<String>, desc: String) {
         }
         Text(
             desc,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
@@ -452,17 +458,17 @@ fun FormatsScreen(onBack: () -> Unit) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
                         Spacer(Modifier.height(8.dp))
                         FormatRow("ZIP (.zip)", listOf(t.chipCreate, t.chipExtract, t.chipEncrypt), t.fmtZipDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("7Z (.7z)", listOf(t.chipExtract, t.chipHighRatio), t.fmt7zDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("TAR (.tar)", listOf(t.chipCreate, t.chipExtract), t.fmtTarDesc)
@@ -475,17 +481,17 @@ fun FormatsScreen(onBack: () -> Unit) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
                         Spacer(Modifier.height(8.dp))
                         FormatRow("RAR (.rar)", listOf(t.chipExtract, t.chipEncrypt), t.fmtRarDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("APK / APKS / XAPK / AAB", listOf(t.chipExtract, t.chipInspect), t.fmtApkDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("PAYLOAD.BIN", listOf(t.chipExtract, t.chipNative), t.fmtPayloadDesc)
@@ -498,22 +504,22 @@ fun FormatsScreen(onBack: () -> Unit) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
                         Spacer(Modifier.height(8.dp))
                         FormatRow("Gambar", listOf(t.chipView), t.fmtImageDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("Video", listOf(t.chipView), t.fmtVideoDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("Audio", listOf(t.chipPlay), t.fmtAudioDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("Teks", listOf(t.chipView), t.fmtTextDesc)
@@ -526,12 +532,12 @@ fun FormatsScreen(onBack: () -> Unit) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
                         Spacer(Modifier.height(8.dp))
                         FormatRow("Dokumen (PDF)", listOf(t.chipView), t.fmtPdfDesc)
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("Dokumen Office", listOf(t.chipExternal), t.fmtOfficeDesc)
