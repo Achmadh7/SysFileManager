@@ -298,20 +298,21 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         }
                     }
                 } else {
-                    // PD1 "Navy Solid" (pilihan Achmad 2026-11-18): kartu
-                    // tanpa border; kartu 1 info berkas, kartu 2 izin & kepemilikan.
+                    // PR1 Grid (r111, pilihannya): semua baris jadi grid
+                    // 2 kolom (label kiri, nilai kanan) dalam SATU kartu —
+                    // info + izin; dialog jadi jauh lebih pendek.
                     Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
                         Column {
-                            PropGroupRow(
+                            PropGridRow(
                                 t.propParent,
                                 ellipsizeMiddle(
                                     entry.file.parent?.let { if (it.endsWith("/")) it else "$it/" } ?: "/"
                                 )
                             )
                             PropGroupDivider()
-                            PropGroupRow(t.propType, if (entry.isDir) t.propFolder else t.propFile)
+                            PropGridRow(t.propType, if (entry.isDir) t.propFolder else t.propFile)
                             PropGroupDivider()
-                            PropGroupRow(
+                            PropGridRow(
                                 t.propSize,
                                 if (entry.isDir) {
                                     stats?.let { FileOps.formatSizeExact(it.totalSize) } ?: "\u2026"
@@ -321,27 +322,23 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                             )
                             if (entry.isDir) {
                                 PropGroupDivider()
-                                PropGroupRow(t.propFileCount, stats?.fileCount?.toString() ?: "\u2026")
+                                PropGridRow(t.propFileCount, stats?.fileCount?.toString() ?: "\u2026")
                                 PropGroupDivider()
-                                PropGroupRow(t.propFolderCount, stats?.dirCount?.toString() ?: "\u2026")
+                                PropGridRow(t.propFolderCount, stats?.dirCount?.toString() ?: "\u2026")
                                 if (stats?.largestName != null) {
                                     PropGroupDivider()
-                                    PropGroupRow(
+                                    PropGridRow(
                                         t.propLargest,
                                         stats!!.largestName + " \u00b7 " + FileOps.formatSize(stats!!.largestSize)
                                     )
                                 }
                             }
                             PropGroupDivider()
-                            PropGroupRow(t.propModified, FileOps.formatIsoTime(entry.modified))
-                        }
-                    }
-                    if (stat != null) {
-                        Spacer(Modifier.height(12.dp))
-                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
-                            Column {
+                            PropGridRow(t.propModified, FileOps.formatIsoTime(entry.modified))
+                            if (stat != null) {
+                                PropGroupDivider()
                                 Row(
-                                    Modifier.padding(start = 20.dp, top = 16.dp, bottom = 2.dp),
+                                    Modifier.padding(start = 20.dp, top = 12.dp, bottom = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Surface(
@@ -362,15 +359,15 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
-                                PropGroupRow(t.propPerms, FileOps.formatPerms(stat!!.mode), monospace = true) {
+                                PropGridRow(t.propPerms, FileOps.formatPerms(stat!!.mode), monospace = true) {
                                     IconButton(onClick = { showPerms = true }) {
                                         Icon(Icons.Default.Edit, t.edit, modifier = Modifier.size(18.dp))
                                     }
                                 }
                                 PropGroupDivider()
-                                PropGroupRow(t.propOwner, FileOps.ownerName(stat!!.uid))
+                                PropGridRow(t.propOwner, FileOps.ownerName(stat!!.uid))
                                 PropGroupDivider()
-                                PropGroupRow(t.propGroup, FileOps.groupName(stat!!.gid))
+                                PropGridRow(t.propGroup, FileOps.groupName(stat!!.gid))
                             }
                         }
                     }
@@ -380,7 +377,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         Spacer(Modifier.height(12.dp))
                         Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
                             Column {
-                                PropGroupRow(t.propPath, ellipsizeMiddle(entry.path)) {
+                                PropGridRow(t.propPath, ellipsizeMiddle(entry.path)) {
                                     IconButton(onClick = {
                                         clipboard.setText(AnnotatedString(entry.path))
                                         onNotify(t.copiedDone)
@@ -388,13 +385,13 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                                 }
                                 if (stat != null) {
                                     PropGroupDivider()
-                                    PropGroupRow(t.propAccessed, FileOps.formatIsoTime(stat!!.atimeSec * 1000))
+                                    PropGridRow(t.propAccessed, FileOps.formatIsoTime(stat!!.atimeSec * 1000))
                                     PropGroupDivider()
-                                    PropGroupRow(t.propChanged, FileOps.formatIsoTime(stat!!.ctimeSec * 1000))
+                                    PropGridRow(t.propChanged, FileOps.formatIsoTime(stat!!.ctimeSec * 1000))
                                     PropGroupDivider()
-                                    PropGroupRow(t.propInode, stat!!.ino.toString())
+                                    PropGridRow(t.propInode, stat!!.ino.toString())
                                     PropGroupDivider()
-                                    PropGroupRow(t.propLinks, stat!!.nlink.toString())
+                                    PropGridRow(t.propLinks, stat!!.nlink.toString())
                                 }
                             }
                         }
@@ -667,6 +664,58 @@ private fun PropGroupRow(
                 Spacer(Modifier.width(4.dp))
                 trailing()
             }
+        }
+    }
+}
+
+/** Baris grid 2 kolom untuk dialog Properti (PR1 r111): label di
+ *  kiri, nilai di kanan dalam satu baris — dialog jadi jauh lebih
+ *  pendek daripada label-di-atas-nilai. Dipakai dialog Properti
+ *  saja; ExifDialog tetap memakai PropGroupRow. */
+@Composable
+private fun PropGridRow(
+    label: String,
+    value: String,
+    monospace: Boolean = false,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.width(12.dp))
+        if (monospace) {
+            Spacer(Modifier.weight(1f))
+            Surface(
+                shape = RoundedCornerShape(9.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest
+            ) {
+                Text(
+                    value,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    maxLines = 1,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        } else {
+            Text(
+                value,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        if (trailing != null) {
+            Spacer(Modifier.width(4.dp))
+            trailing()
         }
     }
 }
