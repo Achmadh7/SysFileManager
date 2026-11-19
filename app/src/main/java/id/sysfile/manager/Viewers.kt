@@ -15,8 +15,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
-import android.view.MotionEvent
-import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -667,53 +665,6 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                                         positionMs = durationMs
                                     }
                                 }
-                                // VideoView menelan semua sentuhan, jadi pager
-                                // di atasnya tidak pernah menerima geser. Tangkap
-                                // seret horizontal di sini dan pindahkan halaman
-                                // secara manual; ketukan (bukan geser) tampil/
-                                // sembunyikan kontrol.
-                                var downX = 0f
-                                var downY = 0f
-                                var swiping = false
-                                setOnTouchListener { _, event ->
-                                    when (event.actionMasked) {
-                                        MotionEvent.ACTION_DOWN -> {
-                                            downX = event.x
-                                            downY = event.y
-                                            swiping = false
-                                            false
-                                        }
-                                        MotionEvent.ACTION_MOVE -> {
-                                            val dx = event.x - downX
-                                            val dy = event.y - downY
-                                            if (!swiping && abs(dx) > 24f && abs(dx) > abs(dy) * 1.5f) {
-                                                swiping = true
-                                            }
-                                            swiping
-                                        }
-                                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                                            if (swiping) {
-                                                val dx = event.x - downX
-                                                if (abs(dx) > 120f) {
-                                                    val target = (pagerState.currentPage +
-                                                        if (dx < 0) 1 else -1)
-                                                        .coerceIn(0, pagerState.pageCount - 1)
-                                                    if (target != pagerState.currentPage) {
-                                                        scope.launch {
-                                                            pagerState.animateScrollToPage(target)
-                                                        }
-                                                    }
-                                                }
-                                                swiping = false
-                                                true
-                                            } else {
-                                                controlsVisible = !controlsVisible
-                                                false
-                                            }
-                                        }
-                                        else -> false
-                                    }
-                                }
                             }
                         },
                         onRelease = { it.stopPlayback(); views.remove(page) },
@@ -721,6 +672,20 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                     )
                 }
             }
+            // Ketuk video tampil/sembunyi kontrol (r77): overlay
+            // Compose di atas pager (pola yang sama dipakai penampil
+            // foto di file ini). Ketukan sampai ke sini; geser
+            // diteruskan ke pager karena detectTapGestures tidak
+            // menelan geser. OnTouchListener VideoView TIDAK bisa
+            // dipakai untuk ini: ia mengembalikan false pada
+            // ACTION_DOWN, sehingga ACTION_UP tidak pernah sampai
+            // ke listener (anak View yang menolak DOWN kehilangan
+            // sisa gestur).
+            Box(
+                Modifier.fillMaxSize().pointerInput(Unit) {
+                    detectTapGestures(onTap = { controlsVisible = !controlsVisible })
+                }
+            )
             // Kontrol kapsul mengambang (VP2, r76): slider + waktu di
             // atas kapsul, tombol di dalam kapsul (seperti nav bar).
             if (controlsVisible) {
