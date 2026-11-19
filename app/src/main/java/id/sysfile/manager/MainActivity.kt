@@ -1,5 +1,6 @@
 package id.sysfile.manager
 
+import android.graphics.Bitmap
 import android.media.MediaPlayer
 import android.Manifest
 import android.content.BroadcastReceiver
@@ -24,6 +25,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -34,6 +36,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -136,14 +139,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -151,6 +158,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.drawToBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -239,6 +247,20 @@ fun SysFileApp() {
     var safTreeUri by remember { mutableStateOf<String?>(null) }
     var safRelPath by remember { mutableStateOf("") }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
+    // r137 TM1 Pudar Utuh: tangkapan layar tema lama + alfa memudarnya.
+    // Saat tema diganti, layar lama (bitmap) memudar di atas layar baru
+    // ~300 ms — bar atas tidak ketinggalan lagi.
+    val rootView = LocalView.current
+    var themeShot by remember { mutableStateOf<Bitmap?>(null) }
+    val themeShotAlpha = remember { Animatable(1f) }
+    LaunchedEffect(themeShot) {
+        val shot = themeShot
+        if (shot != null) {
+            themeShotAlpha.snapTo(1f)
+            themeShotAlpha.animateTo(0f, animationSpec = tween(300))
+            themeShot = null
+        }
+    }
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
     AppLang.code = language
     val t = txt()
@@ -843,6 +865,9 @@ fun SysFileApp() {
         }
     }
 
+    // r137 TM1: Box akar supaya tangkapan layar lama bisa menutupi
+    // seluruh isi (semua cabang layar) saat memudar.
+    Box(Modifier.fillMaxSize()) {
     SysFileTheme(themeMode) {
         if (safTreeUri != null) {
             SafBrowseScreen(
@@ -880,6 +905,13 @@ fun SysFileApp() {
                 showHidden = showHidden,
                 showRootEntry = showRootEntry,
                 onTheme = { mode ->
+                    // r137 TM1: tangkap layar lama SEBELUM ganti tema;
+                    // gagal tangkap = ganti instan seperti biasa.
+                    themeShot = try {
+                        if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
+                    } catch (_: Exception) {
+                        null
+                    }
                     themeMode = mode
                     prefs.edit().putString("theme_mode", mode).apply()
                 },
@@ -1495,6 +1527,15 @@ fun SysFileApp() {
                 }
             }
         }
+        themeShot?.let { shot ->
+            Image(
+                bitmap = shot.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().alpha(themeShotAlpha.value),
+                contentScale = ContentScale.FillBounds
+            )
+        }
+    }
 
         if (working) {
             AlertDialog(
