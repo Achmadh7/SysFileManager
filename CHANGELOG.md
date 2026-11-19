@@ -19,6 +19,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `.obb` files open as ZIP archives (view contents, extract, password prompt for encrypted ones).
 - Photo viewer: EXIF details dialog (camera, date taken, dimensions, size, GPS location) from the new camera button in the toolbar; photos without EXIF data show a "no EXIF data" message.
 - OTG/USB: plugged-in USB drives are detected immediately (no app restart), and a "USB not showing? Open via SAF" action on the home screen opens unmounted drives through the system folder picker.
+- `.prop`, `.config`, and `.conf` files open as text.
+- When a restricted folder (Android/data or Android/obb) looks empty but is readable, the empty state offers to open it through the system folder picker (SAF).
+- Font preview: `.ttf` files open a preview screen showing the font family, style, size, path, and a sample rendered in that font; `.toml` files open as text.
+- `.jar` files open as ZIP archives (view contents, extract, read text inside).
+- `.log` files are now listed under the Documents category.
 
 ### Changed
 - Settings is now a grouped list (Display / Files / Apps) instead of 2×2 quick tiles; all settings keep their behaviour.
@@ -36,6 +41,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Extract Archive dialog redesigned as an action list: Extract Here, Extract to Custom Path, and Open Archive are full-width rows (the split button and its dropdown are gone).
 - Category tiles on the home screen are now compact (KG1): 64dp tall tiles with 32dp icon circles, 16dp corners, and 8dp gaps; the Trash tile follows the same sizing.
 - The release APK is now named "SysFileManager-1.3.0-Release.apk".
+- The welcome screen is now a single screen (the two-page pager is gone).
+- Category lists load faster: the file walk stops at the cap, recent scans are cached for 60 seconds, roots are scanned in parallel, and media (photos, videos, audio) loads from MediaStore.
+- App Manager dialog redesigned as a compact list: smaller header icon and package text, tighter chips, and compact action rows separated by dividers.
+- Welcome screen redesigned (WS7): the logo, title, and pitch sit centered inside one big card; the All Files Access card is slightly bigger (larger padding and folder icon).
 
 ### Removed
 - Glass/aurora interface and Material You dynamic colour (replaced by the fixed Biru Senja theme and solid cards).
@@ -43,6 +52,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Single-stream formats (.gz, .bz2, .xz) are no longer recognised or decompressed.
 - The "Supported Formats" settings screen.
 - "Follow System" theme option and the theme/language picker dialogs.
+- The "USB not showing? Open via SAF" hint on the home screen (live USB detection still works).
+- The "Manage archives & documents" feature card on the welcome screen.
 
 ### Fixed
 - Copy/move of a folder no longer reports success when a child file fails; a failed move no longer deletes the source, and a failed copy cleans up its partial destination.
@@ -54,6 +65,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Bottom bar no longer jumps on cold launch (opaque navy window background and navigation bar colour instead of transparent).
 - Build failure: removed the invalid `androidx.compose.foundation.lazy.item` import (`item` is a member of `LazyListScope`, not a top-level function).
 - Pressing Back from a file opened inside a ZIP subfolder now returns to that same subfolder instead of the archive root.
+- Fixed a crash when the selection bar's exit animation ran after the selection was cleared.
+- Swiping between videos now works — the tap detector no longer swallows the swipe gesture.
 
 ## [1.2.0]
 
