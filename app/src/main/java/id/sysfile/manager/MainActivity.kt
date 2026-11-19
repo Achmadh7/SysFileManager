@@ -1245,6 +1245,15 @@ fun SysFileApp() {
                                             )
                                         }
                                     }
+                                    // r123: nilai pilihan pertama dihitung
+                                    // SEKALI di sini dengan firstOrNull —
+                                    // isi AnimatedVisibility tetap terkomposisi
+                                    // selama animasi keluar, dan selected
+                                    // sudah kosong saat itu; first()
+                                    // di dalam bar melempar
+                                    // NoSuchElementException -> FC.
+                                    val selFirst = selected.firstOrNull()
+                                    val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
                                     // Bar aksi seleksi (r109): muncul/hilang dengan animasi
                                     // halus yang sama seperti kapsul kontrol video (r104) —
                                     // fade + geser dari bawah + kembang/susut vertikal.
@@ -1259,15 +1268,15 @@ fun SysFileApp() {
                                     ) {
                                         SelectionBar(
                                             single = selected.size == 1,
-                                            singleEntry = entries.firstOrNull { it.path == selected.first() },
+                                            singleEntry = selEntry,
                                             canExtract = entries.any { selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null },
                                             onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
                                             onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
                                             onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
-                                            onShare = { entries.firstOrNull { it.path == selected.first() }?.let { shareFile(it.file) } },
-                                            onRename = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Rename(it) } },
+                                            onShare = { selEntry?.let { shareFile(it.file) } },
+                                            onRename = { selEntry?.let { dialog = DialogKind.Rename(it) } },
                                             onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
-                                            onProperties = { entries.firstOrNull { it.path == selected.first() }?.let { dialog = DialogKind.Properties(it) } },
+                                            onProperties = { selEntry?.let { dialog = DialogKind.Properties(it) } },
                                             onExtract = {
                                                 val targets = entries.filter {
                                                     selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null
@@ -1308,10 +1317,10 @@ fun SysFileApp() {
                                                 }
                                             },
                                             onSelectAll = { selected = entries.map { it.path }.toSet() },
-                                            singleIsDir = entries.firstOrNull { it.path == selected.first() }?.isDir == true,
+                                            singleIsDir = selEntry?.isDir == true,
                                             singleLocked = selected.singleOrNull()?.let { it in lockedFolders } == true,
                                             onToggleLock = {
-                                                entries.firstOrNull { it.path == selected.first() }?.let { entry ->
+                                                selEntry?.let { entry ->
                                                     if (entry.path in lockedFolders) {
                                                         requestUnlock(entry.path) {
                                                             val updated = lockedFolders - entry.path

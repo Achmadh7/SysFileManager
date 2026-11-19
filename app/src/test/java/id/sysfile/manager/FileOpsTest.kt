@@ -342,4 +342,24 @@ class FileOpsTest {
         txt.writeText("hello")
         assertNull(ArchiveOps.readEntryText(txt, "plain.txt"))
     }
+
+    @Test
+    fun isTextFile_propConfigConf_returnsTrue() {
+        assertTrue(FileOps.isTextFile(File("build.prop")))
+        assertTrue(FileOps.isTextFile(File("app.config")))
+        assertTrue(FileOps.isTextFile(File("server.conf")))
+        assertTrue(FileOps.isTextFile(File("APP.CONF")))
+        assertFalse(FileOps.isTextFile(File("foto.png")))
+    }
+
+    @Test
+    fun isRestrictedDir_androidDataObb() {
+        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/data"))
+        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/data/com.example"))
+        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/obb"))
+        assertTrue(FileOps.isRestrictedDir("/storage/ABCD-1234/Android/data/com.example/files"))
+        assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Download"))
+        assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Android"))
+        assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Android/media"))
+    }
 }

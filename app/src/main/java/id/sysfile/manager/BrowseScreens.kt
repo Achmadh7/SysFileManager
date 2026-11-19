@@ -302,12 +302,18 @@ fun BrowseScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val readable = File(currentPath).canRead()
+                    // Folder terkunci sistem (Android/data, Android/obb):
+                    // canRead() bisa true padahal listFiles() kosong, jadi
+                    // tanpa ini pengguna hanya melihat "Folder ini kosong"
+                    // tanpa jalan keluar — tawarkan SAF seperti saat
+                    // foldernya memang tak terbaca.
+                    val restricted = FileOps.isRestrictedDir(currentPath)
                     Text(
-                        if (readable) t.emptyFolder else t.folderInaccessible,
+                        if (readable && !restricted) t.emptyFolder else t.folderInaccessible,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (!readable && onSafAction != null) {
+                    if ((!readable || restricted) && onSafAction != null) {
                         Spacer(Modifier.height(14.dp))
                         Button(onClick = onSafAction) {
                             Text(if (safHasGrant) t.safOpen else t.safGrant)
