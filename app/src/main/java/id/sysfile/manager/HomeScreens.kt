@@ -402,13 +402,14 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            BoxWithConstraints(Modifier.height(48.dp)) {
+            BoxWithConstraints(Modifier.height(40.dp)) {
                 val tabWidth = maxWidth / 3
-                // r89 NV17: pil selebar konten tab aktif — ikon 18dp +
+                // r89 NV17: pil selebar konten tab aktif — ikon 16dp +
                 // celah 6dp + lebar label + padding 12dp tiap sisi —
+                // (r90 CP1: kapsul 40dp, pil 28dp, ikon 16dp).
                 // dan tetap di tengah tab. Lebar + posisi dianimasikan
                 // dengan spec yang sama supaya tetap sinkron.
-                val pillWTarget = 18.dp + 6.dp + labelWidths[homeTab] + 24.dp
+                val pillWTarget = 16.dp + 6.dp + labelWidths[homeTab] + 24.dp
                 val pillW by animateDpAsState(
                     targetValue = pillWTarget,
                     animationSpec = motion.defaultSpatialSpec(),
@@ -423,10 +424,11 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                 // NV2 pil primary penuh; r79 NV6: kapsul 48dp, pil
                 // 32dp, ikon 18dp, label labelSmall; r81 NV10: ikon
                 // outline saat tidak aktif; r89 NV17: pil selebar
-                // konten, bukan selebar tab).
+                // konten, bukan selebar tab; r90 CP1: kapsul 40dp,
+                // pil 28dp, ikon 16dp).
                 Box(
-                    Modifier.offset(x = pillX, y = 8.dp)
-                        .size(width = pillW, height = 32.dp)
+                    Modifier.offset(x = pillX, y = 6.dp)
+                        .size(width = pillW, height = 28.dp)
                         .clip(RoundedCornerShape(50))
                         .background(scheme.primary)
                 )
@@ -444,7 +446,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(if (selected) icon else outlined[index], null, tint = fg, modifier = Modifier.size(18.dp))
+                            Icon(if (selected) icon else outlined[index], null, tint = fg, modifier = Modifier.size(16.dp))
                             if (selected) {
                                 Spacer(Modifier.width(6.dp))
                                 Text(
