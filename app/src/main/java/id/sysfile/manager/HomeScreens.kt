@@ -386,19 +386,19 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                     animationSpec = motion.defaultSpatialSpec(),
                     label = "pillX"
                 )
-                // Pil meluncur selebar tab (ikon + label sebaris di
-                // dalamnya) — gaya referensi 2026-11-18.
+                // Pil meluncur selebar tab (r66: NV1 label hanya di
+                // tab aktif, NV2 pil primary penuh).
                 Box(
                     Modifier.offset(x = pillX, y = 8.dp)
                         .size(width = pillW, height = 40.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(scheme.primaryContainer)
+                        .background(scheme.primary)
                 )
                 Row(Modifier.fillMaxSize()) {
                     items.forEach { (index, icon, label) ->
                         val selected = homeTab == index
                         val fg by animateColorAsState(
-                            targetValue = if (selected) scheme.onPrimaryContainer
+                            targetValue = if (selected) scheme.onPrimary
                             else scheme.onSurfaceVariant,
                             animationSpec = motion.defaultEffectsSpec(),
                             label = "tabFg"
@@ -409,13 +409,15 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = fg,
-                                maxLines = 1
-                            )
+                            if (selected) {
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = fg,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
