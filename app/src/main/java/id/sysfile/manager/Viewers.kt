@@ -558,8 +558,8 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
  *  ketuk video untuk tampil/sembunyi, Back selalu keluar. VideoView
  *  tetap dipakai untuk pemutaran (framework, tanpa library baru);
  *  kontrol bawaan Android diganti sepenuhnya. Kontrol bawah berupa
- *  kapsul mengambang (VP2, r76): slider + waktu di atas kapsul,
- *  tombol prev/play/next di dalam kapsul. */
+ *  kapsul mengambang (VP2, r76; VP6 r85: slider + waktu di dalam
+ *  kapsul, baris atas; tombol prev/play/next di baris bawah). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit) {
@@ -686,50 +686,55 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                     detectTapGestures(onTap = { controlsVisible = !controlsVisible })
                 }
             )
-            // Kontrol kapsul mengambang (VP2, r76): slider + waktu di
-            // atas kapsul, tombol di dalam kapsul (seperti nav bar).
+            // Kontrol kapsul mengambang (VP2, r76; VP6 r85: slider +
+            // waktu masuk ke dalam kapsul, baris atas; tombol di baris
+            // bawah — satu kesatuan kontrol).
             if (controlsVisible) {
                 Column(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            FileOps.formatDuration(if (isSeeking) seekMs else positionMs),
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = (if (isSeeking) seekMs else positionMs).toFloat()
-                                .coerceIn(0f, durationMs.toFloat().coerceAtLeast(1f)),
-                            onValueChange = { isSeeking = true; seekMs = it.toInt() },
-                            onValueChangeFinished = {
-                                currentView()?.seekTo(seekMs)
-                                positionMs = seekMs
-                                isSeeking = false
-                            },
-                            valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
-                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-                        )
-                        Text(
-                            FileOps.formatDuration(durationMs),
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
                     Surface(
                         shape = RoundedCornerShape(28.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         tonalElevation = 3.dp,
-                        shadowElevation = 6.dp
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
+                        Column(
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    FileOps.formatDuration(if (isSeeking) seekMs else positionMs),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Slider(
+                                    value = (if (isSeeking) seekMs else positionMs).toFloat()
+                                        .coerceIn(0f, durationMs.toFloat().coerceAtLeast(1f)),
+                                    onValueChange = { isSeeking = true; seekMs = it.toInt() },
+                                    onValueChangeFinished = {
+                                        currentView()?.seekTo(seekMs)
+                                        positionMs = seekMs
+                                        isSeeking = false
+                                    },
+                                    valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                                )
+                                Text(
+                                    FileOps.formatDuration(durationMs),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                             IconButton(onClick = {
                                 scope.launch {
                                     pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
@@ -765,6 +770,7 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                                 }
                             }) {
                                 Icon(Icons.Default.SkipNext, null, tint = Color.White)
+                            }
                             }
                         }
                     }
