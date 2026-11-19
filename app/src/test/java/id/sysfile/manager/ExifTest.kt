@@ -22,40 +22,6 @@ class ExifTest {
     private val us = Locale.US
 
     @Test
-    fun parseRational_fractionsAndPlain() {
-        assertEquals(1.8, ExifOps.parseRational("18/10")!!, 0.0001)
-        assertEquals(4.7, ExifOps.parseRational("47/10")!!, 0.0001)
-        assertEquals(0.008, ExifOps.parseRational("1/125")!!, 0.000001)
-        assertEquals(100.0, ExifOps.parseRational("100")!!, 0.0001)
-    }
-
-    @Test
-    fun parseRational_invalidIsNull() {
-        assertNull(ExifOps.parseRational(null))
-        assertNull(ExifOps.parseRational(""))
-        assertNull(ExifOps.parseRational("abc"))
-        assertNull(ExifOps.parseRational("0/0"))
-        assertNull(ExifOps.parseRational("1/2/3"))
-    }
-
-    @Test
-    fun formatFocalLength_localeDecimal() {
-        assertEquals("4,7 mm", ExifOps.formatFocalLength(4.7, id))
-        assertEquals("50 mm", ExifOps.formatFocalLength(50.0, us))
-        assertNull(ExifOps.formatFocalLength(null, id))
-    }
-
-    @Test
-    fun formatExposure_fractionsAndSeconds() {
-        assertEquals("1/125 s", ExifOps.formatExposure(0.008, id))
-        assertEquals("1/60 s", ExifOps.formatExposure(1.0 / 60.0, us))
-        assertEquals("0,5 s", ExifOps.formatExposure(0.5, id))
-        assertEquals("2 s", ExifOps.formatExposure(2.0, us))
-        assertNull(ExifOps.formatExposure(null, id))
-        assertNull(ExifOps.formatExposure(0.0, id))
-    }
-
-    @Test
     fun formatGps_fourDecimals() {
         assertEquals("-6,1751, 106,6345", ExifOps.formatGps(-6.1751, 106.6345, id))
         assertEquals("-6.1751, 106.6345", ExifOps.formatGps(-6.1751, 106.6345, us))
@@ -75,15 +41,15 @@ class ExifTest {
     @Test
     fun hasExif_sizeAloneDoesNotCount() {
         assertFalse(
-            ExifOps.ExifInfo(null, null, null, "3,2 MB", null, null, null)
+            ExifOps.ExifInfo(null, null, null, "3,2 MB", null)
                 .hasExif()
         )
         assertTrue(
-            ExifOps.ExifInfo("POCO F5", null, null, "3,2 MB", null, null, null)
+            ExifOps.ExifInfo("POCO F5", null, null, "3,2 MB", null)
                 .hasExif()
         )
         assertTrue(
-            ExifOps.ExifInfo(null, null, "4032 \u00d7 3024", null, null, null, null)
+            ExifOps.ExifInfo(null, null, "4032 \u00d7 3024", null, null)
                 .hasExif()
         )
     }

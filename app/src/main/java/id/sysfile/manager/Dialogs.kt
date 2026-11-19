@@ -493,8 +493,6 @@ fun ExifDialog(entry: FEntry, onDismiss: () -> Unit) {
                         info?.dateTaken?.let { t.exifDateTaken to it },
                         info?.dimensions?.let { t.exifDimensions to it },
                         info?.size?.let { t.propSize to it },
-                        info?.focalLength?.let { t.exifFocalLength to it },
-                        info?.exposure?.let { t.exifExposure to it },
                         info?.location?.let { t.exifLocation to it }
                     )
                     if (rows.isEmpty()) {

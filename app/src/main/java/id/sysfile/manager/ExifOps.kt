@@ -4,7 +4,6 @@ import android.media.ExifInterface
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
-import kotlin.math.roundToInt
 
 /** Detail EXIF foto (DF1, pilihan Achmad 2026-11-20): dibaca lewat
  *  android.media.ExifInterface framework (API 24+, minSdk 26 — tanpa
@@ -17,50 +16,12 @@ object ExifOps {
         val dateTaken: String?,
         val dimensions: String?,
         val size: String?,
-        val focalLength: String?,
-        val exposure: String?,
         val location: String?
     ) {
         /** True bila ada SATU saja data EXIF asli (ukuran tidak dihitung:
          *  ukuran selalu ada untuk berkas apa pun). */
         fun hasExif(): Boolean = camera != null || dateTaken != null ||
-            dimensions != null || focalLength != null ||
-            exposure != null || location != null
-    }
-
-    /** "18/10" -> 1.8; "100" -> 100.0; null/rusak/"0/0" -> null. Murni. */
-    fun parseRational(raw: String?): Double? {
-        if (raw.isNullOrBlank()) return null
-        val s = raw.trim()
-        if ("/" !in s) return s.toDoubleOrNull()
-        val parts = s.split("/")
-        if (parts.size != 2) return null
-        val num = parts[0].toDoubleOrNull() ?: return null
-        val den = parts[1].toDoubleOrNull() ?: return null
-        if (den == 0.0) return null
-        return num / den
-    }
-
-    /** Satu desimal, tanpa ",0" di belakang ("50,0" -> "50"). Murni. */
-    fun formatDecimal1(value: Double, locale: Locale): String {
-        val s = String.format(locale, "%.1f", value)
-        val sep = if (locale.language == "id") ",0" else ".0"
-        return if (s.endsWith(sep)) s.dropLast(2) else s
-    }
-
-    /** 4.7 -> "4,7 mm" (ID) / "4.7 mm" (EN). Murni. */
-    fun formatFocalLength(value: Double?, locale: Locale): String? {
-        if (value == null || value <= 0) return null
-        return formatDecimal1(value, locale) + " mm"
-    }
-
-    /** 0.008 -> "1/125 s"; 0.5 -> "0,5 s"; 2.0 -> "2 s". Murni. */
-    fun formatExposure(seconds: Double?, locale: Locale): String? {
-        if (seconds == null || seconds <= 0) return null
-        if (seconds >= 0.5) return formatDecimal1(seconds, locale) + " s"
-        val denom = (1.0 / seconds).roundToInt()
-        if (denom < 2) return formatDecimal1(seconds, locale) + " s"
-        return "1/$denom s"
+            dimensions != null || location != null
     }
 
     /** -6.1751, 106.6345 -> "-6,1751, 106,6345" (ID). Murni. */
@@ -102,14 +63,6 @@ object ExifOps {
                     .takeIf { it > 0 }
             val dimensions = if (w != null && h != null) "$w \u00d7 $h" else null
             val size = if (file.isFile) FileOps.formatSize(file.length()) else null
-            val focalLength = formatFocalLength(
-                parseRational(exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)),
-                appLocale()
-            )
-            val exposureRaw = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME)
-                ?.toDoubleOrNull()
-                ?: parseRational(exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME))
-            val exposure = formatExposure(exposureRaw, appLocale())
             val latLong = FloatArray(2)
             val location = if (exif.getLatLong(latLong)) {
                 formatGps(latLong[0].toDouble(), latLong[1].toDouble(), appLocale())
@@ -117,8 +70,7 @@ object ExifOps {
                 null
             }
             val info = ExifInfo(
-                camera, dateTaken, dimensions, size,
-                focalLength, exposure, location
+                camera, dateTaken, dimensions, size, location
             )
             if (info.hasExif()) info else null
         } catch (e: Exception) {
