@@ -58,8 +58,8 @@ object FontOps {
                     raf.seek(pos)
                     raf.readFully(bytes)
                     val text = when (platform) {
-                        3, 0 -> bytes.decodeToString(Charsets.UTF_16BE)
-                        1 -> bytes.decodeToString(Charsets.ISO_8859_1)
+                        3, 0 -> String(bytes, Charsets.UTF_16BE)
+                        1 -> String(bytes, Charsets.ISO_8859_1)
                         else -> continue
                     }.trim()
                     if (text.isEmpty()) continue
