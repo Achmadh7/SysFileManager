@@ -20,7 +20,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -29,7 +28,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -113,7 +111,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -357,11 +354,12 @@ fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
-/** Nav bawah kapsul mengambang (G1, 2026-11-18): kapsul stadium yang
- *  lepas dari tepi layar (margin 16dp + bayangan 8dp), satu pil coklat
- *  meluncur antar tab (animateDpAsState + MotionScheme fastSpatial),
- *  warna ikon/label memudar (fastEffects). Menggantikan NavigationBar
- *  full-width hasil konversi r33. */
+/** Nav bawah tiga pill terpisah (r91 TR1, 2026-11-19): rombak total —
+ *  satu kapsul mengambang dipecah jadi tiga pill melayang (margin 16dp):
+ *  tab aktif = pill primary 32dp mengikuti konten (ikon 16dp + celah 6dp
+ *  + label + padding 12dp tiap sisi, lebar dianimasikan), tab tidak aktif
+ *  = lingkaran 40dp surfaceContainer dengan ikon outline. Menggantikan
+ *  kapsul mengambang + pil meluncur (r66/r79/r81/r89/r90). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
@@ -392,71 +390,63 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             ).size.width.toDp()
         }
     }
-    Box(
-        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-        contentAlignment = Alignment.Center
+    // r91 TR1: rombak total — kapsul mengambang dipecah jadi tiga pill
+    // melayang. Tab aktif = pill primary 32dp (ikon 16dp + celah 6dp +
+    // label + padding 12dp tiap sisi, lebar dianimasikan saat pindah
+    // tab); tidak aktif = lingkaran 40dp surfaceContainer. Satu sel
+    // (weight 1f, tinggi 40dp) per tab, diketuk di seluruh selnya.
+    val pillWTarget = 16.dp + 6.dp + labelWidths[homeTab] + 24.dp
+    val pillW by animateDpAsState(
+        targetValue = pillWTarget,
+        animationSpec = motion.defaultSpatialSpec(),
+        label = "pillW"
+    )
+    Row(
+        Modifier.fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            .height(40.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            shape = RoundedCornerShape(50),
-            color = scheme.surfaceContainer,
-            shadowElevation = 0.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            BoxWithConstraints(Modifier.height(40.dp)) {
-                val tabWidth = maxWidth / 3
-                // r89 NV17: pil selebar konten tab aktif — ikon 16dp +
-                // celah 6dp + lebar label + padding 12dp tiap sisi —
-                // (r90 CP1: kapsul 40dp, pil 28dp, ikon 16dp).
-                // dan tetap di tengah tab. Lebar + posisi dianimasikan
-                // dengan spec yang sama supaya tetap sinkron.
-                val pillWTarget = 16.dp + 6.dp + labelWidths[homeTab] + 24.dp
-                val pillW by animateDpAsState(
-                    targetValue = pillWTarget,
-                    animationSpec = motion.defaultSpatialSpec(),
-                    label = "pillW"
-                )
-                val pillX by animateDpAsState(
-                    targetValue = tabWidth * homeTab + (tabWidth - pillW) / 2,
-                    animationSpec = motion.defaultSpatialSpec(),
-                    label = "pillX"
-                )
-                // Pil meluncur (r66: NV1 label hanya di tab aktif,
-                // NV2 pil primary penuh; r79 NV6: kapsul 48dp, pil
-                // 32dp, ikon 18dp, label labelSmall; r81 NV10: ikon
-                // outline saat tidak aktif; r89 NV17: pil selebar
-                // konten, bukan selebar tab; r90 CP1: kapsul 40dp,
-                // pil 28dp, ikon 16dp).
-                Box(
-                    Modifier.offset(x = pillX, y = 6.dp)
-                        .size(width = pillW, height = 28.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(scheme.primary)
-                )
-                Row(Modifier.fillMaxSize()) {
-                    items.forEach { (index, icon, label) ->
-                        val selected = homeTab == index
-                        val fg by animateColorAsState(
-                            targetValue = if (selected) scheme.onPrimary
-                            else scheme.onSurfaceVariant,
-                            animationSpec = motion.defaultEffectsSpec(),
-                            label = "tabFg"
+        items.forEach { (index, icon, label) ->
+            val selected = homeTab == index
+            Box(
+                Modifier.weight(1f).fillMaxHeight()
+                    .clickable { onSelect(index) },
+                contentAlignment = Alignment.Center
+            ) {
+                if (selected) {
+                    Row(
+                        Modifier.size(width = pillW, height = 32.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(scheme.primary),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            icon, null,
+                            tint = scheme.onPrimary,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Row(
-                            Modifier.weight(1f).fillMaxHeight().clickable { onSelect(index) },
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(if (selected) icon else outlined[index], null, tint = fg, modifier = Modifier.size(16.dp))
-                            if (selected) {
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = fg,
-                                    maxLines = 1
-                                )
-                            }
-                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = scheme.onPrimary,
+                            maxLines = 1
+                        )
+                    }
+                } else {
+                    Box(
+                        Modifier.size(40.dp)
+                            .clip(CircleShape)
+                            .background(scheme.surfaceContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            outlined[index], null,
+                            tint = scheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
