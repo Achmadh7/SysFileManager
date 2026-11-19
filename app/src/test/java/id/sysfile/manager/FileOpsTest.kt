@@ -47,8 +47,8 @@ class FileOpsTest {
         folderWithFiles(src)
         val dest = tmp.newFolder("dest")
         assertEquals(1, FileOps.copyInto(listOf(src), dest))
-        assertEquals("hello", File(File(dest, "src/a.txt")).readText())
-        assertEquals("world", File(File(dest, "src/sub/b.txt")).readText())
+        assertEquals("hello", File(dest, "src/a.txt").readText())
+        assertEquals("world", File(dest, "src/sub/b.txt").readText())
         assertTrue(File(src, "a.txt").exists()) // sumber tetap
     }
 
@@ -72,7 +72,7 @@ class FileOpsTest {
         val dest = tmp.newFolder("mvdest")
         assertEquals(1, FileOps.moveInto(listOf(src), dest))
         assertFalse(src.exists())
-        assertEquals("hello", File(File(dest, "mvsrc/a.txt")).readText())
+        assertEquals("hello", File(dest, "mvsrc/a.txt").readText())
     }
 
     @Test
@@ -277,7 +277,7 @@ class FileOpsTest {
     fun obb_listsContentsLikeZip() {
         val obb = File(tmp.root, "main.1.com.game.obb")
         makeZip(obb, listOf("assets/a.txt" to "hello", "b.txt" to "world"))
-        val items = FileOps.listContents(obb)
+        val items = ArchiveOps.listContents(obb)
         assertEquals(listOf("assets/a.txt", "b.txt"), items?.map { it.name })
     }
 
