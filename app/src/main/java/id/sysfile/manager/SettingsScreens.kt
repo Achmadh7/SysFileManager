@@ -559,7 +559,7 @@ fun AboutScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(8.dp))
-                    Surface(shape = RoundedCornerShape(50), color = Color(0xFF00696D)) {
+                    Surface(shape = RoundedCornerShape(50), color = Color(0xFF8F4C34)) {
                         Text(
                             t.version(BuildConfig.VERSION_NAME),
                             Modifier.padding(horizontal = 14.dp, vertical = 6.dp),

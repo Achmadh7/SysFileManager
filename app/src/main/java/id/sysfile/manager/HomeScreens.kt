@@ -353,7 +353,7 @@ fun HomeScreen(
 // ---------------------------------------------------------------------------
 
 /** Nav bawah kapsul mengambang (G1, 2026-11-18): kapsul stadium yang
- *  lepas dari tepi layar (margin 16dp + bayangan 8dp), satu pil teal
+ *  lepas dari tepi layar (margin 16dp + bayangan 8dp), satu pil coklat
  *  meluncur antar tab (animateDpAsState + MotionScheme fastSpatial),
  *  warna ikon/label memudar (fastEffects). Menggantikan NavigationBar
  *  full-width hasil konversi r33. */
