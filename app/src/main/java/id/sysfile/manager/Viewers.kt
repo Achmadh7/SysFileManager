@@ -316,9 +316,15 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                     AndroidView(
                         factory = { ctx ->
                             WebView(ctx).apply {
-                                settings.javaScriptEnabled = true
+                                // Pratinjau HTML statis (C3): JavaScript mati dan
+                                // akses file-URL dari halaman dimatikan eksplisit.
+                                // allowFileAccess tetap nyala supaya gambar/CSS
+                                // relatif (base file:// folder induk) bisa dimuat.
+                                settings.javaScriptEnabled = false
                                 settings.allowFileAccess = true
-                                settings.domStorageEnabled = true
+                                settings.allowFileAccessFromFileURLs = false
+                                settings.allowUniversalAccessFromFileURLs = false
+                                settings.domStorageEnabled = false
                             }
                         },
                         update = { wv ->

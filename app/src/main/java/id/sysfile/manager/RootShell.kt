@@ -91,6 +91,30 @@ object RootShell {
         return if (viaMedia != null && viaMedia.isNotEmpty()) viaMedia else primary
     }
 
+    /** Pola awal rekaman stat: "T|angka|angka|" (T = D/F/O). */
+    private val statLinePattern = Regex("^[DFO]\\|\\d+\\|\\d+\\|")
+
+    /** Gabungkan baris keluaran stat menjadi rekaman; nama berkas boleh mengandung
+     *  baris baru (E1). Baris rekaman baru selalu cocok pola di atas; baris lain
+     *  adalah kelanjutan nama rekaman sebelumnya. '|' di nama aman: jalur terakhir
+     *  dan split memakai limit=4, jadi tidak memecah rekaman. Internal agar bisa
+     *  diuji tanpa su. */
+    internal fun groupStatLines(lines: List<String>): List<String> {
+        val records = mutableListOf<String>()
+        val current = StringBuilder()
+        for (line in lines) {
+            if (statLinePattern.containsMatchIn(line)) {
+                if (current.isNotEmpty()) records += current.toString()
+                current.clear()
+                current.append(line)
+            } else if (current.isNotEmpty()) {
+                current.append('\n').append(line)
+            }
+        }
+        if (current.isNotEmpty()) records += current.toString()
+        return records
+    }
+
     private fun listDirRaw(dir: File, showHidden: Boolean, sort: SortKey, ascending: Boolean): List<FEntry>? {
         val q = quote(dir.absolutePath)
         val script = "for f in $q/* $q/.[!.]*; do " +
@@ -100,7 +124,7 @@ object RootShell {
             "echo \"\$t|\${s:-0}|\${m:-0}|\$f\"; done"
         val lines = runSu(script, 30) ?: return null
         val entries = mutableListOf<FEntry>()
-        for (line in lines) {
+        for (line in groupStatLines(lines)) {
             val parts = line.split("|", limit = 4)
             if (parts.size < 4) continue
             val path = parts[3]
