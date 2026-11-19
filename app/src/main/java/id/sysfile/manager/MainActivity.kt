@@ -22,10 +22,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -140,6 +144,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
@@ -216,6 +222,7 @@ fun SysFileApp() {
     val snackbar = remember { SnackbarHostState() }
     val prefs = remember { context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val motion = MaterialTheme.motionScheme
 
     var homeTab by remember { mutableStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
@@ -1177,7 +1184,18 @@ fun SysFileApp() {
                                             )
                                         }
                                     }
-                                    if (selected.isNotEmpty() && currentPath != null) {
+                                    // Bar aksi seleksi (r109): muncul/hilang dengan animasi
+                                    // halus yang sama seperti kapsul kontrol video (r104) —
+                                    // fade + geser dari bawah + kembang/susut vertikal.
+                                    AnimatedVisibility(
+                                        visible = selected.isNotEmpty() && currentPath != null,
+                                        enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                                            expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
+                                        exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                                            shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Bottom)
+                                    ) {
                                         SelectionBar(
                                             single = selected.size == 1,
                                             singleEntry = entries.firstOrNull { it.path == selected.first() },
@@ -1252,7 +1270,9 @@ fun SysFileApp() {
                                                 }
                                             }
                                         )
-                                    } else if (currentPath != null) {
+                                    }
+                                    if (selected.isEmpty() || currentPath == null) {
+                                        if (currentPath != null) {
                                         clipboard?.let { clip ->
                                             ClipboardBar(
                                                 count = clip.first.size,
@@ -1269,8 +1289,9 @@ fun SysFileApp() {
                                                 onClear = { clipboard = null }
                                             )
                                         }
-                                    } else if (currentPath == null) {
+                                    } else {
                                         SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                    }
                                     }
                                 }
                             }
