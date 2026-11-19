@@ -59,7 +59,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
@@ -98,10 +97,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.SplitButtonDefaults
-import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -917,59 +912,50 @@ fun ArchiveActionsDialog(
     onCustomPath: () -> Unit
 ) {
     val t = txt()
-    var menuOpen by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Box(
-                Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(Color(0xFFA78BFA).copy(alpha = 0.16f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Unarchive, null,
-                    tint = Color(0xFFA78BFA), modifier = Modifier.size(26.dp)
-                )
+        title = {
+            // EA1 Daftar aksi (r112, pilihannya): kepala rata kiri —
+            // petak ikon + judul + nama berkas; tanpa ikon tengah.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFA78BFA).copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Unarchive, null,
+                        tint = Color(0xFFA78BFA), modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(t.extractArchive)
+                    Text(
+                        entry.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         },
-        title = { Text(t.extractArchive) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    entry.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp)
+            // EA1: dropdown dihapus — ketiga aksi jadi baris penuh.
+            Column {
+                ApkActionRow(
+                    Icons.Default.Unarchive, Color(0xFFA78BFA),
+                    t.extract, t.extractHereDesc, onExtractHere
                 )
-                Box {
-                    SplitButtonLayout(
-                        leadingButton = {
-                            SplitButtonDefaults.LeadingButton(onClick = onExtractHere) {
-                                Text(t.extractShort)
-                            }
-                        },
-                        trailingButton = {
-                            SplitButtonDefaults.TrailingButton(onClick = { menuOpen = true }) {
-                                Icon(Icons.Default.KeyboardArrowDown, t.extract)
-                            }
-                        }
-                    )
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text(t.extract) },
-                            onClick = { menuOpen = false; onExtractHere() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(t.extractCustom) },
-                            onClick = { menuOpen = false; onCustomPath() }
-                        )
-                    }
-                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                ApkActionRow(
+                    Icons.Default.FolderOpen, MaterialTheme.colorScheme.primary,
+                    t.extractCustom, t.extractCustomDesc, onCustomPath
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 ApkActionRow(
                     Icons.Default.Folder, Color(0xFFA78BFA),
                     t.openArchive, t.browseFirst, onOpenArchive
