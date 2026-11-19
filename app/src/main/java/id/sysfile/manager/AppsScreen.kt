@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,6 +70,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -331,7 +333,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                         Image(
                             bitmap = bmp.asImageBitmap(),
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
+                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
                         )
                     } else {
                         Icon(
@@ -342,7 +344,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(app.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(app.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text(
                             "v" + app.versionName,
                             style = MaterialTheme.typography.bodySmall,
@@ -355,31 +357,31 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                 Column {
                     Text(
                         app.packageName,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (app.totalSize != null) {
                             Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
                                 Text(
                                     t.totalWord + " " + FileOps.formatSize(app.totalSize),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }
                         }
                         Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
                             Text(
                                 "APK " + FileOps.formatSize(app.apkSize),
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                     AppActionRow(Icons.Default.PlayArrow, t.appOpen, t.appOpenDesc) {
                         actionApp = null
@@ -394,10 +396,12 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                             notify(t.opFailed)
                         }
                     }
+                    HorizontalDivider(modifier = Modifier.padding(start = 48.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                     AppActionRow(Icons.Default.ContentCopy, t.appCopyApk, t.appCopyDesc) {
                         actionApp = null
                         copyTarget = app
                     }
+                    HorizontalDivider(modifier = Modifier.padding(start = 48.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                     AppActionRow(Icons.Default.Share, t.appShareApk, t.appShareDesc) {
                         actionApp = null
                         scope.launch {
@@ -430,6 +434,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                             }
                         }
                     }
+                    HorizontalDivider(modifier = Modifier.padding(start = 48.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                     AppActionRow(Icons.Default.Info, t.appInfo, t.appInfoDesc) {
                         actionApp = null
                         try {
@@ -475,10 +480,11 @@ private fun AppActionRow(
     onClick: () -> Unit
 ) {
     ListItem(
-        headlineContent = { Text(label) },
-        supportingContent = { Text(desc) },
-        leadingContent = { Icon(icon, null) },
+        headlineContent = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+        supportingContent = { Text(desc, style = MaterialTheme.typography.bodySmall) },
+        leadingContent = { Icon(icon, null, modifier = Modifier.size(20.dp)) },
         modifier = Modifier.clickable(onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
     )
 }
