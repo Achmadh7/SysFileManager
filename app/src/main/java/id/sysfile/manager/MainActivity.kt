@@ -158,6 +158,7 @@ private sealed interface Overlay {
     data class ImageView(val paths: List<String>, val startIndex: Int) : Overlay
     data class VideoView(val paths: List<String>, val startIndex: Int) : Overlay
     data class TextView(val path: String) : Overlay
+    data class ArchiveText(val name: String, val content: String) : Overlay
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
     data class OfficeView(val path: String) : Overlay
@@ -861,6 +862,7 @@ fun SysFileApp() {
                         onPathChange = { viewingPath = it }
                     )
                     is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
+                    is Overlay.ArchiveText -> TextViewerScreen(ov.name, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, extractedText = ov.content)
                     is Overlay.PdfView -> PdfViewerScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
@@ -925,15 +927,32 @@ fun SysFileApp() {
                             val archiveFile = File(ov.path)
                             working = true
                             scope.launch {
-                                val out = withContext(Dispatchers.IO) {
-                                    ArchiveOps.extractSingle(archiveFile, itemName, archiveFile.parentFile ?: archiveFile)
+                                // Berkas teks (HTML, txt, md, ...) dibaca dari
+                                // dalam arsip ke memori — tidak ada berkas yang
+                                // diekstrak ke penyimpanan. Selain teks, ekstrak
+                                // ke cache aplikasi (privat, tak terlihat) lalu
+                                // buka dari sana — bukan lagi ke folder ZIP.
+                                val text = withContext(Dispatchers.IO) {
+                                    if (FileOps.isTextFile(File(itemName))) {
+                                        ArchiveOps.readEntryText(archiveFile, itemName)
+                                    } else null
                                 }
-                                working = false
-                                if (out != null) {
-                                    reloadKey++
-                                    openEntry(FileOps.entryOf(out))
+                                if (text != null) {
+                                    working = false
+                                    overlayReturn = ov
+                                    overlay = Overlay.ArchiveText(itemName, text)
                                 } else {
-                                    notify(t.opFailed)
+                                    val out = withContext(Dispatchers.IO) {
+                                        val cache = File(context.cacheDir, "archive-view").apply { mkdirs() }
+                                        ArchiveOps.extractSingle(archiveFile, itemName, cache)
+                                    }
+                                    working = false
+                                    if (out != null) {
+                                        overlayReturn = ov
+                                        openEntry(FileOps.entryOf(out))
+                                    } else {
+                                        notify(t.opFailed)
+                                    }
                                 }
                             }
                         }

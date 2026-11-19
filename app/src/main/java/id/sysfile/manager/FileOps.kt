@@ -7,6 +7,7 @@ import android.os.StatFs
 import android.webkit.MimeTypeMap
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -972,6 +973,35 @@ object ArchiveOps {
     }
 
     /** Daftar isi arsip (ZIP/7Z/TAR/RAR) untuk dibuka tanpa ekstrak; null bila gagal/tidak didukung. */
+    /** Baca satu entri teks dari arsip ZIP ke memori (tanpa menulis ke disk);
+     *  null bila bukan ZIP, entri tidak ada/direktori, terlalu besar, atau gagal.
+     *  Arsip selain ZIP mengembalikan null — pemanggil memakai jalur cache. */
+    fun readEntryText(file: File, entryName: String, maxBytes: Int = 1_000_000): String? {
+        if (kindOf(file.name) != "zip") return null
+        return try {
+            ZipFile(file).use { zip ->
+                val entry = zip.getEntry(entryName) ?: return null
+                if (entry.isDirectory) return null
+                if (entry.size > maxBytes) return null
+                zip.getInputStream(entry).use { input ->
+                    val out = ByteArrayOutputStream()
+                    val buf = ByteArray(8192)
+                    var total = 0
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        total += n
+                        if (total > maxBytes) return null
+                        out.write(buf, 0, n)
+                    }
+                    String(out.toByteArray(), Charsets.UTF_8)
+                }
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun listContents(file: File): List<ArchiveItem>? {
         return try {
             when (kindOf(file.name)) {

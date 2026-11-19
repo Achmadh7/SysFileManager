@@ -291,4 +291,37 @@ class FileOpsTest {
         assertEquals(Category.ARCHIVE, FileOps.categoryOf("game.zip"))
         assertEquals(Category.DOCUMENT, FileOps.categoryOf("game.txt"))
     }
+
+    // --- readEntryText: baca teks dari ZIP ke memori (r103) ---
+
+    @Test
+    fun readEntryText_zipHtmlReturnsContent() {
+        val zip = File(tmp.root, "web.zip")
+        makeZip(zip, listOf("index.html" to "<html><body>halo</body></html>", "a.txt" to "hello"))
+        assertEquals("<html><body>halo</body></html>", ArchiveOps.readEntryText(zip, "index.html"))
+        assertEquals("hello", ArchiveOps.readEntryText(zip, "a.txt"))
+    }
+
+    @Test
+    fun readEntryText_missingAndDirectoryReturnNull() {
+        val zip = File(tmp.root, "web2.zip")
+        makeZip(zip, listOf("dir/" to "", "a.txt" to "hello"))
+        assertNull(ArchiveOps.readEntryText(zip, "tidak-ada.html"))
+        assertNull(ArchiveOps.readEntryText(zip, "dir/"))
+    }
+
+    @Test
+    fun readEntryText_tooBigReturnsNull() {
+        val zip = File(tmp.root, "web3.zip")
+        makeZip(zip, listOf("big.html" to "x".repeat(100)))
+        assertNull(ArchiveOps.readEntryText(zip, "big.html", maxBytes = 10))
+        assertEquals("x".repeat(100), ArchiveOps.readEntryText(zip, "big.html", maxBytes = 100))
+    }
+
+    @Test
+    fun readEntryText_nonZipReturnsNull() {
+        val txt = File(tmp.root, "plain.txt")
+        txt.writeText("hello")
+        assertNull(ArchiveOps.readEntryText(txt, "plain.txt"))
+    }
 }
