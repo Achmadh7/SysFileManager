@@ -171,6 +171,7 @@ private sealed interface Overlay {
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
     data class OfficeView(val path: String) : Overlay
+    data class FontView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
     data class ArchiveView(val path: String) : Overlay
     data class PayloadView(val path: String) : Overlay
@@ -762,6 +763,7 @@ fun SysFileApp() {
             }
             FileOps.extOf(f.name) == "pdf" -> overlay = Overlay.PdfView(entry.path)
             FileOps.extOf(f.name) == "epub" -> overlay = Overlay.EpubView(entry.path)
+            FileOps.extOf(f.name) == "ttf" -> overlay = Overlay.FontView(entry.path)
             FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> overlay = Overlay.OfficeView(entry.path)
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
             entry.category == Category.ARCHIVE -> {
@@ -938,6 +940,7 @@ fun SysFileApp() {
                         onPathChange = { viewingPath = it }
                     )
                     is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
+                    is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null })
                     is Overlay.ArchiveText -> TextViewerScreen(ov.name, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, extractedText = ov.content)
                     is Overlay.PdfView -> PdfViewerScreen(
                         path = ov.path,

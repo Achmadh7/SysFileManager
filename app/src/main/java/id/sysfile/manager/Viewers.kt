@@ -17,8 +17,10 @@ import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import android.graphics.Bitmap
+import android.graphics.Typeface
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import android.widget.TextView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,6 +61,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
@@ -828,6 +831,91 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                 }
             }
         }
+    }
+}
+
+/* Pratinjau font TrueType (.ttf): nama + gaya dibaca dari tabel nama
+ *  font, contoh teks dirender dengan font itu lewat TextView native —
+ *  Compose FontFamily dari berkas tidak punya API publik yang stabil. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun FontViewerScreen(path: String, onBack: () -> Unit) {
+    val t = txt()
+    val file = File(path)
+    val ink = MaterialTheme.colorScheme.onSurface
+    var info by remember { mutableStateOf<Pair<String?, String?>?>(null) }
+    var typeface by remember { mutableStateOf<android.graphics.Typeface?>(null) }
+    var loadFailed by remember { mutableStateOf(false) }
+    LaunchedEffect(path) {
+        val (fam, sty) = withContext(Dispatchers.IO) {
+            FontOps.familyName(file) to FontOps.styleName(file)
+        }
+        info = fam to sty
+        val loaded = withContext(Dispatchers.IO) {
+            try {
+                android.graphics.Typeface.createFromFile(file)
+            } catch (_: Exception) {
+                null
+            }
+        }
+        typeface = loaded
+        loadFailed = loaded == null
+    }
+    BackHandler { onBack() }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
+            )
+        }
+    ) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            SectionCard(icon = Icons.Default.Info, title = t.properties) {
+                FontInfoRow(t.fontFamily, info?.first ?: "—")
+                FontInfoRow(t.fontStyle, info?.second ?: "—")
+                FontInfoRow(t.propSize, FileOps.formatSize(file.length()))
+                FontInfoRow(t.propPath, file.path)
+            }
+            Text(t.preview, style = MaterialTheme.typography.titleMedium)
+            if (loadFailed) {
+                Text(t.fontInvalid, color = MaterialTheme.colorScheme.error)
+            } else {
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.TextView(ctx).apply {
+                            textSize = 26f
+                            setTextColor(ink.toArgb())
+                            text = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz\n0123456789\nThe quick brown fox jumps over the lazy dog"
+                        }
+                    },
+                    update = {
+                        it.typeface = typeface ?: android.graphics.Typeface.DEFAULT
+                        it.setTextColor(ink.toArgb())
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+/** Baris label–nilai di kartu info pratinjau font (pola PropGridRow). */
+@Composable
+private fun FontInfoRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

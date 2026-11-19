@@ -344,6 +344,14 @@ class FileOpsTest {
     }
 
     @Test
+    fun isTextFile_toml_returnsTrueAndIsDocument() {
+        assertTrue(FileOps.isTextFile(File("cargo.toml")))
+        assertTrue(FileOps.isTextFile(File("CONFIG.TOML")))
+        assertEquals(Category.DOCUMENT, FileOps.categoryOf("cargo.toml"))
+        assertFalse(FileOps.isTextFile(File("foto.png")))
+    }
+
+    @Test
     fun isTextFile_propConfigConf_returnsTrue() {
         assertTrue(FileOps.isTextFile(File("build.prop")))
         assertTrue(FileOps.isTextFile(File("app.config")))

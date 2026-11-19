@@ -77,7 +77,7 @@ object FileOps {
     private val IMAGE_EXT = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "svg", "avif")
     private val VIDEO_EXT = setOf("mp4", "mkv", "avi", "mov", "webm", "3gp", "m4v", "wmv", "ts")
     private val AUDIO_EXT = setOf("mp3", "wav", "ogg", "m4a", "flac", "aac", "opus", "amr", "mid", "midi")
-    private val DOC_EXT = setOf("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "odt", "epub", "prop", "config", "conf")
+    private val DOC_EXT = setOf("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "odt", "epub", "prop", "config", "conf", "toml")
     private val APP_EXT = setOf("apk", "xapk", "apks", "aab")
     private val ARCHIVE_EXT = setOf("zip", "rar", "7z", "tar", "obb")
 
@@ -124,7 +124,7 @@ object FileOps {
 
     fun isTextFile(file: File): Boolean {
         val ext = extOf(file.name)
-        return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh", "srt", "prop", "config", "conf")
+        return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh", "srt", "prop", "config", "conf", "toml")
     }
 
     /** Folder yang dibatasi sistem (Android/data, Android/obb): jalur berkas
