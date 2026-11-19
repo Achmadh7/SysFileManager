@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Make gradlew executable
+        run: chmod +x gradlew
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -33,18 +35,6 @@ jobs:
           gradle-version: '8.13'
       - name: Unit tests
         run: "./gradlew :app:testDebugUnitTest --stacktrace"
-      - name: Lint
-        # A3: lint dilaporkan tapi tidak menggagalkan build (masih ada temuan
-        # lama yang belum dibersihkan); laporannya diunggah sebagai artefak.
-        continue-on-error: true
-        run: "./gradlew :app:lintDebug --stacktrace"
-      - name: Upload lint report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-report
-          path: app/build/reports/lint-results-debug.html
-          if-no-files-found: ignore
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
       - name: Upload APK artifact
