@@ -300,6 +300,23 @@ class FileOpsTest {
     }
 
     @Test
+    fun jar_kindIsZipAndCategoryIsArchive() {
+        assertEquals("zip", ArchiveOps.kindOf("app.jar"))
+        assertEquals("zip", ArchiveOps.kindOf("lib.JAR"))
+        assertEquals(Category.ARCHIVE, FileOps.categoryOf("app.jar"))
+        assertEquals(Category.ARCHIVE, FileOps.categoryOf("lib.JAR"))
+        assertEquals("app", ArchiveOps.archiveBaseName("app.jar"))
+    }
+
+    @Test
+    fun jar_listsContentsLikeZip() {
+        val jar = File(tmp.root, "app.jar")
+        makeZip(jar, listOf("META-INF/MANIFEST.MF" to "Manifest-Version: 1.0\n", "com/example/Main.class" to "cafebabe"))
+        val items = ArchiveOps.listContents(jar)
+        assertEquals(listOf("META-INF/MANIFEST.MF", "com/example/Main.class"), items?.map { it.name })
+    }
+
+    @Test
     fun archiveKinds_unchanged() {
         assertEquals("zip", ArchiveOps.kindOf("game.zip"))
         assertEquals("7z", ArchiveOps.kindOf("game.7z"))
