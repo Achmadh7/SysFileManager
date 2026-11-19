@@ -378,7 +378,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            BoxWithConstraints(Modifier.height(56.dp)) {
+            BoxWithConstraints(Modifier.height(48.dp)) {
                 val tabWidth = maxWidth / 3
                 val pillW = tabWidth - 8.dp
                 val pillX by animateDpAsState(
@@ -387,10 +387,11 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                     label = "pillX"
                 )
                 // Pil meluncur selebar tab (r66: NV1 label hanya di
-                // tab aktif, NV2 pil primary penuh).
+                // tab aktif, NV2 pil primary penuh; r79 NV6: kapsul
+                // 48dp, pil 32dp, ikon 18dp, label labelSmall).
                 Box(
                     Modifier.offset(x = pillX, y = 8.dp)
-                        .size(width = pillW, height = 40.dp)
+                        .size(width = pillW, height = 32.dp)
                         .clip(RoundedCornerShape(50))
                         .background(scheme.primary)
                 )
@@ -408,12 +409,12 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
+                            Icon(icon, null, tint = fg, modifier = Modifier.size(18.dp))
                             if (selected) {
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     label,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = fg,
                                     maxLines = 1
                                 )
