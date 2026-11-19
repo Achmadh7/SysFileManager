@@ -36,10 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * WB4 Layar sambutan (r113; r121: jadi 1 layar): perkenalan + kartu izin
- * All Files Access di bawahnya, konten bisa di-scroll. Muncul sekali
- * sampai selesai (pref "welcome_done"). Semua teks berbahasa Inggris
- * di kedua mode bahasa (permintaannya).
+ * WB4 Layar sambutan (r113; r121: jadi 1 layar; r139 WS12 Hero Lepas):
+ * perkenalan tanpa kartu + kartu izin All Files Access di bawahnya,
+ * konten bisa di-scroll. Muncul sekali sampai selesai
+ * (pref "welcome_done"). Semua teks berbahasa Inggris di kedua mode
+ * bahasa (permintaannya). Tulisan kecil rationale dihapus (r139).
  */
 @Composable
 fun WelcomeScreen(
@@ -60,52 +61,45 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(Modifier.size(32.dp))
-            // WS7: hero dalam kartu — logo + judul + pitch terpusat dalam satu kartu.
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                ),
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier.fillMaxWidth()
+            // WS12 Hero Lepas (r139, pilihannya): hero TANPA kartu — logo +
+            // judul + pitch langsung di latar, terpusat.
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    Modifier.fillMaxWidth().padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                // Ubin logo M11 "SF" (sama seperti bilah atas Beranda + Tentang).
+                Box(
+                    Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(19.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Ubin logo M11 "SF" (sama seperti bilah atas Beranda + Tentang).
-                    Box(
-                        Modifier
-                            .size(72.dp)
-                            .clip(RoundedCornerShape(19.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "SF",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 30.sp
-                        )
-                        Box(
-                            Modifier.size(width = 3.dp, height = 88.dp)
-                                .rotate(30f)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                        )
-                    }
                     Text(
-                        t.welcomeTitle,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        "SF",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 30.sp
                     )
-                    Text(
-                        t.welcomePitch,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                    Box(
+                        Modifier.size(width = 3.dp, height = 88.dp)
+                            .rotate(30f)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                     )
                 }
+                Text(
+                    t.welcomeTitle,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    t.welcomePitch,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
             }
             Card(
                 colors = CardDefaults.cardColors(
@@ -166,11 +160,6 @@ fun WelcomeScreen(
                     ) { Text(t.welcomeGrant) }
                 }
             }
-            Text(
-                t.welcomeRationale,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
         Button(
             onClick = onFinish,
