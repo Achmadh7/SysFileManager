@@ -234,7 +234,11 @@ fun ImageViewerScreen(
     }
 }
 
-/** Penampil/pengubah berkas teks sederhana (maks 1 MB yang dimuat). */
+/** Penampil/pengubah berkas teks sederhana (maks 1 MB yang dimuat).
+ *  .md dan .html/.htm punya tombol pratinjau di bilah atas: HTML tampil
+ *  apa adanya, Markdown di-render dulu jadi HTML (Markdown.kt) — keduanya
+ *  di WebView yang sama (JS mati, base file:// folder induk supaya gambar
+ *  relatif termuat). Teks/kode tetap tampilan default. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit) {
@@ -245,6 +249,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
     var failed by remember { mutableStateOf(false) }
     val fileExt = remember(path) { FileOps.extOf(File(path).name) }
     val isHtml = fileExt == "html" || fileExt == "htm"
+    val isMarkdown = fileExt == "md"
     val isMarkup = isHtml || fileExt == "xml"
     var preview by remember { mutableStateOf(false) }
     var previewTick by remember { mutableStateOf(0) }
@@ -272,7 +277,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                 },
                 actions = {
                     if (content != null) {
-                        if (isHtml) {
+                        if (isHtml || isMarkdown) {
                             if (preview) {
                                 IconButton(onClick = { previewTick++ }) { Icon(Icons.Default.Refresh, t.refresh) }
                                 IconButton(onClick = { preview = false }) { Icon(Icons.Default.Code, t.codeLabel) }
@@ -312,7 +317,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
             when {
                 failed -> Text(t.readFailed, Modifier.align(Alignment.Center))
                 content == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
-                preview && isHtml -> key(previewTick) {
+                preview && (isHtml || isMarkdown) -> key(previewTick) {
                     AndroidView(
                         factory = { ctx ->
                             WebView(ctx).apply {
@@ -329,7 +334,8 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit)
                         },
                         update = { wv ->
                             val baseUrl = "file://" + (File(path).parent ?: "") + "/"
-                            wv.loadDataWithBaseURL(baseUrl, content ?: "", "text/html", "UTF-8", null)
+                            val html = if (isMarkdown) Markdown.toHtml(content ?: "") else (content ?: "")
+                            wv.loadDataWithBaseURL(baseUrl, html, "text/html", "UTF-8", null)
                         },
                         modifier = Modifier.fillMaxSize()
                     )

@@ -123,7 +123,7 @@ object FileOps {
 
     fun isTextFile(file: File): Boolean {
         val ext = extOf(file.name)
-        return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh")
+        return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh", "srt")
     }
 
     fun entryOf(file: File): FEntry {
