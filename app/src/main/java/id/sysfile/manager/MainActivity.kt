@@ -234,6 +234,10 @@ fun SysFileApp() {
     // AU2 (r74): pemutar audio mini — hidup di SysFileApp (bukan di
     // overlay) supaya tetap berbunyi saat pengguna pindah folder/tab.
     var audioPath by remember { mutableStateOf<String?>(null) }
+    // r82: layar tempat audio dimulai ("cat:AUDIO" /
+    // "folder:<path>" / "tab:<n>") — MiniPlayerBar hanya
+    // tampil selama pengguna masih di layar itu.
+    var audioOrigin by remember { mutableStateOf<String?>(null) }
     var audioPlaying by remember { mutableStateOf(false) }
     var audioPositionMs by remember { mutableStateOf(0) }
     var audioDurationMs by remember { mutableStateOf(0) }
@@ -293,6 +297,13 @@ fun SysFileApp() {
 
     val currentPath = browseStack.lastOrNull()
     val currentRoot = currentPath?.let { p -> allRoots.filter { p == it.path || it.path == "/" || p.startsWith(it.path + "/") }.maxByOrNull { it.path.length } }
+
+    /** Identitas layar saat ini (r82): kategori yang sedang
+     *  dibuka, folder yang sedang dijelajahi, atau tab atas. */
+    fun currentScreenId(): String = when (val ov = overlay) {
+        is Overlay.CategoryView -> "cat:" + ov.category.name
+        else -> if (currentPath != null) "folder:$currentPath" else "tab:$homeTab"
+    }
 
     fun notify(msg: String) {
         scope.launch { snackbar.showSnackbar(msg) }
@@ -555,6 +566,7 @@ fun SysFileApp() {
         try { audioPlayer.value?.release() } catch (_: Exception) { }
         audioPlayer.value = null
         audioPath = null
+        audioOrigin = null
         audioPlaying = false
         audioPositionMs = 0
         audioDurationMs = 0
@@ -562,6 +574,7 @@ fun SysFileApp() {
 
     fun startAudio(entry: FEntry) {
         stopAudio()
+        audioOrigin = currentScreenId()
         val mp = MediaPlayer()
         try {
             mp.setDataSource(entry.file.path)
@@ -1086,15 +1099,20 @@ fun SysFileApp() {
                             },
                             bottomBar = {
                                 Column {
-                                    audioPath?.let { path ->
-                                        MiniPlayerBar(
-                                            name = File(path).name,
-                                            positionMs = audioPositionMs,
-                                            durationMs = audioDurationMs,
-                                            playing = audioPlaying,
-                                            onToggle = { toggleAudio() },
-                                            onClose = { stopAudio() }
-                                        )
+                                    // r82: bar hanya tampil di layar asal audio
+                                    // (folder/kategori/Recent tempat audio dimulai);
+                                    // di Beranda dan layar lain disembunyikan.
+                                    if (audioOrigin == currentScreenId()) {
+                                        audioPath?.let { path ->
+                                            MiniPlayerBar(
+                                                name = File(path).name,
+                                                positionMs = audioPositionMs,
+                                                durationMs = audioDurationMs,
+                                                playing = audioPlaying,
+                                                onToggle = { toggleAudio() },
+                                                onClose = { stopAudio() }
+                                            )
+                                        }
                                     }
                                     if (selected.isNotEmpty() && currentPath != null) {
                                         SelectionBar(
