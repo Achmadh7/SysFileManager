@@ -684,6 +684,21 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
             ) { page ->
                 val pagePath = paths[page]
                 key(pagePath) {
+                    // Ketuk video tampil/sembunyi kontrol: detektor tap
+                    // ada DI DALAM tiap halaman (pola penampil foto) —
+                    // overlay di atas pager menelan DOWN sehingga pager
+                    // tidak pernah menerima geser halaman (slide antar
+                    // video mati; pindah video hanya bisa lewat tombol
+                    // prev/next di kapsul kontrol). OnTouchListener
+                    // VideoView tidak bisa dipakai: ia mengembalikan
+                    // false pada ACTION_DOWN sehingga ACTION_UP tidak
+                    // pernah sampai ke listener.
+                    Box(
+                        Modifier.fillMaxSize().pointerInput(pagePath) {
+                            detectTapGestures { controlsVisible = !controlsVisible }
+                        },
+                        contentAlignment = Alignment.Center
+                    ) {
                     AndroidView(
                         factory = { ctx ->
                             android.widget.VideoView(ctx).apply {
@@ -712,22 +727,9 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                         onRelease = { it.stopPlayback(); views.remove(page) },
                         modifier = Modifier.fillMaxSize()
                     )
+                    }
                 }
             }
-            // Ketuk video tampil/sembunyi kontrol (r77): overlay
-            // Compose di atas pager (pola yang sama dipakai penampil
-            // foto di file ini). Ketukan sampai ke sini; geser
-            // diteruskan ke pager karena detectTapGestures tidak
-            // menelan geser. OnTouchListener VideoView TIDAK bisa
-            // dipakai untuk ini: ia mengembalikan false pada
-            // ACTION_DOWN, sehingga ACTION_UP tidak pernah sampai
-            // ke listener (anak View yang menolak DOWN kehilangan
-            // sisa gestur).
-            Box(
-                Modifier.fillMaxSize().pointerInput(Unit) {
-                    detectTapGestures(onTap = { controlsVisible = !controlsVisible })
-                }
-            )
             // Kontrol kapsul mengambang (VP2, r76; VP6 r85: slider +
             // waktu masuk ke dalam kapsul, baris atas; tombol di baris
             // bawah — satu kesatuan kontrol). Muncul/hilang dengan
