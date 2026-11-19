@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Settings is now a grouped list (Display / Files / Apps) instead of 2×2 quick tiles; all settings keep their behaviour.
 - Theme and language now toggle with a single tap (no picker dialog); the "Follow System" theme option is gone.
 - Bottom tab (HS1): a 48dp surfaceContainer capsule with a primary pill (#9ACBFA) that hugs the active tab's icon and label; inactive tabs show an outlined icon only.
+- Target SDK 34 → 35 (Android 15): edge-to-edge enabled (enableEdgeToEdge); the floating bottom bar now respects the system navigation-bar inset.
 - Photo and video viewers now swipe between same-type media in the folder, with an "N / M" counter; swipe is disabled while a photo is zoomed.
 - Root/SD/USB volume rows show the free-space label as "tersisa" instead of "kosong" (Indonesian; English "free" unchanged).
 - Category and Trash tiles, storage rows, and the StorageCard now use 28dp corners.

@@ -15,6 +15,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -36,6 +37,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
@@ -184,6 +186,11 @@ private sealed interface DialogKind {
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android 15 (targetSdk 35) mewajibkan edge-to-edge: tanpa ini, sistem
+        // tetap menggambar di bawah status/navigation bar dan konten bisa
+        // tertutup. Scaffold + TopAppBar sudah mengonsumsi inset sistem, dan
+        // bottomBar diberi navigationBarsPadding() di bawah.
+        enableEdgeToEdge()
         setContent { SysFileApp() }
     }
 }
@@ -1109,7 +1116,9 @@ fun SysFileApp() {
                                 }
                             },
                             bottomBar = {
-                                Column {
+                                // navigationBarsPadding: nav bar mengambang tidak
+                                // boleh menempel pada navigation bar sistem (gestur).
+                                Column(Modifier.navigationBarsPadding()) {
                                     // r82: bar hanya tampil di layar asal audio
                                     // (folder/kategori/Recent tempat audio dimulai);
                                     // di Beranda dan layar lain disembunyikan.

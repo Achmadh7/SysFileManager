@@ -47,7 +47,7 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 | Biometrics | AndroidX Biometric 1.1.0 (fingerprint / device credential) |
 | Restricted folders | AndroidX DocumentFile 1.0.1 (Storage Access Framework) |
 | Build | AGP 8.11.1, Gradle 8.13, JDK 17 |
-| Android | minSdk 26 (Android 8.0), targetSdk 34, compileSdk 36 |
+| Android | minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36 |
 | Package | `id.sysfile.manager` |
 | Version | 1.3.0 |
 | Signing | Fixed keystore committed in this repo (`sysfile.p12`, PKCS12) — every CI build carries the same signature, so updates install in place |
