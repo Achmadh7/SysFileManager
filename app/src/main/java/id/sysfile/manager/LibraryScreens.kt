@@ -1058,12 +1058,12 @@ fun AnalysisScreen(
                                     ) {
                                         Box(
                                             Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                                                .background(categoryColor(cat).copy(alpha = 0.16f)),
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 categoryIcon(cat, ""), null,
-                                                tint = categoryColor(cat),
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(22.dp)
                                             )
                                         }
@@ -1087,7 +1087,7 @@ fun AnalysisScreen(
                                             LinearWavyProgressIndicator(
                                                 progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
                                                 modifier = Modifier.fillMaxWidth(),
-                                                color = categoryColor(cat),
+                                                color = MaterialTheme.colorScheme.primary,
                                                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                                             )
                                         }

@@ -287,7 +287,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         rowCats.forEach { (cat, label) ->
-                            val color = categoryColor(cat)
+                            val color = MaterialTheme.colorScheme.primary
                             Column(
                                 Modifier.weight(1f).height(84.dp)
                                     .clip(RoundedCornerShape(28.dp))
@@ -301,7 +301,7 @@ fun HomeScreen(
                                     Modifier.size(40.dp).clip(CircleShape).background(color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
                                 }
                                 Text(
                                     label,
