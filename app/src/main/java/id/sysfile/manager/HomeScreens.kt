@@ -25,7 +25,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -356,14 +355,16 @@ fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
-/** Nav bawah mirip foto putih (r93 WP1, 2026-11-19): kapsul navy
- *  #111C30 48dp (diukur dari foto strip 1080x154) + pill putih
- *  #EEF3F9 35dp mengikuti konten (ikon 24dp + celah 8dp + label
- *  titleMedium + padding 11dp tiap sisi), ikon + label sebaris di
- *  semua tab; aktif gelap #0D111A, tidak aktif putih. Pill meluncur
- *  + berubah lebar dengan halus (defaultSpatialSpec), warna ikon /
- *  label ikut dianimasikan dengan spec yang sama supaya sinkron.
- *  Menggantikan kapsul gelap + pill teal (r92 FT4). */
+/** Nav bawah senada (r94 HS1, 2026-11-19): kapsul surfaceContainer
+ *  #1C2024 48dp TANPA garis tepi (efek kaca di r93 dihapus) + pill
+ *  primary #9ACBFA 35dp mengikuti konten (ikon 24dp + celah 8dp +
+ *  label titleMedium + padding 11dp tiap sisi), ikon + label
+ *  sebaris HANYA di tab aktif (gelap #003352 di atas pill); tab
+ *  tidak aktif hanya ikon outline putih. Warna dari tema Senja
+ *  supaya senada dengan elemen lain. Animasi halus (r93): pill
+ *  meluncur + berubah lebar, warna ikon/label ikut dianimasikan
+ *  dengan defaultSpatialSpec yang sama. Menggantikan kapsul navy
+ *  + pill putih (r93 WP1). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
@@ -393,26 +394,25 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             ).size.width.toDp()
         }
     }
-    // r93 WP1: mirip foto — kapsul navy #111C30 48dp + garis tepi
-    // tipis 1dp, pill putih #EEF3F9 35dp (ikon 24dp + celah 8dp +
-    // label + padding 11dp tiap sisi), ikon + label titleMedium
-    // sebaris di semua tab; aktif gelap #0D111A, tidak aktif putih.
-    // Warna tetap (bukan dari tema) supaya sama persis dengan foto
-    // di kedua mode. ANIMASI HALUS: lebar + posisi pill (pillW /
-    // pillX) dan warna ikon/label (fg) semuanya memakai
-    // defaultSpatialSpec yang sama — jadi warna berubah seiring
-    // pill meluncur, bukan lebih cepat (effectsSpec) atau lebih
-    // lambat darinya.
-    val barColor = Color(0xFF111C30)
-    val pillColor = Color(0xFFEEF3F9)
-    val onPillColor = Color(0xFF0D111A)
+    // r94 HS1: senada — kapsul surfaceContainer #1C2024 48dp TANPA
+    // garis tepi (efek kaca di r93 dihapus), pill primary #9ACBFA
+    // 35dp (ikon 24dp + celah 8dp + label + padding 11dp tiap
+    // sisi), ikon + label titleMedium sebaris HANYA di tab aktif
+    // (gelap #003352 di atas pill); tab tidak aktif hanya ikon
+    // outline putih. Warna dari tema Senja (bukan warna foto)
+    // supaya senada dengan elemen lain di kedua mode. ANIMASI
+    // HALUS (r93): lebar + posisi pill (pillW / pillX) dan warna
+    // ikon/label (fg) semuanya memakai defaultSpatialSpec yang
+    // sama — jadi warna berubah seiring pill meluncur.
+    val barColor = Color(0xFF1C2024)
+    val pillColor = Color(0xFF9ACBFA)
+    val onPillColor = Color(0xFF003352)
     Row(
         Modifier.fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
             .height(48.dp)
             .clip(RoundedCornerShape(50))
-            .background(barColor)
-            .border(1.dp, Color(0xFF3C4B69), RoundedCornerShape(50)),
+            .background(barColor),
         verticalAlignment = Alignment.CenterVertically
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -449,13 +449,15 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(if (selected) icon else outlined[index], null, tint = fg, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = fg,
-                            maxLines = 1
-                        )
+                        if (selected) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = fg,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
             }
