@@ -312,6 +312,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                             modifier = Modifier.fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 5.dp)
+                                .clip(RoundedCornerShape(28.dp))
                                 .clickable { actionApp = app }
                         )
                     }
