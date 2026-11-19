@@ -20,6 +20,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -27,6 +29,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -135,8 +138,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -351,17 +356,19 @@ fun HomeScreen(
 // Layar peramban folder
 // ---------------------------------------------------------------------------
 
-/** Nav bawah mirip foto (r92 FT4, 2026-11-19): rombak total mengikuti
- *  foto strip 1080x175 — kapsul gelap #272727 (diukur dari foto),
- *  ikon 24dp di atas label, pill teal #74CFD4 (56x30dp) di belakang
- *  ikon tab aktif, label aktif teal di bawah pill, tab tidak aktif
- *  hanya ikon putih 24dp di tengah kapsul. Warna tetap (bukan dari
- *  tema) supaya sama persis dengan foto di mode gelap maupun terang.
- *  Menggantikan tiga pill terpisah (r91 TR1). */
+/** Nav bawah mirip foto putih (r93 WP1, 2026-11-19): kapsul navy
+ *  #111C30 48dp (diukur dari foto strip 1080x154) + pill putih
+ *  #EEF3F9 35dp mengikuti konten (ikon 24dp + celah 8dp + label
+ *  titleMedium + padding 11dp tiap sisi), ikon + label sebaris di
+ *  semua tab; aktif gelap #0D111A, tidak aktif putih. Pill meluncur
+ *  + berubah lebar dengan halus (defaultSpatialSpec), warna ikon /
+ *  label ikut dianimasikan dengan spec yang sama supaya sinkron.
+ *  Menggantikan kapsul gelap + pill teal (r92 FT4). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val t = txt()
+    val motion = MaterialTheme.motionScheme
     val items = listOf(
         Triple(0, Icons.Default.Home, t.home),
         Triple(1, Icons.Default.History, t.recentShort),
@@ -372,61 +379,84 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val outlined = listOf(
         Icons.Outlined.Home, Icons.Outlined.History, Icons.Outlined.Analytics
     )
-    // r92 FT4: mirip foto — kapsul gelap #272727, ikon 24dp di atas
-    // label, pill teal #74CFD4 (56x30dp) di belakang ikon tab aktif,
-    // label aktif teal di bawah pill (celah 3dp), tidak aktif hanya
-    // ikon outline putih 24dp di tengah kapsul. Warna tetap (bukan
-    // dari tema) supaya sama persis dengan foto di kedua mode.
-    // Lebar pill tetap 56dp (hanya di belakang ikon) — tidak ada
-    // pengukuran label lagi (r89 TextMeasurer sudah tidak dipakai).
-    val barColor = Color(0xFF272727)
-    val pillColor = Color(0xFF74CFD4)
-    val onPillColor = Color(0xFF2F373A)
+    // r89 NV17: lebar pill mengikuti konten (ikon + label tab aktif).
+    // Lebar label diukur saat komposisi dengan TextMeasurer
+    // (titleMedium, 16sp — sesuai foto); rememberTextMeasurer di
+    // androidx.compose.ui.text (ui-text 1.9.3, terverifikasi r89).
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val labelWidths = items.map { (_, _, label) ->
+        with(density) {
+            textMeasurer.measure(
+                label,
+                style = MaterialTheme.typography.titleMedium
+            ).size.width.toDp()
+        }
+    }
+    // r93 WP1: mirip foto — kapsul navy #111C30 48dp + garis tepi
+    // tipis 1dp, pill putih #EEF3F9 35dp (ikon 24dp + celah 8dp +
+    // label + padding 11dp tiap sisi), ikon + label titleMedium
+    // sebaris di semua tab; aktif gelap #0D111A, tidak aktif putih.
+    // Warna tetap (bukan dari tema) supaya sama persis dengan foto
+    // di kedua mode. ANIMASI HALUS: lebar + posisi pill (pillW /
+    // pillX) dan warna ikon/label (fg) semuanya memakai
+    // defaultSpatialSpec yang sama — jadi warna berubah seiring
+    // pill meluncur, bukan lebih cepat (effectsSpec) atau lebih
+    // lambat darinya.
+    val barColor = Color(0xFF111C30)
+    val pillColor = Color(0xFFEEF3F9)
+    val onPillColor = Color(0xFF0D111A)
     Row(
         Modifier.fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-            .height(56.dp)
+            .height(48.dp)
             .clip(RoundedCornerShape(50))
-            .background(barColor),
+            .background(barColor)
+            .border(1.dp, Color(0xFF3C4B69), RoundedCornerShape(50)),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        items.forEach { (index, icon, label) ->
-            val selected = homeTab == index
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val tabWidth = maxWidth / 3
+            val pillWTarget = 24.dp + 8.dp + labelWidths[homeTab] + 22.dp
+            val pillW by animateDpAsState(
+                targetValue = pillWTarget,
+                animationSpec = motion.defaultSpatialSpec(),
+                label = "pillW"
+            )
+            val pillX by animateDpAsState(
+                targetValue = tabWidth * homeTab + (tabWidth - pillW) / 2,
+                animationSpec = motion.defaultSpatialSpec(),
+                label = "pillX"
+            )
             Box(
-                Modifier.weight(1f).fillMaxHeight()
-                    .clickable { onSelect(index) },
-                contentAlignment = Alignment.Center
-            ) {
-                if (selected) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                Modifier.offset(x = pillX, y = 6.5.dp)
+                    .size(width = pillW, height = 35.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(pillColor)
+            )
+            Row(Modifier.fillMaxSize()) {
+                items.forEach { (index, icon, label) ->
+                    val selected = homeTab == index
+                    val fg by animateColorAsState(
+                        targetValue = if (selected) onPillColor
+                        else Color.White,
+                        animationSpec = motion.defaultSpatialSpec(),
+                        label = "tabFg"
+                    )
+                    Row(
+                        Modifier.weight(1f).fillMaxHeight().clickable { onSelect(index) },
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            Modifier.size(width = 56.dp, height = 30.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(pillColor),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                icon, null,
-                                tint = onPillColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(Modifier.height(3.dp))
+                        Icon(if (selected) icon else outlined[index], null, tint = fg, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(
                             label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = pillColor,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = fg,
                             maxLines = 1
                         )
                     }
-                } else {
-                    Icon(
-                        outlined[index], null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
                 }
             }
         }
