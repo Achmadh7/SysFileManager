@@ -264,6 +264,11 @@ fun SysFileApp() {
     var entriesLoaded by remember { mutableStateOf(true) }
     // Cache sesi: folder yang pernah dibuka tampil seketika, lalu dimuat ulang di latar.
     val listingCache = remember { mutableMapOf<String, List<FEntry>>() }
+    // r84: cache daftar kategori per sesi (pola yang sama dengan
+    // listingCache) — buka Foto/Video/Audio tidak memindai ulang
+    // seluruh penyimpanan dari nol; daftar lama tampil seketika,
+    // hasil segar menyusul di latar.
+    val categoryCache = remember { mutableMapOf<Category, List<FEntry>>() }
     val countCache = remember { mutableMapOf<String, Int>() }
     var reloadKey by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -870,6 +875,7 @@ fun SysFileApp() {
                     )
                     is Overlay.CategoryView -> CategoryScreen(
                         category = ov.category,
+                        categoryCache = categoryCache,
                         roots = roots,
                         showHidden = showHidden,
                         accessGranted = accessGranted,

@@ -278,6 +278,7 @@ fun CategoryScreen(
     roots: List<RootInfo>,
     showHidden: Boolean,
     accessGranted: Boolean,
+    categoryCache: MutableMap<Category, List<FEntry>>,
     onBack: () -> Unit,
     onOpenEntry: (FEntry, List<FEntry>) -> Unit
 ) {
@@ -288,16 +289,19 @@ fun CategoryScreen(
         context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
             .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
     }
-    var files by remember { mutableStateOf<List<FEntry>?>(null) }
+    // r84: daftar dari sesi sebelumnya tampil seketika (bila ada);
+    // pindai segar tetap jalan di latar dan memperbarui cache.
+    var files by remember { mutableStateOf<List<FEntry>?>(categoryCache[category]) }
     LaunchedEffect(category, accessGranted) {
-        files = null
-        files = if (accessGranted) {
-            withContext(Dispatchers.IO) {
-                FileOps.categoryFiles(roots.map { File(it.path) }, category, showHidden, lockedFolders)
-            }
-        } else {
-            emptyList()
+        if (!accessGranted) {
+            files = emptyList()
+            return@LaunchedEffect
         }
+        val fresh = withContext(Dispatchers.IO) {
+            FileOps.categoryFiles(roots.map { File(it.path) }, category, showHidden, lockedFolders)
+        }
+        categoryCache[category] = fresh
+        files = fresh
     }
     Scaffold(
         topBar = {

@@ -150,13 +150,22 @@ fun rememberApkIcon(entry: FEntry): android.graphics.Bitmap? {
     return icon
 }
 
+// Satu ImageLoader untuk SEMUA miniatur (r84): sebelumnya setiap
+// baris FileThumb membuat loader sendiri (remember per baris) — tiap
+// loader punya memory cache + disk cache sendiri, jadi miniatur
+// foto/video di-decode ulang tiap baris dan saat scroll kembali.
+// Loader dibuat sekali per proses (applicationContext supaya tidak
+// menahan Activity) dan dipakai ulang oleh semua AsyncImage miniatur.
+private var sharedThumbLoader: ImageLoader? = null
+
 @Composable
 fun rememberThumbLoader(): ImageLoader {
     val context = LocalContext.current
     return remember(context) {
-        ImageLoader.Builder(context)
+        sharedThumbLoader ?: ImageLoader.Builder(context.applicationContext)
             .components { add(VideoFrameDecoder.Factory()) }
             .build()
+            .also { sharedThumbLoader = it }
     }
 }
 
