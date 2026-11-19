@@ -139,8 +139,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -376,6 +378,20 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val outlined = listOf(
         Icons.Outlined.Home, Icons.Outlined.History, Icons.Outlined.Analytics
     )
+    // r89 NV17: lebar pil mengikuti konten (ikon + label tab aktif),
+    // bukan selebar tab. Lebar label diukur saat komposisi dengan
+    // TextMeasurer (ui-text 1.9.3: measure(text, style) terverifikasi
+    // dari sources; rememberTextMeasurer di androidx.compose.ui.text).
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val labelWidths = items.map { (_, _, label) ->
+        with(density) {
+            textMeasurer.measure(
+                label,
+                style = MaterialTheme.typography.labelSmall
+            ).size.width.toDp()
+        }
+    }
     Box(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         contentAlignment = Alignment.Center
@@ -388,16 +404,26 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         ) {
             BoxWithConstraints(Modifier.height(48.dp)) {
                 val tabWidth = maxWidth / 3
-                val pillW = tabWidth - 8.dp
+                // r89 NV17: pil selebar konten tab aktif — ikon 18dp +
+                // celah 6dp + lebar label + padding 12dp tiap sisi —
+                // dan tetap di tengah tab. Lebar + posisi dianimasikan
+                // dengan spec yang sama supaya tetap sinkron.
+                val pillWTarget = 18.dp + 6.dp + labelWidths[homeTab] + 24.dp
+                val pillW by animateDpAsState(
+                    targetValue = pillWTarget,
+                    animationSpec = motion.defaultSpatialSpec(),
+                    label = "pillW"
+                )
                 val pillX by animateDpAsState(
-                    targetValue = tabWidth * homeTab + 4.dp,
+                    targetValue = tabWidth * homeTab + (tabWidth - pillW) / 2,
                     animationSpec = motion.defaultSpatialSpec(),
                     label = "pillX"
                 )
-                // Pil meluncur selebar tab (r66: NV1 label hanya di
-                // tab aktif, NV2 pil primary penuh; r79 NV6: kapsul
-                // 48dp, pil 32dp, ikon 18dp, label labelSmall;
-                // r81 NV10: ikon outline saat tidak aktif).
+                // Pil meluncur (r66: NV1 label hanya di tab aktif,
+                // NV2 pil primary penuh; r79 NV6: kapsul 48dp, pil
+                // 32dp, ikon 18dp, label labelSmall; r81 NV10: ikon
+                // outline saat tidak aktif; r89 NV17: pil selebar
+                // konten, bukan selebar tab).
                 Box(
                     Modifier.offset(x = pillX, y = 8.dp)
                         .size(width = pillW, height = 32.dp)
