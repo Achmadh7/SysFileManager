@@ -161,6 +161,7 @@ fun ImageViewerScreen(
                 ) {
                     AsyncImage(
                         model = File(pagePath),
+                        imageLoader = rememberThumbLoader(),
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize().graphicsLayer {

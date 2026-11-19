@@ -511,7 +511,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                             Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
-                        FormatRow("Audio", listOf(t.chipExternal), t.fmtAudioDesc)
+                        FormatRow("Audio", listOf(t.chipPlay), t.fmtAudioDesc)
                         HorizontalDivider(
                             Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -530,6 +530,11 @@ fun FormatsScreen(onBack: () -> Unit) {
                         FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
                         Spacer(Modifier.height(8.dp))
                         FormatRow("Dokumen (PDF)", listOf(t.chipView), t.fmtPdfDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("Dokumen Office", listOf(t.chipExternal), t.fmtOfficeDesc)
                     }
                 }
             }

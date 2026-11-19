@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.VideoFrameDecoder
+import coil.decode.SvgDecoder
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -163,7 +164,10 @@ fun rememberThumbLoader(): ImageLoader {
     val context = LocalContext.current
     return remember(context) {
         sharedThumbLoader ?: ImageLoader.Builder(context.applicationContext)
-            .components { add(VideoFrameDecoder.Factory()) }
+            .components {
+                add(VideoFrameDecoder.Factory())
+                add(SvgDecoder.Factory())
+            }
             .build()
             .also { sharedThumbLoader = it }
     }
