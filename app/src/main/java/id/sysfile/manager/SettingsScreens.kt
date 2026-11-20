@@ -205,21 +205,24 @@ fun SettingsScreen(
         LazyColumn(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            contentPadding = PaddingValues(vertical = 4.dp)
         ) {
             // PS1 Baris ringkas (pilihan Achmad 2026-11-19): kartu per
             // baris dihapus — baris langsung di latar, dipisah garis
             // tipis di dalam seksi; judul grup (Tampilan / Berkas /
             // Aplikasi) tetap sebagai pemisah. Baris Warna Dinamis
             // dihapus sekalian: fitur dynamic color dicabut seluruhnya.
+            // r166 DS1 Rapat Modern (pilihannya): baris lebih rapat —
+            // ubin 40->32dp, sudut kartu 28->16dp, padding baris 10->6dp,
+            // celah seksi 8->4dp + penutup versi di bawah.
             item { SettingsSectionLabel(t.tampilanSection) }
             item {
                 Card(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                    Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
                             icon = when (themeMode) {
                                 "light" -> Icons.Default.LightMode
@@ -239,7 +242,7 @@ fun SettingsScreen(
                             onClick = { onTheme(if (themeMode == "dark") "light" else "dark") }
                         )
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         SettingsRow(
@@ -253,14 +256,14 @@ fun SettingsScreen(
                     }
                 }
             }
-item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
+item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
             item {
                 Card(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                    Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
                             icon = Icons.Default.Folder,
                             circleColor = Color(0xFFF06292),
@@ -268,7 +271,7 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
                             trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
                         )
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         SettingsRow(
@@ -281,14 +284,14 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 8.dp) }
                     }
                 }
             }
-item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
+item { SettingsSectionLabel(t.aplikasiSection, topPadding = 4.dp) }
             item {
                 Card(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
+                    Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
                             icon = Icons.Default.Apps,
                             circleColor = Color(0xFF7ED957),
@@ -296,7 +299,7 @@ item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
                             onClick = onApps
                         )
                         HorizontalDivider(
-                            Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         SettingsRow(
@@ -308,18 +311,29 @@ item { SettingsSectionLabel(t.aplikasiSection, topPadding = 8.dp) }
                     }
                 }
             }
+            // r166 DS1: penutup versi di bawah — pakai t.version +
+            // BuildConfig.VERSION_NAME seperti AboutScreen (tanpa string baru).
+            item {
+                Text(
+                    t.version(BuildConfig.VERSION_NAME),
+                    Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
     }
 }
 
 @Composable
-private fun SettingsSectionLabel(text: String, topPadding: Dp = 6.dp) {
+private fun SettingsSectionLabel(text: String, topPadding: Dp = 4.dp) {
     Text(
         text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = topPadding, bottom = 4.dp)
+        modifier = Modifier.padding(start = 4.dp, top = topPadding, bottom = 2.dp)
     )
 }
 
@@ -336,17 +350,17 @@ private fun SettingsRow(
         Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+            Modifier.size(32.dp).clip(RoundedCornerShape(10.dp))
                 .background(circleColor.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = circleColor, modifier = Modifier.size(22.dp))
+            Icon(icon, null, tint = circleColor, modifier = Modifier.size(18.dp))
         }
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             if (subtitle != null) {
