@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -86,7 +87,6 @@ import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -106,6 +106,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -167,8 +168,10 @@ fun BrowseHeaderBar(
     currentPath: String,
     currentRoot: RootInfo?,
     gridView: Boolean,
+    sortKey: SortKey,
+    sortAsc: Boolean,
     onSearch: () -> Unit,
-    onSortClick: () -> Unit,
+    onSortPick: (SortKey, Boolean) -> Unit,
     onToggleView: () -> Unit,
     onNavigate: (List<String>) -> Unit
 ) {
@@ -188,45 +191,36 @@ fun BrowseHeaderBar(
     }
     val labels = listOf(currentRoot?.let { rootLabel(it, t) } ?: rootPath) + segments
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-        SearchBar(
-            inputField = {
-                SearchBarDefaults.InputField(
-                    query = "",
-                    onQueryChange = {},
-                    onSearch = { onSearch() },
-                    expanded = false,
-                    onExpandedChange = { if (it) onSearch() },
-                    placeholder = { Text(t.searchInFolder) },
-                    leadingIcon = { Icon(Icons.Default.Search, null) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SearchBar(
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        query = "",
+                        onQueryChange = {},
+                        onSearch = { onSearch() },
+                        expanded = false,
+                        onExpandedChange = { if (it) onSearch() },
+                        placeholder = { Text(t.searchInFolder) },
+                        leadingIcon = { Icon(Icons.Default.Search, null) }
+                    )
+                },
+                expanded = false,
+                onExpandedChange = {},
+                modifier = Modifier.weight(1f),
+                // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
+                // status bar di atas pil (windowInsets default), padahal
+                // ia duduk di bawah TopAppBar yang inset-nya sudah
+                // dikonsumsi Scaffold; tanpa ini pil terdorong ~36dp.
+                windowInsets = WindowInsets(0.dp)
+            ) {}
+            Spacer(Modifier.width(8.dp))
+            // Tombol tunggal: ikon menunjukkan tampilan TUJUAN (bukan yang aktif).
+            FilledTonalIconButton(onClick = onToggleView) {
+                Icon(
+                    if (gridView) Icons.Default.ViewList else Icons.Default.GridView,
+                    contentDescription = if (gridView) t.listShort else t.gridShort
                 )
-            },
-            expanded = false,
-            onExpandedChange = {},
-            modifier = Modifier.fillMaxWidth(),
-            // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
-            // status bar di atas pil (windowInsets default), padahal
-            // ia duduk di bawah TopAppBar yang inset-nya sudah
-            // dikonsumsi Scaffold; tanpa ini pil terdorong ~36dp.
-            windowInsets = WindowInsets(0.dp)
-        ) {}
-        ButtonGroup(modifier = Modifier.padding(top = 8.dp)) {
-            toggleableItem(
-                checked = !gridView,
-                label = t.gridShort,
-                onCheckedChange = { if (it) onToggleView() },
-                icon = { Icon(Icons.Default.GridView, null) }
-            )
-            toggleableItem(
-                checked = gridView,
-                label = t.listShort,
-                onCheckedChange = { if (it) onToggleView() },
-                icon = { Icon(Icons.Default.ViewList, null) }
-            )
-            clickableItem(
-                onClick = onSortClick,
-                label = t.sortBy,
-                icon = { Icon(Icons.Default.Sort, null) }
-            )
+            }
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
@@ -259,6 +253,40 @@ fun BrowseHeaderBar(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+
+        // Chip urutan: ketuk chip aktif = balik arah (panah), ketuk lainnya = pilih
+        // kunci itu. Nama mulai naik (A→Z); tanggal & ukuran mulai turun.
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            listOf(
+                SortKey.NAME to t.sortName,
+                SortKey.DATE to t.sortDate,
+                SortKey.SIZE to t.sortSize
+            ).forEach { (key, label) ->
+                val active = sortKey == key
+                FilterChip(
+                    selected = active,
+                    onClick = {
+                        if (active) onSortPick(key, !sortAsc)
+                        else onSortPick(key, key == SortKey.NAME)
+                    },
+                    label = { Text(label) },
+                    leadingIcon = if (active) {
+                        {
+                            Icon(
+                                if (sortAsc) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                                null,
+                                Modifier.size(16.dp)
+                            )
+                        }
+                    } else null
+                )
             }
         }
     }
@@ -358,6 +386,7 @@ fun BrowseScreen(
                 gridView -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                    contentPadding = PaddingValues(bottom = 96.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -372,7 +401,7 @@ fun BrowseScreen(
                         )
                     }
                 }
-                else -> LazyColumn(Modifier.fillMaxSize()) {
+                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
                     items(entries, key = { it.path }) { entry ->
                         FileRow(
                             entry = entry,
@@ -400,9 +429,13 @@ fun BrowseScreen(
                 FloatingActionButtonMenu(
                     expanded = fabOpen,
                     button = {
-                        FloatingActionButton(onClick = { fabOpen = !fabOpen }) {
-                            Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null)
-                        }
+                        // Berlabel saat tertutup ("Baru"/"New"); menciut jadi ikon X saat menu terbuka.
+                        ExtendedFloatingActionButton(
+                            onClick = { fabOpen = !fabOpen },
+                            expanded = !fabOpen,
+                            icon = { Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null) },
+                            text = { Text(t.newShort) }
+                        )
                     },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
                 ) {

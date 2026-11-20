@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
@@ -51,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -68,6 +71,8 @@ import coil.decode.VideoFrameDecoder
 import coil.decode.SvgDecoder
 import java.io.File
 import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 
 /** Kartu seksi bergaya Material 3 Expressive dengan ikon judul. */
@@ -125,10 +130,33 @@ fun categoryColor(category: Category): Color {
 
 /** Warna ikon satu entri: folder amber, PDF merah, sisanya warna kategorinya. */
 fun entryColor(entry: FEntry): Color {
-    if (entry.isDir) return Color(0xFF8FC1F5)
+    if (entry.isDir) return folderColor(entry.name)
     if (FileOps.extOf(entry.name) == "pdf") return Color(0xFFE53935)
     return categoryColor(entry.category)
 }
+
+/** Gaya folder dikenal: ikon + warna per nama (huruf besar/kecil diabaikan), sisanya netral. */
+private data class FolderStyle(val icon: ImageVector, val color: Color)
+
+private val folderStyles: Map<String, FolderStyle> = mapOf(
+    "download" to FolderStyle(Icons.Default.Download, Color(0xFF9ACBFA)),
+    "downloads" to FolderStyle(Icons.Default.Download, Color(0xFF9ACBFA)),
+    "dcim" to FolderStyle(Icons.Default.PhotoCamera, Color(0xFFCFBCFF)),
+    "pictures" to FolderStyle(Icons.Default.Image, Color(0xFFCFBCFF)),
+    "documents" to FolderStyle(Icons.Default.Description, Color(0xFF7FD8C3)),
+    "android" to FolderStyle(Icons.Default.Android, Color(0xFFA8D98A)),
+    "music" to FolderStyle(Icons.Default.MusicNote, Color(0xFFF2A7C3)),
+    "audiobooks" to FolderStyle(Icons.Default.MusicNote, Color(0xFFF2A7C3)),
+    "movies" to FolderStyle(Icons.Default.Movie, Color(0xFFFFB870)),
+    "alarms" to FolderStyle(Icons.Default.Alarm, Color(0xFF9AA8B5))
+)
+private val defaultFolderStyle = FolderStyle(Icons.Default.Folder, Color(0xFF9AA8B5))
+
+fun folderIcon(name: String): ImageVector =
+    (folderStyles[name.lowercase()] ?: defaultFolderStyle).icon
+
+fun folderColor(name: String): Color =
+    (folderStyles[name.lowercase()] ?: defaultFolderStyle).color
 
 /** Cache ikon APK agar daftar tidak mengurai ulang berkas yang sama. */
 // M9: cache dihitung per byte (max 8 MB) — dulu 64 entri tanpa batas
@@ -209,7 +237,7 @@ fun FileThumbLarge(entry: FEntry) {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
+                if (entry.isDir) folderIcon(entry.name) else categoryIcon(entry.category, entry.name),
                 null,
                 tint = color,
                 modifier = Modifier.size(46.dp)
@@ -223,7 +251,34 @@ fun formatDate(millis: Long): String {
     return DateFormat.getDateInstance(DateFormat.MEDIUM, appLocale()).format(Date(millis))
 }
 
-/** Baris berkas untuk tampilan daftar. */
+/** Tanggal ringkas untuk baris daftar: "Hari ini", "Kemarin", "18 Nov", atau "18 Nov 2025" untuk tahun lain. */
+fun shortDate(millis: Long, t: Txt): String {
+    if (millis <= 0) return "—"
+    val cal = Calendar.getInstance().apply { timeInMillis = millis }
+    val now = Calendar.getInstance()
+    fun sameDay(c: Calendar) =
+        cal.get(Calendar.YEAR) == c.get(Calendar.YEAR) &&
+            cal.get(Calendar.DAY_OF_YEAR) == c.get(Calendar.DAY_OF_YEAR)
+    val yesterday = (now.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
+    return when {
+        sameDay(now) -> t.today
+        sameDay(yesterday) -> t.yesterday
+        cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) ->
+            SimpleDateFormat("d MMM", appLocale()).format(Date(millis))
+        else -> SimpleDateFormat("d MMM yyyy", appLocale()).format(Date(millis))
+    }
+}
+
+/** Benar bila millis jatuh pada hari ini (zona waktu perangkat). */
+fun isToday(millis: Long): Boolean {
+    if (millis <= 0) return false
+    val cal = Calendar.getInstance().apply { timeInMillis = millis }
+    val now = Calendar.getInstance()
+    return cal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+        cal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+}
+
+/** Baris berkas untuk tampilan daftar (ringkas: ~56dp, tanpa chevron, folder kosong diredupkan). */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileRow(
@@ -235,16 +290,17 @@ fun FileRow(
     onLongClick: () -> Unit,
     locked: Boolean = false
 ) {
+    val t = txt()
+    val emptyDir = entry.isDir && itemCount == 0
     val sub = if (entry.isDir) {
-        listOfNotNull(itemCount?.let { txt().items(it) }, formatDate(entry.modified))
+        if (emptyDir) t.emptyShort
+        else listOfNotNull(itemCount?.let { t.items(it) }, shortDate(entry.modified, t))
             .joinToString(" • ")
     } else {
-        formatDate(entry.modified)
+        shortDate(entry.modified, t)
     }
-    // KD2 (r73): baris dibungkus Card — warna kartu lebih halus
-    // (surfaceContainerHighest, bukan secondaryContainer).
     Card(
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -253,48 +309,68 @@ fun FileRow(
             }
         ),
         modifier = Modifier.fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .padding(horizontal = 12.dp, vertical = 3.dp)
+            .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
     ) {
-        ListItem(
-            headlineContent = {
-                Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            },
-            supportingContent = { Text(sub) },
-            leadingContent = {
-                Box {
-                    FileThumbTile(entry, 54)
-                    if (locked) {
-                        Box(
-                            Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(11.dp))
-                        }
+        Row(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box {
+                FileThumbTile(entry, 40)
+                if (locked) {
+                    Box(
+                        Modifier.align(Alignment.BottomEnd).size(16.dp).clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Lock, null, tint = Color.White, modifier = Modifier.size(10.dp))
                     }
                 }
-            },
-            trailingContent = {
-                if (selectionMode) {
-                    Checkbox(checked = isSelected, onCheckedChange = { onClick() })
-                } else if (entry.isDir) {
-                    Icon(
-                        Icons.Default.ChevronRight, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    entry.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    sub,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+            if (selectionMode) {
+                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+            } else if (!entry.isDir) {
+                Text(
+                    FileOps.formatSize(entry.size),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            } else if (isToday(entry.modified)) {
+                // RM1: badge New — folder yang berubah hari ini.
+                Box(
+                    Modifier.clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF1D4367))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        FileOps.formatSize(entry.size),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        t.newShort,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White
                     )
                 }
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
-                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-        )
+            }
+        }
     }
 }
 
@@ -328,7 +404,7 @@ fun FileThumbTile(entry: FEntry, sizeDp: Int) {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
+                if (entry.isDir) folderIcon(entry.name) else categoryIcon(entry.category, entry.name),
                 null,
                 tint = color,
                 modifier = Modifier.size((sizeDp * 0.52f).dp)

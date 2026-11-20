@@ -2105,16 +2105,30 @@ fun SysFileApp() {
                                                     },
                                                     maxLines = 1, overflow = TextOverflow.Ellipsis
                                                 )
-                                                Text(
-                                                    if (currentRoot != null && currentPath == currentRoot.path) {
-                                                        currentPath
-                                                    } else {
-                                                        currentRoot?.let { rootLabel(it, t) } ?: ""
-                                                    },
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                                                )
+                                                // RM1: subjudul jadi ringkasan isi —
+                                                // "8 folder · 30 item di Download" (folder
+                                                // yang berubah hari ini + isinya); tanpa
+                                                // folder hari ini, hanya jumlah folder.
+                                                val browseFolders = entries.filter { it.isDir }
+                                                val browseHighlight = browseFolders
+                                                    .filter { isToday(it.modified) }
+                                                    .maxByOrNull { it.modified }
+                                                val browseHlCount = browseHighlight?.let { entryCounts[it.path] }
+                                                val browseSubtitle = if (browseFolders.isEmpty()) {
+                                                    if (entries.isEmpty()) "" else t.items(entries.size)
+                                                } else if (browseHighlight != null && browseHlCount != null) {
+                                                    "${t.folders(browseFolders.size)} · ${t.itemsIn(browseHlCount, browseHighlight.name)}"
+                                                } else {
+                                                    t.folders(browseFolders.size)
+                                                }
+                                                if (browseSubtitle.isNotEmpty()) {
+                                                    Text(
+                                                        browseSubtitle,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
                                             }
                                         },
                                         navigationIcon = {
@@ -2200,9 +2214,16 @@ fun SysFileApp() {
                                         currentPath = currentPath,
                                         currentRoot = currentRoot,
                                         gridView = gridView,
+                                        sortKey = sortKey,
+                                        sortAsc = sortAsc,
                                         onNavigate = { browseStack = it },
                                         onSearch = { overlay = Overlay.Search(currentPath) },
-                                        onSortClick = { dialog = DialogKind.Sort },
+                                        onSortPick = { key, asc ->
+                                            sortKey = key
+                                            sortAsc = asc
+                                            prefs.edit().putString("sort_key", key.name)
+                                                .putBoolean("sort_asc", asc).apply()
+                                        },
                                         onToggleView = {
                                             gridView = !gridView
                                             prefs.edit().putBoolean("grid_view", gridView).apply()

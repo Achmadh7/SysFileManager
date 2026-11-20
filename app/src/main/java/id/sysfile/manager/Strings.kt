@@ -27,6 +27,10 @@ class Txt {
     var emptyFolder: String = ""
     var folderInaccessible: String = ""
     var items: (Int) -> String = { "" }
+    var folders: (Int) -> String = { "" }
+    var itemsIn: (Int, String) -> String = { _, _ -> "" }
+    var emptyShort: String = ""
+    var newShort: String = ""
     var selected: (Int) -> String = { "" }
     var search: String = ""
     var appTagline: String = ""
@@ -375,6 +379,10 @@ val TxtId = Txt().apply {
     emptyFolder = "Folder ini kosong."
     folderInaccessible = "Folder ini tidak dapat diakses. Sebagian folder sistem memang dikunci oleh Android."
     items = { n -> "$n item" }
+    folders = { n -> "$n folder" }
+    itemsIn = { n, name -> "$n item di $name" }
+    emptyShort = "Kosong"
+    newShort = "Baru"
     selected = { n -> "$n dipilih" }
     search = "Cari"
     appTagline = "Pengelola Berkas"
@@ -722,7 +730,11 @@ val TxtEn = Txt().apply {
     welcomeStart = "Start Exploring"
     emptyFolder = "This folder is empty."
     folderInaccessible = "This folder cannot be accessed. Some system folders are locked by Android."
-    items = { n -> "$n items" }
+    items = { n -> if (n == 1) "1 item" else "$n items" }
+    folders = { n -> if (n == 1) "1 folder" else "$n folders" }
+    itemsIn = { n, name -> if (n == 1) "1 item in $name" else "$n items in $name" }
+    emptyShort = "Empty"
+    newShort = "New"
     selected = { n -> "$n selected" }
     search = "Search"
     appTagline = "File Manager"
