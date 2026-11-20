@@ -340,6 +340,8 @@ fun HomeScreen(
                 // KG14 (r173): grid 2 kolom, ubin 56dp, lingkaran
                 // 28dp + ikon 16dp di KIRI label (bodyMedium,
                 // ellipsis), sudut tetap 16dp, jarak 8dp.
+                // UB2 (r191): ubin 56dp -> 72dp, lingkaran
+                // 28dp -> 36dp + ikon 16dp -> 20dp.
                 // Tanpa sub-label ukuran: tidak ada sumber ukuran
                 // per kategori yang murah + tepercaya di Beranda
                 // (pemindaian kategori r128 dibatasi; analisis
@@ -362,7 +364,7 @@ fun HomeScreen(
                         rowCats.forEach { (cat, label) ->
                             val color = MaterialTheme.colorScheme.primary
                             Row(
-                                Modifier.weight(1f).height(56.dp)
+                                Modifier.weight(1f).height(72.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(color.copy(alpha = 0.16f))
                                     .clickable { onOpenCategory(cat) }
@@ -370,10 +372,10 @@ fun HomeScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
-                                    Modifier.size(28.dp).clip(CircleShape).background(color),
+                                    Modifier.size(36.dp).clip(CircleShape).background(color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
                                 }
                                 Spacer(Modifier.width(12.dp))
                                 Text(
@@ -389,7 +391,7 @@ fun HomeScreen(
                         if (rowCats.size == 1) {
                             val trashColor = Color(0xFFEF5350)
                             Row(
-                                Modifier.weight(1f).height(56.dp)
+                                Modifier.weight(1f).height(72.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(trashColor.copy(alpha = 0.16f))
                                     .clickable { onOpenTrash() }
@@ -397,10 +399,10 @@ fun HomeScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
-                                    Modifier.size(28.dp).clip(CircleShape).background(trashColor),
+                                    Modifier.size(36.dp).clip(CircleShape).background(trashColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(20.dp))
                                 }
                                 Spacer(Modifier.width(12.dp))
                                 Text(
