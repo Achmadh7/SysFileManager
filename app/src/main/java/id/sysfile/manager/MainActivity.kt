@@ -1174,6 +1174,7 @@ fun SysFileApp() {
     fun runCardOp(
         name: String,
         successMsg: String,
+        onSuccess: (() -> Unit)? = null,
         block: suspend () -> Boolean
     ) {
         extractCardName = name
@@ -1196,6 +1197,7 @@ fun SysFileApp() {
                 notify(successMsg)
                 reloadKey++
                 selected = emptySet()
+                onSuccess?.invoke()
             } else {
                 notify(t.opFailed)
             }
@@ -2217,7 +2219,8 @@ fun SysFileApp() {
                                                                 val destDir = File(currentPath)
                                                                 runCardOp(
                                                                     name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
-                                                                    successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone
+                                                                    successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
+                                                                    onSuccess = { clipboard = null }
                                                                 ) {
                                                                     val files = paths.map { File(it) }
                                                                     if (mode == ClipMode.COPY) {
@@ -2226,7 +2229,6 @@ fun SysFileApp() {
                                                                         FileOps.moveInto(files, destDir) > 0
                                                                     }
                                                                 }
-                                                                if (mode == ClipMode.CUT) clipboard = null
                                                             }
                                                         )
                                                     }
@@ -2424,13 +2426,13 @@ fun SysFileApp() {
                                                     val destDir = File(currentPath)
                                                     runCardOp(
                                                         name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
-                                                        successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone
+                                                        successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
+                                                        onSuccess = { clipboard = null }
                                                     ) {
                                                         val files = paths.map { File(it) }
                                                         if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
                                                         else FileOps.moveInto(files, destDir) > 0
                                                     }
-                                                    if (mode == ClipMode.CUT) clipboard = null
                                                 },
                                                 onClear = { clipboard = null }
                                             )
