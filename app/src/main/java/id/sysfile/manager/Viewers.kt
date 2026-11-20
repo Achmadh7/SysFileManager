@@ -81,6 +81,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -95,6 +96,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -115,6 +117,7 @@ fun ImageViewerScreen(
     onPathChange: (String) -> Unit
 ) {
     val t = txt()
+    val context = LocalContext.current
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { paths.size })
     val currentPath = paths[pagerState.currentPage]
     var scale by remember { mutableFloatStateOf(1f) }
@@ -156,6 +159,13 @@ fun ImageViewerScreen(
         Box(Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
             HorizontalPager(
                 state = pagerState,
+                // Halaman tetangga dikompos + Coil mulai decode SEBELUM
+                // geser (r162): tanpa ini decode foto baru mulai saat
+                // halaman masuk viewport di tengah geser, halaman hitam
+                // sampai decode selesai lalu foto pop. Video tidak kena
+                // karena VideoView + MediaPlayer menyiapkan frame pertama
+                // jauh lebih cepat (~1 frame). Default 0 di foundation 1.9.3.
+                beyondViewportPageCount = 1,
                 // Saat diperbesar atau sedang dicubit dua jari, geser halaman
                 // dimatikan supaya cubit/pan milik gambar; saat skala 1 dan
                 // satu jari, geser milik pager.
@@ -171,7 +181,12 @@ fun ImageViewerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = File(pagePath),
+                        model = remember(pagePath) {
+                            ImageRequest.Builder(context)
+                                .data(File(pagePath))
+                                .crossfade(true)
+                                .build()
+                        },
                         imageLoader = rememberThumbLoader(),
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
