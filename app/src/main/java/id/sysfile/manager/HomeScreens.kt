@@ -17,9 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -124,11 +122,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -400,11 +396,14 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     // primary #9ACBFA 44dp. Posisi pill dijepit ke dalam bar
     // (coerceIn) — pill Analisis ~126dp lebih lebar dari slot
     // ~99dp, tanpa jepitan ia keluar dari bar.
-    // r136 NP3 Pudar: pill TIDAK bergeser — pill lama memudar di
-    // tempatnya, pill baru muncul di tempatnya (~250 ms). Warna
-    // ikon/label (fg) tetap memakai defaultSpatialSpec.
-    // r138: displayedTab menahan posisi lama selama pudar-keluar,
-    // pindah saat alfa 0 (tak terlihat), lalu pudar-masuk.
+    // r141 NP2 Geser Utuh: pill BERGESER + berubah lebar ke tab
+    // baru (animateDpAsState, defaultSpatialSpec) — tanpa pudar.
+    // NP3 Pudar (r136, r138) diganti atas permintaannya
+    // 'implement geser utuh' (2026-11-20, setelah papan Auriya).
+    // Warna ikon/label (fg) tetap memakai defaultSpatialSpec;
+    // label tab baru muncul saat pill tiba (selected = homeTab
+    // langsung — selama geser, label tujuan gelap-di-atas-bar
+    // gelap sampai pill menutupinya).
     val barColor = Color(0xFF1C2024)
     val pillColor = Color(0xFF9ACBFA)
     val onPillColor = Color(0xFF003352)
@@ -422,25 +421,25 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             fun pillXFor(tab: Int) =
                 (tabWidth * tab + (tabWidth - pillWFor(tab)) / 2)
                     .coerceIn(0.dp, maxWidth - pillWFor(tab))
-            var displayedTab by remember { mutableStateOf(homeTab) }
-            val pillAlpha = remember { Animatable(1f) }
-            LaunchedEffect(homeTab) {
-                if (homeTab != displayedTab) {
-                    pillAlpha.animateTo(0f, animationSpec = tween(125))
-                    displayedTab = homeTab
-                    pillAlpha.animateTo(1f, animationSpec = tween(125))
-                }
-            }
+            val pillX by animateDpAsState(
+                targetValue = pillXFor(homeTab),
+                animationSpec = motion.defaultSpatialSpec(),
+                label = "pillX"
+            )
+            val pillW by animateDpAsState(
+                targetValue = pillWFor(homeTab),
+                animationSpec = motion.defaultSpatialSpec(),
+                label = "pillW"
+            )
             Box(
-                Modifier.offset(x = pillXFor(displayedTab), y = 8.dp)
-                    .size(width = pillWFor(displayedTab), height = 44.dp)
+                Modifier.offset(x = pillX, y = 8.dp)
+                    .size(width = pillW, height = 44.dp)
                     .clip(RoundedCornerShape(50))
                     .background(pillColor)
-                    .alpha(pillAlpha.value)
             )
             Row(Modifier.fillMaxSize()) {
                 items.forEach { (index, icon, label) ->
-                    val selected = displayedTab == index
+                    val selected = homeTab == index
                     val fg by animateColorAsState(
                         targetValue = if (selected) onPillColor
                         else Color.White,
