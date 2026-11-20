@@ -509,6 +509,11 @@ fun FormatsScreen(onBack: () -> Unit) {
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("PAYLOAD.BIN", listOf(t.chipExtract, t.chipNative), t.fmtPayloadDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("DEX (.dex)", listOf(t.chipInspect), t.fmtDexDesc)
                     }
                 }
             }
