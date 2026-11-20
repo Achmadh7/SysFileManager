@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -120,8 +121,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -242,7 +241,6 @@ private fun Context.hasFileAccess(): Boolean {
 fun SysFileApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val snackbar = remember { SnackbarHostState() }
     val prefs = remember { context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val motion = MaterialTheme.motionScheme
@@ -543,24 +541,40 @@ fun SysFileApp() {
         else -> if (currentPath != null) "folder:$currentPath" else "tab:$homeTab"
     }
 
-    fun notify(msg: String) {
-        scope.launch { snackbar.showSnackbar(msg) }
+    // r193 NP2: pill umum — menggantikan snackbar untuk SEMUA
+    // notifikasi. Sukses = centang biru, gagal = silang merah.
+    // Pesan panjang terpotong (ellipsis) di UI. Auto-hilang 2,6 dtk,
+    // ketuk menutup; timer di-reset bila pill baru datang selagi tampil.
+    var pillVisible by remember { mutableStateOf(false) }
+    var pillNonce by remember { mutableStateOf(0) }
+    var pillMsg by remember { mutableStateOf("") }
+    var pillOk by remember { mutableStateOf(true) }
+    fun showPill(msg: String, ok: Boolean = true) {
+        pillMsg = msg
+        pillOk = ok
+        pillNonce++
+        pillVisible = true
+    }
+    LaunchedEffect(pillNonce) {
+        if (pillVisible) {
+            delay(2600)
+            pillVisible = false
+        }
     }
 
-    // r180 EP2: pill "Berhasil diekstrak" — menggantikan snackbar
-    // khusus untuk sukses ekstrak; auto-hilang 2,6 dtk, ketuk menutup.
-    // Timer di-reset bila sukses baru datang selagi pill tampil.
-    var extractPillVisible by remember { mutableStateOf(false) }
-    var extractPillNonce by remember { mutableStateOf(0) }
-    fun showExtractPill() {
-        extractPillNonce++
-        extractPillVisible = true
-    }
-    LaunchedEffect(extractPillNonce) {
-        if (extractPillVisible) {
-            delay(2600)
-            extractPillVisible = false
-        }
+    // r193 NP2: [msg] diklasifikasi gagal bila sama dengan salah satu
+    // pesan gagal di bawah — semua pesan gagal adalah string polos.
+    // Pesan sukses berparameter (safCopied, payloadDone) dan pesan
+    // sukses dari runOp/runLongOp/runAction tidak pernah sama dengan
+    // daftar ini, jadi default-nya sukses.
+    fun notify(msg: String) {
+        val failed = msg == t.opFailed || msg == t.workCancelled ||
+            msg == t.openFailed || msg == t.readFailed ||
+            msg == t.unlockFailed || msg == t.safWrongFolder ||
+            msg == t.safCopyFailed || msg == t.payloadUnsupported ||
+            msg == t.payloadInvalid || msg == t.payloadCancelled ||
+            msg == t.payloadHashMismatch
+        showPill(msg, ok = !failed)
     }
 
     /** Minta verifikasi biometrik/PIN untuk membuka folder terkunci [path]. */
@@ -1017,7 +1031,6 @@ fun SysFileApp() {
         stage: String,
         successMsg: String,
         format: ((Long, Long) -> String)? = null,
-        showPill: Boolean = false,
         block: suspend (flag: AtomicBoolean, onProgress: (Long, Long) -> Unit) -> Boolean
     ) {
         val (flag, report, clear) = beginLongWork(stage, format)
@@ -1034,7 +1047,7 @@ fun SysFileApp() {
             }
             when (outcome) {
                 0 -> {
-                    if (showPill) showExtractPill() else notify(successMsg)
+                    notify(successMsg)
                     reloadKey++
                     selected = emptySet()
                 }
@@ -1051,8 +1064,8 @@ fun SysFileApp() {
      *  (default format ukuran "1,2 GB / 4,0 GB • 30%" seperti dialog modal;
      *  jalur entri memakai t.extractProgress). Bila [determinate] false,
      *  bar tak tentu tanpa tombol Batal (ekstrak satu entri yang tidak
-     *  melaporkan progres). Selesai: sukses -> pill ekstrak, batal ->
-     *  workCancelled, gagal -> opFailed. Dialog modal `working` tidak
+     *  melaporkan progres). Selesai: sukses -> pill ekstrak, batal/gagal ->
+     *  pill merah (r193 NP2). Dialog modal `working` tidak
      *  dipakai di sini — runLongOp/runOp tetap untuk operasi lain. */
     fun runExtractOp(
         name: String,
@@ -1094,7 +1107,7 @@ fun SysFileApp() {
             }
             when (outcome) {
                 0 -> {
-                    showExtractPill()
+                    showPill(t.extractPill)
                     reloadKey++
                     selected = emptySet()
                 }
@@ -1356,13 +1369,13 @@ fun SysFileApp() {
         }
     }
 
-    fun runOp(successMsg: String, showPill: Boolean = false, block: suspend () -> Boolean) {
+    fun runOp(successMsg: String, block: suspend () -> Boolean) {
         working = true
         scope.launch {
             val ok = withContext(Dispatchers.IO) { block() }
             working = false
             if (ok) {
-                if (showPill) showExtractPill() else notify(successMsg)
+                notify(successMsg)
                 reloadKey++
                 // Seleksi hanya dibersihkan bila operasi berhasil (B5): bila
                 // gagal, seleksi dipertahankan supaya pengguna bisa mengulang.
@@ -1420,7 +1433,7 @@ fun SysFileApp() {
                 onRequestUnlock = { path, grant -> requestUnlock(path, grant) }
             )
         } else if (showApps) {
-            AppsScreen(notify = { notify(it) }, onBack = { showApps = false }, snackbarHostState = snackbar)
+            AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
         } else if (showSpecs) {
             SpecScreen(onBack = { showSpecs = false })
         } else if (showFormats) {
@@ -1530,13 +1543,12 @@ fun SysFileApp() {
                         onDelete = { p -> dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(p)))) },
                         onPathChange = { viewingPath = it }
                     )
-                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, snackbarHostState = snackbar, originalPath = ov.originalPath)
+                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, originalPath = ov.originalPath)
                     is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null })
                     is Overlay.ArchiveText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        snackbarHostState = snackbar,
                         extractedText = ov.content,
                         onSaveArchiveText = if (ov.canSave) { { newText -> ArchiveOps.replaceZipEntry(File(ov.archivePath), ov.name, newText) } } else null,
                         onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) }
@@ -1545,21 +1557,18 @@ fun SysFileApp() {
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        snackbarHostState = snackbar,
                         extractedText = ov.content
                     )
                     is Overlay.Ext4Text -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        snackbarHostState = snackbar,
                         extractedText = ov.content
                     )
                     is Overlay.FatText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        snackbarHostState = snackbar,
                         extractedText = ov.content
                     )
                     is Overlay.PdfView -> PdfViewerScreen(
@@ -1575,7 +1584,6 @@ fun SysFileApp() {
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        snackbarHostState = snackbar
                     )
                     is Overlay.VideoView -> VideoViewerScreen(
                         paths = ov.paths,
@@ -1979,7 +1987,6 @@ fun SysFileApp() {
                             // (gelap); dengan Transparent, mode terang pun
                             // berlatar gelap di Beranda + Jelajah.
                             containerColor = MaterialTheme.colorScheme.background,
-                            snackbarHost = { SnackbarHost(snackbar) },
                             topBar = {
                                 Column {
                                 if (currentPath == null) {
@@ -2445,20 +2452,20 @@ fun SysFileApp() {
                         }
                     }
                 }
-                // r180 EP2: pill "Berhasil diekstrak" (tanpa jumlah
-                // file) — di atas nav bar (76dp), atau di atas
+                // r193 NP2: pill notifikasi umum (r180 EP2 diperluas
+                // ke semua pesan) — di atas nav bar (76dp), atau di atas
                 // mini-player bila audio sedang tampil (140dp).
                 // Menempel di Box akar, jadi tampil di layar browse
                 // maupun overlay.
-                val extractPillBottom = if (audioPath != null && audioOrigin == currentScreenId()) 140.dp else 76.dp
+                val pillBottom = if (audioPath != null && audioOrigin == currentScreenId()) 140.dp else 76.dp
                 Box(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(bottom = extractPillBottom)
+                        .padding(bottom = pillBottom)
                 ) {
                     AnimatedVisibility(
-                        visible = extractPillVisible,
+                        visible = pillVisible,
                         enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
                             slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
                             expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
@@ -2471,7 +2478,7 @@ fun SysFileApp() {
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             tonalElevation = 3.dp,
                             shadowElevation = 6.dp,
-                            modifier = Modifier.clip(RoundedCornerShape(28.dp)).clickable { extractPillVisible = false }
+                            modifier = Modifier.widthIn(max = 340.dp).clip(RoundedCornerShape(28.dp)).clickable { pillVisible = false }
                         ) {
                             Row(
                                 Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
@@ -2481,16 +2488,22 @@ fun SysFileApp() {
                                     Modifier
                                         .size(28.dp)
                                         .clip(RoundedCornerShape(14.dp))
-                                        .background(MaterialTheme.colorScheme.primary),
+                                        .background(if (pillOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                                    if (pillOk) {
+                                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                                    } else {
+                                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    t.extractPill,
+                                    pillMsg,
                                     color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
