@@ -22,10 +22,26 @@ object RootShell {
 
     private fun quote(path: String): String = "'" + path.replace("'", "'\\''") + "'"
 
+    // r203: vold memasang OTG di namespace mount global; su biasa berjalan
+    // di namespace aplikasi sehingga isi volume tampak kosong (titik mount
+    // sendiri terlihat — itulah kenapa pemindai r201 menemukan nama volume
+    // tapi isinya tak terbaca). Bila su mendukung --mount-master, semua
+    // perintah root dijalankan di namespace global.
+    @Volatile
+    private var mountMaster: Boolean = false
+    @Volatile
+    private var mountMasterProbed: Boolean = false
+
     /** Jalankan perintah lewat su; daftar baris keluaran, atau null bila gagal/timeout. */
     private fun runSu(script: String, timeoutSec: Long): List<String>? {
+        val argv = if (mountMaster) listOf("su", "--mount-master", "-c", script)
+        else listOf("su", "-c", script)
+        return runSuCmd(argv, timeoutSec)
+    }
+
+    private fun runSuCmd(argv: List<String>, timeoutSec: Long): List<String>? {
         return try {
-            val proc = ProcessBuilder("su", "-c", script)
+            val proc = ProcessBuilder(argv)
                 .redirectErrorStream(true)
                 .start()
             val lines = java.util.Collections.synchronizedList(mutableListOf<String>())
@@ -56,10 +72,19 @@ object RootShell {
 
     /** Cek/minta akses root (memicu prompt Magisk bila belum diputuskan). Hasil di-cache per sesi. */
     fun ensureRoot(): Boolean = synchronized(rootLock) {
-        if (state != UNKNOWN) return@synchronized state == GRANTED
-        val granted = runSu("id", 20)?.any { it.contains("uid=0") } == true
-        state = if (granted) GRANTED else DENIED
-        granted
+        if (state == UNKNOWN) {
+            val granted = runSu("id", 20)?.any { it.contains("uid=0") } == true
+            state = if (granted) GRANTED else DENIED
+        }
+        if (state == GRANTED && !mountMasterProbed) {
+            // r203: sekali per sesi — bila su tak mendukung --mount-master,
+            // perintah gagal (exit != 0) dan mountMaster tetap false, jadi
+            // perilaku root yang sudah berjalan tidak berubah.
+            mountMasterProbed = true
+            mountMaster = runSuCmd(listOf("su", "--mount-master", "-c", "id"), 10)
+                ?.any { it.contains("uid=0") } == true
+        }
+        state == GRANTED
     }
 
     /** Shell root dipakai untuk jalur di luar penyimpanan bersama. */
