@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.nio.file.Files
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.CRC32
@@ -354,6 +355,62 @@ object FileOps {
         return outCanonical.startsWith(base)
     }
 
+    /** Canonical path, atau null bila tidak bisa di-resolve (mis. siklus
+     *  symlink). Dipakai gerbang kunci (r175 H4). */
+    internal fun canonicalOrNull(path: String): String? =
+        try { File(path).canonicalPath } catch (e: Exception) { null }
+
+    /** Normalisasi set folder terkunci: tiap entri disimpan mentah DAN
+     *  kanonisnya. Ejaan mentah menjaga folder di volume yang belum
+     *  ter-mount tetap terkunci; ejaan kanonis menutup alias path
+     *  (/sdcard/... -> /storage/emulated/0/...). Idempotent. */
+    internal fun canonicalizeLocked(locked: Set<String>): Set<String> {
+        val out = LinkedHashSet<String>()
+        for (raw in locked) {
+            out += raw
+            canonicalOrNull(raw)?.let { out += it }
+        }
+        return out
+    }
+
+    /** Benar bila [path] berada di dalam (atau sama dengan) salah satu
+     *  folder terkunci. Cek mentah dulu (murah, tanpa I/O); bila lolos,
+     *  kanoniskan kandidat sekali lalu cek lagi — alias seperti
+     *  /sdcard/Private terkanoniskan ke /storage/emulated/0/Private.
+     *  Bila kandidat tidak bisa dikanoniskan (mis. siklus symlink),
+     *  anggap TERKUNCI (fail closed): jalur seperti itu tidak bisa
+     *  dibuka dengan benar. */
+    internal fun isLockedPath(path: String, locked: Set<String>): Boolean {
+        if (locked.isEmpty()) return false
+        if (locked.any { isPathInside(it, path) }) return true
+        val canon = canonicalOrNull(path) ?: return true
+        if (canon == path) return false
+        return locked.any { isPathInside(it, canon) }
+    }
+
+    /** Benar bila [path] sudah dibuka pada sesi ini: salah satu entri
+     *  [unlocked] adalah [path] sendiri atau leluhurnya (mentah atau
+     *  kanonis). Bila kandidat tidak bisa dikanoniskan, anggap BELUM
+     *  dibuka — pemanggil akan meminta biometrik lagi (fail closed). */
+    internal fun isUnlockedPath(path: String, unlocked: Set<String>): Boolean {
+        if (unlocked.isEmpty()) return false
+        if (unlocked.any { isPathInside(it, path) }) return true
+        val canon = canonicalOrNull(path) ?: return false
+        if (canon == path) return false
+        return unlocked.any { isPathInside(it, canon) }
+    }
+
+    /** Benar bila [path] adalah persis salah satu folder terkunci
+     *  (bukan anaknya) — ejaan mentah atau kanonis. Dipakai ikon kunci
+     *  + toggle kunci/buka, yang bekerja per folder, bukan per subtree. */
+    internal fun isLockedFolder(path: String, locked: Set<String>): Boolean {
+        if (locked.isEmpty()) return false
+        if (path in locked) return true
+        val canon = canonicalOrNull(path) ?: return false
+        if (canon == path) return false
+        return canon in locked
+    }
+
     /** Nama unik di dalam folder tujuan: "nama (1).ext", "nama (2).ext", dst. */
     fun uniqueName(dir: File, name: String): String {
         if (!File(dir, name).exists()) return name
@@ -636,7 +693,11 @@ object FileOps {
 
     fun deleteRecursively(file: File): Boolean {
         return try {
-            if (file.isDirectory) {
+            // r175 H1: symlink ke direktori JANGAN diikuti — isDirectory()
+            // mengikuti symlink, jadi tanpa cek ini isi folder target ikut
+            // terhapus. Hapus link-nya saja.
+            val isLink = try { Files.isSymbolicLink(file.toPath()) } catch (e: Exception) { false }
+            if (!isLink && file.isDirectory) {
                 file.listFiles()?.forEach { deleteRecursively(it) }
             }
             file.delete() || !file.exists()
@@ -685,7 +746,7 @@ object FileOps {
         if (q.isEmpty() || !root.isDirectory) return emptyList()
         val results = mutableListOf<FEntry>()
         root.walkTopDown()
-            .onEnter { dir -> dir.name != TRASH_DIR_NAME && (dir == root || dir.absolutePath !in locked) && (showHidden || !dir.name.startsWith(".") || dir == root) }
+            .onEnter { dir -> dir.name != TRASH_DIR_NAME && (dir == root || !isLockedPath(dir.absolutePath, locked)) && (showHidden || !dir.name.startsWith(".") || dir == root) }
             .forEach { f ->
                 if (results.size >= limit) return results
                 if (f == root) return@forEach
@@ -702,7 +763,7 @@ object FileOps {
         for (root in roots) {
             if (!root.isDirectory || visited >= cap) continue
             root.walkTopDown()
-                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && dir.absolutePath !in locked && (showHidden || !dir.name.startsWith(".") || dir == root) }
+                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && !isLockedPath(dir.absolutePath, locked) && (showHidden || !dir.name.startsWith(".") || dir == root) }
                 .forEach { f ->
                     if (visited >= cap) return@forEach
                     if (f.isFile) {
@@ -724,7 +785,7 @@ object FileOps {
             // berhenti (dulu forEach hanya melewati sisa entri sementara
             // walk tetap menjelajahi seluruh pohon).
             for (f in root.walkTopDown()
-                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && dir.absolutePath !in locked && (showHidden || !dir.name.startsWith(".") || dir == root) }) {
+                .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && !isLockedPath(dir.absolutePath, locked) && (showHidden || !dir.name.startsWith(".") || dir == root) }) {
                 if (visited >= cap) break
                 if (f.isFile) {
                     visited++
@@ -832,7 +893,7 @@ object FileOps {
         val largest = mutableListOf<FEntry>()
         var total = 0
         root.walkTopDown()
-            .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && dir.absolutePath !in locked }
+            .onEnter { dir -> dir.canRead() && dir.name != TRASH_DIR_NAME && !isLockedPath(dir.absolutePath, locked) }
             .forEach { f ->
                 if (!f.isFile) return@forEach
                 total++

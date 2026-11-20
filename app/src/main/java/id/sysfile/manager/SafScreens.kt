@@ -112,6 +112,25 @@ object SafOps {
         return if (rel.isEmpty()) base else "$base/$rel"
     }
 
+    /** Jalur berkas dari URI sebuah dokumen di dalam pohon SAF (bukan
+     *  hanya akar pohon). getDocumentId melempar untuk URI pohon murni —
+     *  pemanggil memakai [pathOfTree] untuk akar. Gagal -> "". */
+    fun pathOfDoc(uri: Uri): String {
+        val docId = try {
+            DocumentsContract.getDocumentId(uri)
+        } catch (e: Exception) {
+            return ""
+        }
+        val vol = docId.substringBefore(':')
+        val rel = docId.substringAfter(':', "")
+        val base = if (vol == "primary") {
+            Environment.getExternalStorageDirectory().absolutePath
+        } else {
+            "/storage/$vol"
+        }
+        return if (rel.isEmpty()) base else "$base/$rel"
+    }
+
     /** Jumlah anak langsung di bawah pohon SAF (untuk angka "N item" di layar induk). */
     fun countChildren(context: Context, treeUri: String, relPath: String): Int? {
         return try {
@@ -133,7 +152,11 @@ fun SafBrowseScreen(
     treeUri: String,
     relPath: String,
     onExit: () -> Unit,
-    notify: (String) -> Unit
+    notify: (String) -> Unit,
+    basePath: String = "",
+    lockedPaths: Set<String> = emptySet(),
+    unlockedPaths: Set<String> = emptySet(),
+    onRequestUnlock: (String, () -> Unit) -> Unit = { _, grant -> grant() }
 ) {
     val t = txt()
     val context = LocalContext.current
@@ -184,6 +207,33 @@ fun SafBrowseScreen(
 
     var copyDoc by remember { mutableStateOf<DocumentFile?>(null) }
 
+    // r175 H3: petakan DocumentFile ke jalur berkas untuk gerbang kunci.
+    // Akar pohon = basePath (diketahui pemanggil); anak diturunkan dari
+    // document ID-nya (skema yang sama dengan SafOps.pathOfTree).
+    fun fsPathOf(doc: DocumentFile): String {
+        if (doc.uri == root.uri) return basePath
+        return SafOps.pathOfDoc(doc.uri)
+    }
+
+    // Benar bila [fsPath] butuh biometrik: berada di dalam folder terkunci
+    // dan belum dibuka pada sesi ini. Jalur yang tidak bisa dipetakan
+    // ("" — bukan dari provider storage eksternal) dianggap terkunci
+    // bila ada folder terkunci (fail closed).
+    fun needsUnlock(fsPath: String): Boolean {
+        if (lockedPaths.isEmpty()) return false
+        if (fsPath.isEmpty()) return true
+        return FileOps.isLockedPath(fsPath, lockedPaths) &&
+            !FileOps.isUnlockedPath(fsPath, unlockedPaths)
+    }
+
+    fun guarded(fsPath: String, action: () -> Unit) {
+        if (needsUnlock(fsPath)) {
+            onRequestUnlock(if (fsPath.isEmpty()) basePath else fsPath, action)
+        } else {
+            action()
+        }
+    }
+
     fun goBack() {
         if (stack.size > 1) stack = stack.dropLast(1) else onExit()
     }
@@ -227,9 +277,9 @@ fun SafBrowseScreen(
                             doc = doc,
                             onClick = {
                                 if (doc.isDirectory) {
-                                    stack = stack + doc
+                                    guarded(fsPathOf(doc)) { stack = stack + doc }
                                 } else {
-                                    openSafDoc(context, doc, t.openFailed, notify)
+                                    guarded(fsPathOf(current)) { openSafDoc(context, doc, t.openFailed, notify) }
                                 }
                             },
                             onCopy = { copyDoc = doc }
@@ -246,9 +296,11 @@ fun SafBrowseScreen(
             title = t.safCopyOut,
             onPick = { dir ->
                 copyDoc = null
-                scope.launch {
-                    val ok = withContext(Dispatchers.IO) { copySafOut(context, doc, dir) }
-                    notify(if (ok) t.safCopied(doc.name ?: "") else t.safCopyFailed)
+                guarded(fsPathOf(current)) {
+                    scope.launch {
+                        val ok = withContext(Dispatchers.IO) { copySafOut(context, doc, dir) }
+                        notify(if (ok) t.safCopied(doc.name ?: "") else t.safCopyFailed)
+                    }
                 }
             },
             onCancel = { copyDoc = null }

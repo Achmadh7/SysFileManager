@@ -115,6 +115,100 @@ class FileOpsTest {
         assertFalse(dir.exists())
     }
 
+    // --- deleteRecursively (r175 H1: symlink ke direktori jangan diikuti) ---
+
+    @Test
+    fun deleteRecursively_symlinkToDirDoesNotDeleteTarget() {
+        val victim = tmp.newFolder("victim")
+        File(victim, "important.txt").writeText("jangan hapus")
+        val dir = tmp.newFolder("del2")
+        Files.createSymbolicLink(File(dir, "link").toPath(), victim.toPath())
+        assertTrue(FileOps.deleteRecursively(dir))
+        assertFalse(dir.exists())
+        assertTrue(File(victim, "important.txt").exists()) // target selamat
+    }
+
+    @Test
+    fun deleteRecursively_symlinkItselfIsDeleted() {
+        val victim = tmp.newFolder("victim2")
+        File(victim, "f.txt").writeText("x")
+        val link = File(tmp.root, "linkfile")
+        Files.createSymbolicLink(link.toPath(), victim.toPath())
+        assertTrue(FileOps.deleteRecursively(link))
+        assertFalse(link.exists())
+        assertTrue(File(victim, "f.txt").exists())
+    }
+
+    @Test
+    fun deleteRecursively_brokenSymlink() {
+        val dir = tmp.newFolder("del3")
+        Files.createSymbolicLink(
+            File(dir, "broken").toPath(),
+            File(tmp.root, "tidak-ada-target").toPath()
+        )
+        assertTrue(FileOps.deleteRecursively(dir))
+        assertFalse(dir.exists())
+    }
+
+    // --- isLockedPath / canonicalizeLocked / isLockedFolder (r175 H4) ---
+
+    @Test
+    fun isLockedPath_aliasViaSymlink() {
+        val real = tmp.newFolder("Rahasia")
+        val aliasDir = tmp.newFolder("alias")
+        val alias = File(aliasDir, "Rahasia")
+        Files.createSymbolicLink(alias.toPath(), real.toPath())
+        val locked = setOf(real.absolutePath)
+        assertTrue(FileOps.isLockedPath(alias.absolutePath, locked))
+        assertTrue(FileOps.isLockedPath(File(alias, "foto.jpg").absolutePath, locked))
+        assertFalse(FileOps.isLockedPath(File(tmp.root, "Lain").absolutePath, locked))
+        // Sepupu dengan awalan sama bukan anaknya.
+        assertFalse(FileOps.isLockedPath(real.absolutePath + "2", locked))
+    }
+
+    @Test
+    fun canonicalizeLocked_keepsRawAndAddsCanonical() {
+        val real = tmp.newFolder("Priv")
+        val alias = File(tmp.root, "PrivAlias")
+        Files.createSymbolicLink(alias.toPath(), real.toPath())
+        val out = FileOps.canonicalizeLocked(setOf(alias.absolutePath))
+        assertTrue(out.contains(alias.absolutePath))
+        assertTrue(out.contains(real.canonicalPath))
+    }
+
+    @Test
+    fun isLockedFolder_identityOnly() {
+        val real = tmp.newFolder("Kunci")
+        val alias = File(tmp.root, "KunciAlias")
+        Files.createSymbolicLink(alias.toPath(), real.toPath())
+        val locked = FileOps.canonicalizeLocked(setOf(real.absolutePath))
+        assertTrue(FileOps.isLockedFolder(real.absolutePath, locked))
+        assertTrue(FileOps.isLockedFolder(alias.absolutePath, locked))
+        // Anak folder terkunci BUKAN folder terkunci itu sendiri.
+        assertFalse(FileOps.isLockedFolder(File(real, "sub").absolutePath, locked))
+        assertFalse(FileOps.isLockedFolder(File(tmp.root, "Lain").absolutePath, locked))
+    }
+
+    @Test
+    fun isLockedPath_childOfLocked() {
+        val real = tmp.newFolder("Induk")
+        val locked = setOf(real.absolutePath)
+        assertTrue(FileOps.isLockedPath(File(real, "sub/f.txt").absolutePath, locked))
+        assertTrue(FileOps.isLockedPath(real.absolutePath, locked))
+        assertFalse(FileOps.isLockedPath(File(tmp.root, "Lain").absolutePath, locked))
+        assertFalse(FileOps.isLockedPath(File(real, "sub").absolutePath, emptySet()))
+    }
+
+    @Test
+    fun isUnlockedPath_ancestorAware() {
+        val real = tmp.newFolder("Buka")
+        val unlocked = setOf(real.absolutePath)
+        assertTrue(FileOps.isUnlockedPath(File(real, "sub/f.txt").absolutePath, unlocked))
+        assertTrue(FileOps.isUnlockedPath(real.absolutePath, unlocked))
+        assertFalse(FileOps.isUnlockedPath(File(tmp.root, "Lain/f.txt").absolutePath, unlocked))
+        assertFalse(FileOps.isUnlockedPath(File(real, "sub").absolutePath, emptySet()))
+    }
+
     // --- isPathInside (C1: penjaga zip-slip) ---
 
     @Test

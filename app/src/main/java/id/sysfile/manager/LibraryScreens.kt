@@ -298,8 +298,10 @@ fun CategoryScreen(
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val context = LocalContext.current
     val lockedFolders = remember {
-        context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
-            .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+        FileOps.canonicalizeLocked(
+            context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
+                .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+        )
     }
     // r84: daftar dari sesi sebelumnya tampil seketika (bila ada).
     // r128: pindai segar dilewati bila cache masih segar (< 60 dtk)
@@ -1336,7 +1338,7 @@ fun SearchScreen(
         searching = true
         val prefs = context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
         val showHidden = prefs.getBoolean("show_hidden", false)
-        val lockedFolders = prefs.getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+        val lockedFolders = FileOps.canonicalizeLocked(prefs.getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet())
         results = withContext(Dispatchers.IO) { FileOps.search(File(rootPath), q, showHidden, lockedFolders) }
         searching = false
     }
@@ -1474,8 +1476,10 @@ fun AnalysisScreen(
     val t = txt()
     val context = LocalContext.current
     val lockedFolders = remember {
-        context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
-            .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+        FileOps.canonicalizeLocked(
+            context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
+                .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
+        )
     }
     var results by remember { mutableStateOf<Map<String, AnalysisResult>>(emptyMap()) }
     var scanningPath by remember { mutableStateOf<String?>(null) }

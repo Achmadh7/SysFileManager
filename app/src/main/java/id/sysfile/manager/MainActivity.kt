@@ -253,6 +253,7 @@ fun SysFileApp() {
     var settingsExiting by remember { mutableStateOf(false) }
     var safTreeUri by remember { mutableStateOf<String?>(null) }
     var safRelPath by remember { mutableStateOf("") }
+    var safBasePath by remember { mutableStateOf<String?>(null) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     // r137 TM1 Pudar Utuh: tangkapan layar tema lama + alfa memudarnya.
     // Saat tema diganti, layar lama (bitmap) memudar di atas layar baru
@@ -481,7 +482,11 @@ fun SysFileApp() {
     var menuOpen by remember { mutableStateOf(false) }
     var lockedFolders by remember {
         mutableStateOf(
-            prefs.getStringSet("locked_folders", emptySet())?.filter { File(it).isDirectory }?.toSet() ?: emptySet()
+            // r175 H4: simpan ejaan mentah + kanonis tiap folder
+            // terkunci, supaya alias path (/sdcard/...) dikenali.
+            FileOps.canonicalizeLocked(
+                prefs.getStringSet("locked_folders", emptySet())?.filter { File(it).isDirectory }?.toSet() ?: emptySet()
+            )
         )
     }
     var unlockedSession by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -527,7 +532,14 @@ fun SysFileApp() {
             title = t.unlockTitle,
             subtitle = t.unlockPrompt(File(path).name),
             onSuccess = {
-                unlockedSession = unlockedSession + path
+                // r175 H4: simpan ejaan mentah + kanonis — membuka
+                // lewat alias (/sdcard/...) tidak meminta ulang.
+                val canon = FileOps.canonicalOrNull(path)
+                unlockedSession = if (canon != null && canon != path) {
+                    unlockedSession + path + canon
+                } else {
+                    unlockedSession + path
+                }
                 onGranted()
             },
             onError = { notify(t.unlockFailed) }
@@ -537,7 +549,11 @@ fun SysFileApp() {
     /** Masuk ke folder dengan gerbang kunci: folder terkunci yang belum dibuka pada
      *  sesi ini harus lolos biometrik terlebih dahulu, baru [land] dijalankan. */
     fun openFolderGuarded(path: String, land: () -> Unit) {
-        if (path in lockedFolders && path !in unlockedSession) {
+        // r175 H4: gerbang ancestor-aware + kanonis — alias path
+        // (/sdcard/Private) dikenali sebagai folder terkunci.
+        if (FileOps.isLockedPath(path, lockedFolders) &&
+            !FileOps.isUnlockedPath(path, unlockedSession)
+        ) {
             requestUnlock(path, land)
         } else {
             land()
@@ -554,14 +570,16 @@ fun SysFileApp() {
     }
 
     // Izin SAF tersimpan: entri "jalur<0x01>uriPohon" di set pref saf_grants.
-    fun safGrantFor(path: String): Pair<String, String>? {
+    // r175 H3: kembalikan juga akar grant (jalur berkas pohon SAF) supaya
+    // layar SAF bisa memetakan dokumen ke jalur berkas untuk gerbang kunci.
+    fun safGrantFor(path: String): Triple<String, String, String>? {
         val set = prefs.getStringSet("saf_grants", emptySet()) ?: emptySet()
         for (e in set) {
             val p = e.substringBefore('\u0001')
             val u = e.substringAfter('\u0001', "")
             if (u.isEmpty()) continue
-            if (path == p) return u to ""
-            if (path.startsWith("$p/")) return u to path.removePrefix("$p/")
+            if (path == p) return Triple(u, "", p)
+            if (path.startsWith("$p/")) return Triple(u, path.removePrefix("$p/"), p)
         }
         return null
     }
@@ -590,8 +608,20 @@ fun SysFileApp() {
             // Hitungan "0 item" yang telanjur tersimpan untuk folder ini
             // harus dihitung ulang lewat SAF saat layar induk dibuka lagi.
             if (p.isNotEmpty()) countCache.remove(p)
-            safRelPath = ""
-            safTreeUri = uri.toString()
+            // r175 H3: pohon yang dipilih bisa jadi folder terkunci —
+            // gerbang biometrik dulu sebelum layar SAF dibuka.
+            val openPicked = {
+                safRelPath = ""
+                safTreeUri = uri.toString()
+                safBasePath = p
+            }
+            if (p.isNotEmpty() && FileOps.isLockedPath(p, lockedFolders) &&
+                !FileOps.isUnlockedPath(p, unlockedSession)
+            ) {
+                requestUnlock(p, openPicked)
+            } else {
+                openPicked()
+            }
         }
     }
 
@@ -742,7 +772,7 @@ fun SysFileApp() {
                                 } else if (direct == 0 &&
                                     FileOps.isRestrictedDir(entry.path)
                                 ) {
-                                    safGrantFor(entry.path)?.let { (uri, rel) ->
+                                    safGrantFor(entry.path)?.let { (uri, rel, _) ->
                                         SafOps.countChildren(context, uri, rel)
                                     } ?: direct
                                 } else {
@@ -1213,7 +1243,11 @@ fun SysFileApp() {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
                 relPath = safRelPath,
-                onExit = { safTreeUri = null },
+                basePath = safBasePath ?: "",
+                lockedPaths = lockedFolders,
+                unlockedPaths = unlockedSession,
+                onRequestUnlock = { path, grant -> requestUnlock(path, grant) },
+                onExit = { safTreeUri = null; safBasePath = null },
                 notify = { notify(it) }
             )
         } else if (showTrash) {
@@ -2012,20 +2046,28 @@ fun SysFileApp() {
                                             },
                                             onSelectAll = { selected = entries.map { it.path }.toSet() },
                                             singleIsDir = selEntry?.isDir == true,
-                                            singleLocked = selected.singleOrNull()?.let { it in lockedFolders } == true,
+                                            singleLocked = selected.singleOrNull()?.let { FileOps.isLockedFolder(it, lockedFolders) } == true,
                                             onToggleLock = {
                                                 selEntry?.let { entry ->
-                                                    if (entry.path in lockedFolders) {
+                                                    // r175 H4: identitas kunci
+                                                    // per folder (mentah atau
+                                                    // kanonis), bukan anaknya.
+                                                    val canon = FileOps.canonicalOrNull(entry.path)
+                                                    if (FileOps.isLockedFolder(entry.path, lockedFolders)) {
                                                         requestUnlock(entry.path) {
-                                                            val updated = lockedFolders - entry.path
+                                                            val updated = lockedFolders.filterNot {
+                                                                it == entry.path || (canon != null && it == canon)
+                                                            }.toSet()
                                                             lockedFolders = updated
                                                             prefs.edit().putStringSet("locked_folders", updated).apply()
-                                                            unlockedSession = unlockedSession - entry.path
+                                                            unlockedSession = unlockedSession.filterNot {
+                                                                it == entry.path || (canon != null && it == canon)
+                                                            }.toSet()
                                                             selected = emptySet()
                                                             notify(t.folderUnlockedDone)
                                                         }
                                                     } else if (entry.name != FileOps.TRASH_DIR_NAME) {
-                                                        val updated = lockedFolders + entry.path
+                                                        val updated = FileOps.canonicalizeLocked(lockedFolders + entry.path)
                                                         lockedFolders = updated
                                                         prefs.edit().putStringSet("locked_folders", updated).apply()
                                                         selected = emptySet()
@@ -2146,8 +2188,21 @@ fun SysFileApp() {
                                         onSafAction = {
                                             val g = safGrantFor(animatedPath)
                                             if (g != null) {
-                                                safRelPath = g.second
-                                                safTreeUri = g.first
+                                                // r175 H3: folder terkunci
+                                                // butuh biometrik sebelum
+                                                // layar SAF dibuka.
+                                                val openSaf = {
+                                                    safRelPath = g.second
+                                                    safTreeUri = g.first
+                                                    safBasePath = g.third
+                                                }
+                                                if (FileOps.isLockedPath(animatedPath, lockedFolders) &&
+                                                    !FileOps.isUnlockedPath(animatedPath, unlockedSession)
+                                                ) {
+                                                    requestUnlock(animatedPath, openSaf)
+                                                } else {
+                                                    openSaf()
+                                                }
                                             } else {
                                                 safLauncher.launch(SafOps.initialUriFor(animatedPath))
                                             }

@@ -26,9 +26,11 @@ object MediaStoreOps {
         else -> throw IllegalArgumentException("bukan kategori media: $category")
     }
 
-    /** Benar bila [path] berada di dalam salah satu folder terkunci. */
+    /** Benar bila [path] berada di dalam salah satu folder terkunci.
+     *  Didelegasikan ke FileOps (r175 H4): cek ancestor-aware +
+     *  kanonis, jadi alias path (/sdcard/...) ikut tertutup. */
     fun isLockedPath(path: String, locked: Set<String>): Boolean =
-        locked.any { FileOps.isPathInside(it, path) }
+        FileOps.isLockedPath(path, locked)
 
     @Suppress("DEPRECATION")
     // Kolom DATA deprecated sejak API 29, tapi tetap terbaca bila aplikasi

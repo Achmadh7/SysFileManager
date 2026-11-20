@@ -370,7 +370,7 @@ fun BrowseScreen(
                             isSelected = selected.contains(entry.path),
                             onClick = { onOpenEntry(entry) },
                             onLongClick = { onLongPress(entry) },
-                            locked = entry.path in lockedPaths
+                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
                         )
                     }
                 }
@@ -383,7 +383,7 @@ fun BrowseScreen(
                             itemCount = counts[entry.path],
                             onClick = { onOpenEntry(entry) },
                             onLongClick = { onLongPress(entry) },
-                            locked = entry.path in lockedPaths
+                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
                         )
                     }
                 }
