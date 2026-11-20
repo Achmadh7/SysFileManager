@@ -248,8 +248,13 @@ fun HomeScreen(
                     // USB/SD kalau ada). Titik di bawah: aktif = aksen,
                     // ketuk titik = geser ke halaman itu.
                     if (heroes.isNotEmpty()) {
+                        // r169: pageSpacing 16dp - kartu yang
+                        // bersebelahan tidak menempel saat digeser.
+                        // Settled page tetap penuh (PageSize.Fill
+                        // mengabaikan pageSpacing).
                         HorizontalPager(
                             state = pagerState,
+                            pageSpacing = 16.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) { page ->
                             StorageHeroCard(
