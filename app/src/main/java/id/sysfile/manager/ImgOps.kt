@@ -1,10 +1,15 @@
 package id.sysfile.manager
 
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.io.RandomAccessFile
+import java.util.zip.CRC32
 import java.util.zip.GZIPInputStream
 
 /** Jenis citra disk (.img), dikenali dari isi berkas — bukan dari namanya.
@@ -41,9 +46,39 @@ sealed interface RamdiskResult {
     data object Invalid : RamdiskResult
 }
 
+/** Hasil unsparse citra sparse Android: citra mentah, terlalu besar
+ *  untuk batas, atau rusak — tidak pernah throw. */
+sealed interface UnsparseResult {
+    data class Ok(val outFile: File, val totalBytes: Long) : UnsparseResult
+    data object TooLarge : UnsparseResult
+    data class Invalid(val reason: String) : UnsparseResult
+}
+
+/** Info superblock ext4 (kernel.org ext4/super.html): dibaca dari
+ *  citra ext4 mentah, atau dari hasil unsparse citra sparse. */
+data class Ext4Info(
+    val blockSize: Long,
+    val totalBlocks: Long,
+    val freeBlocks: Long,
+    val totalBytes: Long,
+    val freeBytes: Long,
+    val label: String,
+    val featureCompat: Long,
+    val featureIncompat: Long,
+    val featureRoCompat: Long
+) {
+    /** INCOMPAT_64BIT (0x80): jumlah blok 64-bit. */
+    val has64bit: Boolean get() = featureIncompat and 0x80L != 0L
+    /** INCOMPAT_EXTENTS (0x40): berkas memakai extent. */
+    val hasExtents: Boolean get() = featureIncompat and 0x40L != 0L
+    /** RO_COMPAT_METADATA_CSUM (0x400): checksum metadata. */
+    val hasMetadataCsum: Boolean get() = featureRoCompat and 0x400L != 0L
+}
+
 /**
  * Pembaca citra disk (.img), read-only — menulis kembali / repack di
- * luar cakupan (IM3 fase 1: deteksi + info + baca boot.img).
+ * luar cakupan (IM3 fase 1–3: deteksi + info + boot.img + sparse +
+ * ext4).
  *
  * Format yang diverifikasi dari sumbernya, bukan dari ingatan:
  * - Boot image: bootimg.h AOSP (system/tools/mkbootimg) — magic
@@ -56,17 +91,38 @@ sealed interface RamdiskResult {
  * - Deteksi: sparse 0xED26FF3A (sparse_format.h), ext4 0xEF53 di
  *   offset 1080 (kernel.org ext4 globals), FAT "FAT12/16" di 54 /
  *   "FAT32" di 82 + 55 AA di 510 (spesifikasi FAT Microsoft).
+ * - Citra sparse: sparse_format.h AOSP — header 28 byte (magic
+ *   0xED26FF3A, blk_sz, total_blks/chunks, image_checksum CRC32
+ *   802.3), chunk 12 byte: RAW 0xCAC1, FILL 0xCAC2, DONT_CARE
+ *   0xCAC3, CRC32 0xCAC4 (isinya diabaikan pembaca nyata).
+ * - Superblock ext4: kernel.org ext4/super.html — 1024 byte di
+ *   offset 1024, magic 0xEF53 di 0x38, ukuran blok
+ *   2^(10+s_log_block_size), jumlah blok 64-bit bila
+ *   INCOMPAT_64BIT, label 16 byte di 0x78.
  */
 object ImgOps {
     /** Batas ramdisk hasil dekompresi (bom-dekompresi): 256 MiB. */
     const val MAX_RAMDISK_BYTES = 256L * 1024L * 1024L
     /** Batas ramdisk terkompresi yang dibaca: 128 MiB. */
     const val MAX_RAMDISK_COMPRESSED_BYTES = 128L * 1024L * 1024L
+    /** Batas citra hasil unsparse (8 GiB): system image multi-GB
+     *  ditulis ke berkas temp, bukan ke memori. */
+    const val MAX_UNSPARSE_BYTES = 8L * 1024L * 1024L * 1024L
 
     private val BOOT_MAGIC = "ANDROID!".toByteArray(Charsets.US_ASCII)
     private const val SPARSE_MAGIC = 0xED26FF3AL
+    private const val SPARSE_HEADER_SIZE = 28
+    private const val SPARSE_CHUNK_HEADER_SIZE = 12
+    private const val SPARSE_CHUNK_RAW = 0xCAC1
+    private const val SPARSE_CHUNK_FILL = 0xCAC2
+    private const val SPARSE_CHUNK_DONT_CARE = 0xCAC3
+    private const val SPARSE_CHUNK_CRC32 = 0xCAC4
     private const val EXT4_MAGIC_OFFSET = 1080L
+    private const val EXT4_SUPERBLOCK_OFFSET = 1024L
+    private const val EXT4_SUPERBLOCK_SIZE = 1024
     private const val CPIO_HEADER_SIZE = 110
+    /** Buffer streaming unsparse (64 KiB). */
+    private const val IO_BUFFER = 65536
 
     /** Kenali jenis citra dari magic bytes di awal berkas. */
     fun detectImgType(file: File): ImgType {
@@ -286,6 +342,92 @@ object ImgOps {
             files.sortedBy { it.name.lowercase() }.map { it to null }
     }
 
+    /** Ubah citra sparse Android menjadi citra mentah di [out] (streaming,
+     *  bukan ke memori — system image bisa multi-GB). [out] dimiliki
+     *  unsparse: bila gagal (terlalu besar / rusak), berkas output
+     *  parsial dihapus — kecuali berkas yang sudah ada sebelumnya.
+     *  Batas keluaran [maxBytes] (default 8 GiB).
+     *
+     *  Format (sparse_format.h AOSP): header 28 byte (magic 0xED26FF3A,
+     *  major 1, blk_sz kelipatan 4, total_blks, total_chunks,
+     *  image_checksum CRC32 802.3 atas data asli dengan don't-care
+     *  dihitung 0); chunk 12 byte (tipe, chunk_sz dalam blok, total_sz
+     *  termasuk header): RAW 0xCAC1, FILL 0xCAC2, DONT_CARE 0xCAC3,
+     *  CRC32 0xCAC4. Isi chunk CRC32 dilewati — pembaca nyata
+     *  (u-boot / libsparse) mengabaikannya; yang diverifikasi adalah
+     *  image_checksum di header, bila bukan nol. */
+    fun unsparse(source: File, out: File, maxBytes: Long = MAX_UNSPARSE_BYTES): UnsparseResult {
+        if (!source.isFile) return UnsparseResult.Invalid("bukan berkas")
+        if (maxBytes < 0) return UnsparseResult.Invalid("batas negatif")
+        val existed = out.exists()
+        val result = unsparseRun(source, out, maxBytes)
+        // Gagal -> berkas output parsial tidak boleh tertinggal; berkas
+        // yang sudah ada sebelumnya tidak disentuh.
+        if (result !is UnsparseResult.Ok && !existed) out.delete()
+        return result
+    }
+
+    /** Parse superblock ext4 (1024 byte di offset 1024); null bila bukan
+     *  ext4, terpotong, atau field-nya tidak masuk akal. Superblock
+     *  selalu di offset 1024 berapa pun ukuran bloknya. */
+    fun parseExt4Superblock(file: File): Ext4Info? {
+        if (!file.isFile) return null
+        return try {
+            RandomAccessFile(file, "r").use { raf ->
+                val len = raf.length()
+                if (len < EXT4_SUPERBLOCK_OFFSET + EXT4_SUPERBLOCK_SIZE) return null
+                val sb = readAt(raf, EXT4_SUPERBLOCK_OFFSET, EXT4_SUPERBLOCK_SIZE) ?: return null
+                // Magic 0xEF53 little-endian di 0x38 dari awal superblock.
+                if (u16le(sb, 0x38) != 0xEF53) return null
+                val logBlockSize = u32le(sb, 0x18)
+                if (logBlockSize > 6) return null // blok 1 KiB..64 KiB
+                val blockSize = 1024L shl logBlockSize.toInt()
+                val compat = u32le(sb, 0x5C)
+                val incompat = u32le(sb, 0x60)
+                val roCompat = u32le(sb, 0x64)
+                val is64bit = incompat and 0x80L != 0L
+                val blocksLo = u32le(sb, 0x4)
+                val blocksHi = if (is64bit) u32le(sb, 0x150) else 0L
+                val totalBlocks = blocksLo or (blocksHi shl 32)
+                val freeLo = u32le(sb, 0xC)
+                val freeHi = if (is64bit) u32le(sb, 0x158) else 0L
+                val freeBlocks = freeLo or (freeHi shl 32)
+                if (totalBlocks <= 0 || freeBlocks > totalBlocks) return null
+                if (totalBlocks > Long.MAX_VALUE / blockSize) return null
+                val totalBytes = totalBlocks * blockSize
+                val freeBytes = freeBlocks * blockSize
+                val labelBytes = sb.copyOfRange(0x78, 0x78 + 16)
+                val nul = labelBytes.indexOf(0.toByte())
+                val label = String(labelBytes, 0, if (nul >= 0) nul else 16, Charsets.UTF_8).trim()
+                Ext4Info(blockSize, totalBlocks, freeBlocks, totalBytes, freeBytes, label, compat, incompat, roCompat)
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Info ext4 untuk berkas .img apa pun yang memang ext4: mentah
+     *  langsung dibaca, sparse di-unsparse dulu ke temp di [cacheDir]
+     *  lalu temp-nya dihapus. null bila bukan ext4/sparse atau rusak. */
+    fun readExt4Info(file: File, cacheDir: File): Ext4Info? {
+        return when (detectImgType(file)) {
+            ImgType.EXT4 -> parseExt4Superblock(file)
+            ImgType.SPARSE -> {
+                val dir = File(cacheDir, "sparse-view").apply { mkdirs() }
+                val tmp = File(dir, "ext4-${System.nanoTime()}.img")
+                try {
+                    when (unsparse(file, tmp)) {
+                        is UnsparseResult.Ok -> parseExt4Superblock(tmp)
+                        else -> null
+                    }
+                } finally {
+                    tmp.delete()
+                }
+            }
+            else -> null
+        }
+    }
+
     // --- internal ---
 
     private sealed interface RamdiskBytes {
@@ -421,6 +563,191 @@ object ImgOps {
             ((b[off + 2].toLong() and 0xFF) shl 16) or
             ((b[off + 3].toLong() and 0xFF) shl 24)
     }
+    /** Kerja [unsparse]; pemanggil yang menghapus output bila gagal.
+     *  Semua jalan gagal mengembalikan Invalid/TooLarge — tidak ada
+     *  yang throw ke pemanggil (exception IO ditangkap di bawah). */
+    private fun unsparseRun(source: File, out: File, maxBytes: Long): UnsparseResult {
+        return try {
+            BufferedInputStream(FileInputStream(source), IO_BUFFER).use { ins ->
+                val header = ByteArray(SPARSE_HEADER_SIZE)
+                if (!readExact(ins, header, 0, SPARSE_HEADER_SIZE)) {
+                    return UnsparseResult.Invalid("header terpotong")
+                }
+                if (u32le(header, 0) != SPARSE_MAGIC) {
+                    return UnsparseResult.Invalid("bukan sparse")
+                }
+                val major = u16le(header, 4)
+                if (major != 1) return UnsparseResult.Invalid("major_version $major")
+                val fileHdrSz = u16le(header, 8)
+                val chunkHdrSz = u16le(header, 10)
+                if (fileHdrSz < SPARSE_HEADER_SIZE || chunkHdrSz < SPARSE_CHUNK_HEADER_SIZE) {
+                    return UnsparseResult.Invalid("ukuran header tidak valid")
+                }
+                val blkSz = u32le(header, 12)
+                val totalBlks = u32le(header, 16)
+                val totalChunks = u32le(header, 20)
+                val imageChecksum = u32le(header, 24)
+                if (blkSz == 0L || blkSz % 4L != 0L) {
+                    return UnsparseResult.Invalid("blk_sz $blkSz")
+                }
+                // Total keluaran tanpa overflow: totalBlks * blkSz > maxBytes.
+                if (totalBlks > maxBytes / blkSz) return UnsparseResult.TooLarge
+                // Lewati sisa header bila file_hdr_sz > 28.
+                if (!skipExact(ins, (fileHdrSz - SPARSE_HEADER_SIZE).toLong())) {
+                    return UnsparseResult.Invalid("header terpotong")
+                }
+                BufferedOutputStream(FileOutputStream(out), IO_BUFFER).use { outs ->
+                    val crc = CRC32()
+                    val buf = ByteArray(IO_BUFFER)
+                    var blocksWritten = 0L
+                    var bytesWritten = 0L
+                    for (chunkIndex in 0L until totalChunks) {
+                        val chunkHeader = ByteArray(SPARSE_CHUNK_HEADER_SIZE)
+                        if (!readExact(ins, chunkHeader, 0, SPARSE_CHUNK_HEADER_SIZE)) {
+                            return UnsparseResult.Invalid("chunk $chunkIndex terpotong")
+                        }
+                        val type = u16le(chunkHeader, 0)
+                        val chunkSz = u32le(chunkHeader, 4)
+                        val totalSz = u32le(chunkHeader, 8)
+                        if (totalSz < chunkHdrSz) {
+                            return UnsparseResult.Invalid("chunk $chunkIndex total_sz $totalSz")
+                        }
+                        // Lewati sisa header chunk bila chunk_hdr_sz > 12.
+                        if (!skipExact(ins, (chunkHdrSz - SPARSE_CHUNK_HEADER_SIZE).toLong())) {
+                            return UnsparseResult.Invalid("chunk $chunkIndex terpotong")
+                        }
+                        val dataSz = totalSz - chunkHdrSz
+                        when (type) {
+                            SPARSE_CHUNK_RAW -> {
+                                if (chunkSz > Long.MAX_VALUE / blkSz) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex terlalu besar")
+                                }
+                                val bytes = chunkSz * blkSz
+                                if (dataSz != bytes) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex total_sz tidak cocok")
+                                }
+                                if (chunkSz > totalBlks - blocksWritten) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex melebihi total_blks")
+                                }
+                                var remaining = bytes
+                                while (remaining > 0) {
+                                    val n = ins.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
+                                    if (n < 0) return UnsparseResult.Invalid("chunk $chunkIndex data terpotong")
+                                    outs.write(buf, 0, n)
+                                    crc.update(buf, 0, n)
+                                    remaining -= n
+                                    bytesWritten += n
+                                    if (bytesWritten > maxBytes) return UnsparseResult.TooLarge
+                                }
+                                blocksWritten += chunkSz
+                            }
+                            SPARSE_CHUNK_FILL -> {
+                                if (dataSz != 4L) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex fill bukan 4 byte")
+                                }
+                                if (chunkSz > totalBlks - blocksWritten) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex melebihi total_blks")
+                                }
+                                val fill = ByteArray(4)
+                                if (!readExact(ins, fill, 0, 4)) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex data terpotong")
+                                }
+                                if (chunkSz > Long.MAX_VALUE / blkSz) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex terlalu besar")
+                                }
+                                val bytes = chunkSz * blkSz
+                                // Isi buffer dengan pola 4 byte berulang.
+                                for (i in buf.indices) buf[i] = fill[i % 4]
+                                var remaining = bytes
+                                while (remaining > 0) {
+                                    val n = minOf(buf.size.toLong(), remaining).toInt()
+                                    outs.write(buf, 0, n)
+                                    crc.update(buf, 0, n)
+                                    remaining -= n
+                                    bytesWritten += n
+                                    if (bytesWritten > maxBytes) return UnsparseResult.TooLarge
+                                }
+                                blocksWritten += chunkSz
+                            }
+                            SPARSE_CHUNK_DONT_CARE -> {
+                                if (dataSz != 0L) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex don't-care membawa data")
+                                }
+                                if (chunkSz > totalBlks - blocksWritten) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex melebihi total_blks")
+                                }
+                                if (chunkSz > Long.MAX_VALUE / blkSz) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex terlalu besar")
+                                }
+                                val bytes = chunkSz * blkSz
+                                buf.fill(0)
+                                var remaining = bytes
+                                while (remaining > 0) {
+                                    val n = minOf(buf.size.toLong(), remaining).toInt()
+                                    outs.write(buf, 0, n)
+                                    crc.update(buf, 0, n)
+                                    remaining -= n
+                                    bytesWritten += n
+                                    if (bytesWritten > maxBytes) return UnsparseResult.TooLarge
+                                }
+                                blocksWritten += chunkSz
+                            }
+                            SPARSE_CHUNK_CRC32 -> {
+                                // Dilewati seperti pembaca nyata (u-boot /
+                                // libsparse mengabaikan chunk CRC32); yang
+                                // diverifikasi adalah image_checksum header.
+                                if (dataSz != 4L) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex crc bukan 4 byte")
+                                }
+                                if (!skipExact(ins, 4)) {
+                                    return UnsparseResult.Invalid("chunk $chunkIndex data terpotong")
+                                }
+                            }
+                            else -> return UnsparseResult.Invalid("chunk $chunkIndex tipe 0x${type.toString(16)}")
+                        }
+                    }
+                    if (blocksWritten != totalBlks) {
+                        return UnsparseResult.Invalid("blok tertulis $blocksWritten, mau $totalBlks")
+                    }
+                    if (imageChecksum != 0L && crc.value != imageChecksum) {
+                        return UnsparseResult.Invalid("image_checksum tidak cocok")
+                    }
+                    outs.flush()
+                    UnsparseResult.Ok(out, bytesWritten)
+                }
+            }
+        } catch (e: Exception) {
+            UnsparseResult.Invalid(e.message ?: "gagal baca")
+        }
+    }
+
+    private fun u16le(b: ByteArray, off: Int): Int {
+        return (b[off].toInt() and 0xFF) or ((b[off + 1].toInt() and 0xFF) shl 8)
+    }
+
+    /** Baca tepat [len] byte dari stream; false bila EOF sebelum penuh. */
+    private fun readExact(ins: InputStream, buf: ByteArray, off: Int, len: Int): Boolean {
+        var read = 0
+        while (read < len) {
+            val n = ins.read(buf, off + read, len - read)
+            if (n < 0) return false
+            read += n
+        }
+        return true
+    }
+
+    /** Lewati tepat [count] byte dari stream; false bila EOF sebelum penuh. */
+    private fun skipExact(ins: InputStream, count: Long): Boolean {
+        var remaining = count
+        val buf = ByteArray(8192)
+        while (remaining > 0) {
+            val n = ins.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
+            if (n < 0) return false
+            remaining -= n
+        }
+        return true
+    }
+
 
     private fun hex8(data: ByteArray, off: Int): Long? {
         if (off + 8 > data.size) return null

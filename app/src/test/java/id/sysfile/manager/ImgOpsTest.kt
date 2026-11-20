@@ -3,6 +3,7 @@ package id.sysfile.manager
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.util.zip.CRC32
 import java.util.zip.GZIPOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -137,6 +138,119 @@ class ImgOpsTest {
         val out = ByteArrayOutputStream()
         GZIPOutputStream(out).use { it.write(data) }
         return out.toByteArray()
+    }
+
+    // --- helpers fixture sparse + ext4 (r153) ---
+
+    private fun putU16(b: ByteArray, off: Int, v: Int) {
+        b[off] = (v and 0xFF).toByte()
+        b[off + 1] = ((v shr 8) and 0xFF).toByte()
+    }
+
+    private fun crc32Of(vararg parts: ByteArray): Long {
+        val crc = CRC32()
+        for (p in parts) crc.update(p)
+        return crc.value
+    }
+
+    /** Header sparse 28 byte + chunk-chunk mentah. */
+    private fun makeSparse(
+        blkSz: Int,
+        totalBlks: Long,
+        chunks: List<ByteArray>,
+        imageChecksum: Long = 0,
+        major: Int = 1,
+        name: String = "sparse.img"
+    ): File {
+        val hdr = ByteArray(28)
+        putU32(hdr, 0, 0xED26FF3AL)
+        putU16(hdr, 4, major)
+        putU16(hdr, 6, 0)
+        putU16(hdr, 8, 28)
+        putU16(hdr, 10, 12)
+        putU32(hdr, 12, blkSz.toLong())
+        putU32(hdr, 16, totalBlks)
+        putU32(hdr, 20, chunks.size.toLong())
+        putU32(hdr, 24, imageChecksum)
+        val out = ByteArrayOutputStream()
+        out.write(hdr)
+        for (c in chunks) out.write(c)
+        return writeFile(name, out.toByteArray())
+    }
+
+    /** Chunk RAW: data harus kelipatan blk_sz. */
+    private fun rawChunk(data: ByteArray, blkSz: Int): ByteArray {
+        val hdr = ByteArray(12)
+        putU16(hdr, 0, 0xCAC1)
+        putU32(hdr, 4, (data.size / blkSz).toLong())
+        putU32(hdr, 8, (12 + data.size).toLong())
+        return hdr + data
+    }
+
+    private fun fillChunk(fill: Long, blocks: Long): ByteArray {
+        val hdr = ByteArray(12)
+        putU16(hdr, 0, 0xCAC2)
+        putU32(hdr, 4, blocks)
+        putU32(hdr, 8, 16L)
+        val out = ByteArrayOutputStream()
+        out.write(hdr)
+        val v = ByteArray(4)
+        putU32(v, 0, fill)
+        out.write(v)
+        return out.toByteArray()
+    }
+
+    private fun dontCareChunk(blocks: Long): ByteArray {
+        val hdr = ByteArray(12)
+        putU16(hdr, 0, 0xCAC3)
+        putU32(hdr, 4, blocks)
+        putU32(hdr, 8, 12L)
+        return hdr
+    }
+
+    private fun crcChunk(value: Long): ByteArray {
+        val hdr = ByteArray(12)
+        putU16(hdr, 0, 0xCAC4)
+        putU32(hdr, 4, 0L)
+        putU32(hdr, 8, 16L)
+        val out = ByteArrayOutputStream()
+        out.write(hdr)
+        val v = ByteArray(4)
+        putU32(v, 0, value)
+        out.write(v)
+        return out.toByteArray()
+    }
+
+    /** Citra ext4 sintetis: superblock di offset 1024. Ukuran berkas
+     *  tidak harus sama dengan volume yang diklaim — kata hi jumlah
+     *  blok 64-bit tidak bisa diuji dengan berkas sebesar volumenya. */
+    private fun makeExt4(
+        fileSize: Int = 8192,
+        blockSizeLog: Long = 2, // 2 -> blok 4 KiB
+        totalBlocks: Long = 4,
+        freeBlocks: Long = 1,
+        blocksHi: Long = totalBlocks shr 32,
+        freeHi: Long = freeBlocks shr 32,
+        label: String = "system",
+        incompat: Long = 0x80L or 0x40L, // 64BIT + EXTENTS
+        roCompat: Long = 0x400L, // METADATA_CSUM
+        compat: Long = 0x4L, // HAS_JOURNAL
+        name: String = "system.img"
+    ): File {
+        val b = ByteArray(fileSize)
+        val sb = 1024
+        putU32(b, sb + 0x4, totalBlocks)
+        putU32(b, sb + 0x150, blocksHi)
+        putU32(b, sb + 0xC, freeBlocks)
+        putU32(b, sb + 0x158, freeHi)
+        putU32(b, sb + 0x18, blockSizeLog)
+        b[sb + 0x38] = 0x53.toByte()
+        b[sb + 0x39] = 0xEF.toByte()
+        putU32(b, sb + 0x5C, compat)
+        putU32(b, sb + 0x60, incompat)
+        putU32(b, sb + 0x64, roCompat)
+        putAscii(b, sb + 0x78, label.take(16))
+        return writeFile(name, b)
     }
 
     private fun sampleCpio(): ByteArray {
@@ -460,5 +574,257 @@ class ImgOpsTest {
         )
         val f = makeBootV0(2048, 100, gzip(cpio))
         assertEquals("café — ünïcode\n", ImgOps.readRamdiskEntryText(f, "ueventd.rc"))
+    }
+
+    // --- unsparse (r153) ---
+
+    @Test
+    fun unsparse_rawFillDontCare() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { (it % 251).toByte() }
+        val fillVal = 0x11223344L
+        val fillBytes = ByteArray(blkSz) { byteArrayOf(0x44, 0x33, 0x22, 0x11)[it % 4] }
+        val chunks = listOf(rawChunk(raw, blkSz), fillChunk(fillVal, 1), dontCareChunk(1))
+        val f = makeSparse(blkSz, 3, chunks)
+        val out = File(tmp.root, "out.img")
+        val r = ImgOps.unsparse(f, out)
+        assertTrue(r is UnsparseResult.Ok)
+        assertEquals(12288L, (r as UnsparseResult.Ok).totalBytes)
+        val bytes = out.readBytes()
+        assertEquals(12288, bytes.size)
+        assertEquals(raw.toList(), bytes.copyOfRange(0, 4096).toList())
+        assertEquals(fillBytes.toList(), bytes.copyOfRange(4096, 8192).toList())
+        assertEquals(ByteArray(4096).toList(), bytes.copyOfRange(8192, 12288).toList())
+    }
+
+    @Test
+    fun unsparse_crc32ChunkSkipped() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { 0x42 }
+        // Nilai CRC32 sengaja salah — pembaca nyata mengabaikan chunk ini.
+        val chunks = listOf(rawChunk(raw, blkSz), crcChunk(0xDEADBEEFL))
+        val f = makeSparse(blkSz, 1, chunks)
+        val out = File(tmp.root, "out.img")
+        assertTrue(ImgOps.unsparse(f, out) is UnsparseResult.Ok)
+        assertEquals(raw.toList(), out.readBytes().toList())
+    }
+
+    @Test
+    fun unsparse_imageChecksum() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { (it % 251).toByte() }
+        val fillVal = 0x11223344L
+        val fillBytes = ByteArray(blkSz) { byteArrayOf(0x44, 0x33, 0x22, 0x11)[it % 4] }
+        // CRC32 atas data asli: raw + fill + nol (don't-care dihitung 0).
+        val good = crc32Of(raw, fillBytes, ByteArray(blkSz))
+        val chunks = listOf(rawChunk(raw, blkSz), fillChunk(fillVal, 1), dontCareChunk(1))
+        val okFile = makeSparse(blkSz, 3, chunks, imageChecksum = good, name = "ok.img")
+        val out1 = File(tmp.root, "out1.img")
+        assertTrue(ImgOps.unsparse(okFile, out1) is UnsparseResult.Ok)
+        // Checksum salah -> Invalid, tanpa output.
+        val badFile = makeSparse(blkSz, 3, chunks, imageChecksum = good xor 1L, name = "bad.img")
+        val out2 = File(tmp.root, "out2.img")
+        assertTrue(ImgOps.unsparse(badFile, out2) is UnsparseResult.Invalid)
+        assertFalse(out2.exists())
+        // Checksum 0 = tidak ada checksum -> tetap Ok.
+        val zeroFile = makeSparse(blkSz, 3, chunks, imageChecksum = 0, name = "zero.img")
+        val out3 = File(tmp.root, "out3.img")
+        assertTrue(ImgOps.unsparse(zeroFile, out3) is UnsparseResult.Ok)
+    }
+
+    @Test
+    fun unsparse_overCap() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { 0x42 }
+        val f = makeSparse(blkSz, 3, listOf(rawChunk(raw, blkSz), dontCareChunk(2)))
+        val out = File(tmp.root, "out.img")
+        val r = ImgOps.unsparse(f, out, maxBytes = 8192)
+        assertTrue(r is UnsparseResult.TooLarge)
+        assertFalse(out.exists())
+    }
+
+    @Test
+    fun unsparse_truncated() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { 0x42 }
+        val full = makeSparse(blkSz, 1, listOf(rawChunk(raw, blkSz)))
+        // Potong di tengah data RAW.
+        val cut = full.readBytes().copyOfRange(0, 28 + 12 + 100)
+        val f = writeFile("cut.img", cut)
+        val out = File(tmp.root, "out.img")
+        val r = ImgOps.unsparse(f, out)
+        assertTrue(r is UnsparseResult.Invalid)
+        assertFalse(out.exists())
+        // Header terpotong (< 28 byte) juga Invalid.
+        val tiny = writeFile("tiny.img", ByteArray(10) { 0xED.toByte() })
+        assertTrue(ImgOps.unsparse(tiny, File(tmp.root, "out2.img")) is UnsparseResult.Invalid)
+    }
+
+    @Test
+    fun unsparse_corrupt() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { 0x42 }
+        // Bukan berkas.
+        assertTrue(ImgOps.unsparse(File(tmp.root, "tidak-ada.img"), File(tmp.root, "o0.img")) is UnsparseResult.Invalid)
+        // Magic salah.
+        val badMagic = ByteArray(64)
+        putU32(badMagic, 0, 0x12345678L)
+        assertTrue(ImgOps.unsparse(writeFile("m.img", badMagic), File(tmp.root, "o1.img")) is UnsparseResult.Invalid)
+        // major_version 2 ditolak.
+        val v2 = makeSparse(blkSz, 1, listOf(rawChunk(raw, blkSz)), major = 2, name = "v2.img")
+        assertTrue(ImgOps.unsparse(v2, File(tmp.root, "o2.img")) is UnsparseResult.Invalid)
+        // blk_sz bukan kelipatan 4.
+        val badBlk = makeSparse(1001, 1, listOf(rawChunk(raw, 1001)), name = "b.img")
+        assertTrue(ImgOps.unsparse(badBlk, File(tmp.root, "o3.img")) is UnsparseResult.Invalid)
+        // Tipe chunk tak dikenal.
+        val unknownHdr = ByteArray(12)
+        putU16(unknownHdr, 0, 0xCA99)
+        putU32(unknownHdr, 4, 0L)
+        putU32(unknownHdr, 8, 12L)
+        val unk = makeSparse(blkSz, 0, listOf(unknownHdr), name = "u.img")
+        assertTrue(ImgOps.unsparse(unk, File(tmp.root, "o4.img")) is UnsparseResult.Invalid)
+        // RAW total_sz tidak cocok dengan chunk_sz * blk_sz.
+        val rawHdr = ByteArray(12)
+        putU16(rawHdr, 0, 0xCAC1)
+        putU32(rawHdr, 4, 1L)
+        putU32(rawHdr, 8, 112L) // harusnya 12 + 4096
+        val rawBad = ByteArrayOutputStream()
+        rawBad.write(rawHdr)
+        rawBad.write(raw)
+        val rb = makeSparse(blkSz, 1, listOf(rawBad.toByteArray()), name = "rb.img")
+        assertTrue(ImgOps.unsparse(rb, File(tmp.root, "o5.img")) is UnsparseResult.Invalid)
+        // FILL total_sz bukan 16.
+        val fillHdr = ByteArray(12)
+        putU16(fillHdr, 0, 0xCAC2)
+        putU32(fillHdr, 4, 1L)
+        putU32(fillHdr, 8, 14L)
+        val fb = makeSparse(blkSz, 1, listOf(fillHdr), name = "fb.img")
+        assertTrue(ImgOps.unsparse(fb, File(tmp.root, "o6.img")) is UnsparseResult.Invalid)
+        // Chunk melebihi total_blks.
+        val over = makeSparse(blkSz, 1, listOf(rawChunk(raw, blkSz), rawChunk(raw, blkSz)), name = "ov.img")
+        assertTrue(ImgOps.unsparse(over, File(tmp.root, "o7.img")) is UnsparseResult.Invalid)
+        // total_chunks bilang 2 tapi berkas hanya punya 1 chunk.
+        val one = makeSparse(blkSz, 1, listOf(rawChunk(raw, blkSz)), name = "one.img")
+        val oneBytes = one.readBytes()
+        putU32(oneBytes, 20, 2L)
+        one.writeBytes(oneBytes)
+        assertTrue(ImgOps.unsparse(one, File(tmp.root, "o8.img")) is UnsparseResult.Invalid)
+    }
+
+    @Test
+    fun unsparse_empty() {
+        val f = makeSparse(4096, 0, emptyList())
+        val out = File(tmp.root, "out.img")
+        val r = ImgOps.unsparse(f, out)
+        assertTrue(r is UnsparseResult.Ok)
+        assertEquals(0L, (r as UnsparseResult.Ok).totalBytes)
+        assertEquals(0, out.readBytes().size)
+    }
+
+    // --- superblock ext4 (r153) ---
+
+    @Test
+    fun parseExt4Superblock_ok() {
+        val f = makeExt4(fileSize = 16384, totalBlocks = 4, freeBlocks = 1, label = "system")
+        val info = ImgOps.parseExt4Superblock(f)
+        assertNotNull(info)
+        assertEquals(4096L, info!!.blockSize)
+        assertEquals(4L, info.totalBlocks)
+        assertEquals(1L, info.freeBlocks)
+        assertEquals(16384L, info.totalBytes)
+        assertEquals(4096L, info.freeBytes)
+        assertEquals("system", info.label)
+        assertEquals(0x4L, info.featureCompat)
+        assertEquals(0x80L or 0x40L, info.featureIncompat)
+        assertEquals(0x400L, info.featureRoCompat)
+        assertTrue(info.has64bit)
+        assertTrue(info.hasExtents)
+        assertTrue(info.hasMetadataCsum)
+    }
+
+    @Test
+    fun parseExt4Superblock_32bitCounts() {
+        // Tanpa INCOMPAT_64BIT, kata hi diabaikan: total = lo saja.
+        val f = makeExt4(
+            fileSize = 8192, totalBlocks = 4, freeBlocks = 2,
+            blocksHi = 7, freeHi = 3, label = "", incompat = 0x40L, name = "c32.img"
+        )
+        val info = ImgOps.parseExt4Superblock(f)
+        assertNotNull(info)
+        assertEquals(4L, info!!.totalBlocks)
+        assertEquals(2L, info.freeBlocks)
+        assertEquals("", info.label)
+        assertFalse(info.has64bit)
+        assertTrue(info.hasExtents)
+        assertFalse(info.hasMetadataCsum)
+    }
+
+    @Test
+    fun parseExt4Superblock_64bitCounts() {
+        // Kata hi hanya dibaca bila INCOMPAT_64BIT set. Berkas fixture
+        // kecil — jumlah blok besar tidak butuh berkas sebesar volumenya.
+        val f = makeExt4(fileSize = 8192, totalBlocks = 0x1_0000_0005L, freeBlocks = 0x1_0000_0002L, label = "data")
+        val info = ImgOps.parseExt4Superblock(f)
+        assertNotNull(info)
+        assertEquals(0x1_0000_0005L, info!!.totalBlocks)
+        assertEquals(0x1_0000_0002L, info.freeBlocks)
+        assertEquals(0x1_0000_0005L * 4096L, info.totalBytes)
+        assertTrue(info.has64bit)
+    }
+
+    @Test
+    fun parseExt4Superblock_rejects() {
+        // Magic salah.
+        val bad = ByteArray(8192)
+        assertNull(ImgOps.parseExt4Superblock(writeFile("bad.img", bad)))
+        // Terpotong (< 2048 byte).
+        assertNull(ImgOps.parseExt4Superblock(writeFile("short.img", ByteArray(1500))))
+        // s_log_block_size di luar 0..6.
+        val badLog = makeExt4(fileSize = 8192, blockSizeLog = 7, name = "bl.img")
+        assertNull(ImgOps.parseExt4Superblock(badLog))
+        // free > total.
+        val badFree = makeExt4(fileSize = 8192, totalBlocks = 2, freeBlocks = 5, name = "bf.img")
+        assertNull(ImgOps.parseExt4Superblock(badFree))
+        // total 0.
+        val zero = makeExt4(fileSize = 8192, totalBlocks = 0, freeBlocks = 0, name = "z.img")
+        assertNull(ImgOps.parseExt4Superblock(zero))
+        // Bukan berkas.
+        assertNull(ImgOps.parseExt4Superblock(File(tmp.root, "tidak-ada.img")))
+    }
+
+    @Test
+    fun readExt4Info_raw() {
+        val f = makeExt4(fileSize = 16384, totalBlocks = 4, freeBlocks = 1, label = "system")
+        val info = ImgOps.readExt4Info(f, tmp.root)
+        assertNotNull(info)
+        assertEquals("system", info!!.label)
+        assertEquals(4096L, info.blockSize)
+    }
+
+    @Test
+    fun readExt4Info_sparse() {
+        val ext4 = makeExt4(fileSize = 8192, totalBlocks = 2, freeBlocks = 1, label = "vendor", name = "raw.img")
+        val ext4Bytes = ext4.readBytes()
+        // Bungkus 8192 byte ext4 dalam 2 blok sparse 4096.
+        val chunks = listOf(
+            rawChunk(ext4Bytes.copyOfRange(0, 4096), 4096),
+            rawChunk(ext4Bytes.copyOfRange(4096, 8192), 4096)
+        )
+        val sparse = makeSparse(4096, 2, chunks, name = "sparse.img")
+        val cache = tmp.newFolder("cache")
+        val info = ImgOps.readExt4Info(sparse, cache)
+        assertNotNull(info)
+        assertEquals("vendor", info!!.label)
+        assertEquals(8192L, info.totalBytes)
+        // Temp hasil unsparse dihapus setelah dibaca.
+        val leftovers = File(cache, "sparse-view").listFiles()
+        assertTrue(leftovers == null || leftovers.isEmpty())
+    }
+
+    @Test
+    fun readExt4Info_notExt4() {
+        val boot = makeBootV0(2048, 100, gzip(sampleCpio()))
+        assertNull(ImgOps.readExt4Info(boot, tmp.root))
+        assertNull(ImgOps.readExt4Info(writeFile("raw.img", ByteArray(64) { 0x42 }), tmp.root))
     }
 }

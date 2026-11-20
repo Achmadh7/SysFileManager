@@ -207,9 +207,15 @@ private fun imgTypeName(type: ImgType, t: Txt): String {
 fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
     val t = txt()
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     var stats by remember { mutableStateOf<FileOps.FolderStats?>(null) }
     var stat by remember(entry.path) { mutableStateOf<FileOps.StatInfo?>(null) }
     var imgType by remember(entry.path) { mutableStateOf<ImgType?>(null) }
+    // r153: info ext4 (mentah / hasil unsparse sparse); ext4Loaded
+    // membedakan "masih memuat" (tampil …) dari "gagal parse"
+    // (baris disembunyikan).
+    var ext4Info by remember(entry.path) { mutableStateOf<Ext4Info?>(null) }
+    var ext4Loaded by remember(entry.path) { mutableStateOf(false) }
     var expanded by remember(entry.path) { mutableStateOf(false) }
     var showSums by remember(entry.path) { mutableStateOf(false) }
     var showPerms by remember(entry.path) { mutableStateOf(false) }
@@ -223,6 +229,13 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
         stat = withContext(Dispatchers.IO) { FileOps.statInfo(entry.path) }
         if (FileOps.extOf(entry.name) == "img") {
             imgType = withContext(Dispatchers.IO) { ImgOps.detectImgType(entry.file) }
+            // r153: ext4 (mentah atau hasil unsparse sparse) tampil
+            // ukuran volume, ukuran blok, dan label di bawah Jenis citra.
+            // LaunchedEffect memang suspend, jadi withContext di sini legal.
+            if (imgType == ImgType.SPARSE || imgType == ImgType.EXT4) {
+                ext4Info = withContext(Dispatchers.IO) { ImgOps.readExt4Info(entry.file, context.cacheDir) }
+                ext4Loaded = true
+            }
         }
     }
     LaunchedEffect(showSums) {
@@ -324,6 +337,25 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                             if (imgType != null) {
                                 PropGroupDivider()
                                 PropGridRow(t.imgTypeLabel, imgTypeName(imgType!!, t))
+                                if (imgType == ImgType.SPARSE || imgType == ImgType.EXT4) {
+                                    if (!ext4Loaded) {
+                                        PropGroupDivider()
+                                        PropGridRow(t.imgExt4Volume, "\u2026")
+                                        PropGroupDivider()
+                                        PropGridRow(t.imgExt4BlockSize, "\u2026")
+                                        PropGroupDivider()
+                                        PropGridRow(t.imgExt4Label, "\u2026")
+                                    } else if (ext4Info != null) {
+                                        PropGroupDivider()
+                                        PropGridRow(t.imgExt4Volume, FileOps.formatSizeExact(ext4Info!!.totalBytes))
+                                        PropGroupDivider()
+                                        PropGridRow(t.imgExt4BlockSize, FileOps.formatSizeExact(ext4Info!!.blockSize))
+                                        if (ext4Info!!.label.isNotEmpty()) {
+                                            PropGroupDivider()
+                                            PropGridRow(t.imgExt4Label, ext4Info!!.label)
+                                        }
+                                    }
+                                }
                             }
                             PropGroupDivider()
                             PropGridRow(
