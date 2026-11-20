@@ -1146,7 +1146,7 @@ fun SysFileApp() {
                     listing.error == "notpayload" -> openExternal(f)
                     listing.error == "unsupported" -> notify(t.payloadUnsupported)
                     listing.error != null -> notify(t.payloadInvalid)
-                    else -> show(Overlay.PayloadView(entry.path)
+                    else -> show(Overlay.PayloadView(entry.path))
                 }
             }
             return
@@ -1166,14 +1166,14 @@ fun SysFileApp() {
                 when (detected) {
                     ImgType.BOOT -> {
                         working = false
-                        show(Overlay.ImgView(entry.path)
+                        show(Overlay.ImgView(entry.path))
                     }
                     ImgType.SUPER -> {
                         val reader = withContext(Dispatchers.IO) { LpReader.open(f) }
                         working = false
                         if (reader != null) {
                             lpSession = LpSession(f, null, reader)
-                            show(Overlay.LpView(entry.path)
+                            show(Overlay.LpView(entry.path))
                         } else {
                             notify(t.opFailed)
                         }
@@ -1185,7 +1185,7 @@ fun SysFileApp() {
                         working = false
                         if (session != null) {
                             ext4Session = session
-                            show(Overlay.Ext4View(entry.path)
+                            show(Overlay.Ext4View(entry.path))
                         } else {
                             notify(t.opFailed)
                         }
@@ -1212,15 +1212,15 @@ fun SysFileApp() {
                         if (ext != null) {
                             working = false
                             ext4Session = ext
-                            show(Overlay.Ext4View(entry.path)
+                            show(Overlay.Ext4View(entry.path))
                         } else if (fat != null) {
                             working = false
                             fatReader = fat
-                            show(Overlay.FatView(entry.path)
+                            show(Overlay.FatView(entry.path))
                         } else if (lp != null) {
                             working = false
                             lpSession = LpSession(f, null, lp)
-                            show(Overlay.LpView(entry.path)
+                            show(Overlay.LpView(entry.path))
                         } else {
                             // LD3 r159: fallback unsparse (jarang — hanya
                             // bila direct ext4/FAT/LP gagal) ikut berprogres
@@ -1262,10 +1262,10 @@ fun SysFileApp() {
                             val ext2 = opened.second
                             if (lp2 != null) {
                                 lpSession = lp2
-                                show(Overlay.LpView(entry.path)
+                                show(Overlay.LpView(entry.path))
                             } else if (ext2 != null) {
                                 ext4Session = ext2
-                                show(Overlay.Ext4View(entry.path)
+                                show(Overlay.Ext4View(entry.path))
                             } else if (unsparseCancelled) {
                                 notify(t.workCancelled)
                             } else {
@@ -1278,7 +1278,7 @@ fun SysFileApp() {
                         working = false
                         if (reader != null) {
                             fatReader = reader
-                            show(Overlay.FatView(entry.path)
+                            show(Overlay.FatView(entry.path))
                         } else {
                             notify(t.opFailed)
                         }
@@ -1305,22 +1305,22 @@ fun SysFileApp() {
         when {
             entry.category == Category.IMAGE -> {
                 val (paths, idx) = FileOps.mediaSiblings(siblings ?: entries, entry)
-                show(Overlay.ImageView(paths, idx)
+                show(Overlay.ImageView(paths, idx))
             }
             entry.category == Category.VIDEO -> {
                 stopAudio()
                 val (paths, idx) = FileOps.mediaSiblings(siblings ?: entries, entry)
-                show(Overlay.VideoView(paths, idx)
+                show(Overlay.VideoView(paths, idx))
             }
             entry.category == Category.AUDIO -> {
                 startAudio(entry)
             }
-            FileOps.extOf(f.name) == "pdf" -> show(Overlay.PdfView(entry.path)
-            FileOps.extOf(f.name) == "epub" -> show(Overlay.EpubView(entry.path)
-            FileOps.extOf(f.name) == "ttf" -> show(Overlay.FontView(entry.path)
-            FileOps.extOf(f.name) == "dex" -> show(Overlay.DexView(entry.path)
-            FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> show(Overlay.OfficeView(entry.path)
-            FileOps.isTextFile(f) && f.length() <= 2_000_000 -> show(Overlay.TextView(entry.path)
+            FileOps.extOf(f.name) == "pdf" -> show(Overlay.PdfView(entry.path))
+            FileOps.extOf(f.name) == "epub" -> show(Overlay.EpubView(entry.path))
+            FileOps.extOf(f.name) == "ttf" -> show(Overlay.FontView(entry.path))
+            FileOps.extOf(f.name) == "dex" -> show(Overlay.DexView(entry.path))
+            FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> show(Overlay.OfficeView(entry.path))
+            FileOps.isTextFile(f) && f.length() <= 2_000_000 -> show(Overlay.TextView(entry.path))
             entry.category == Category.ARCHIVE -> {
                 val kind = ArchiveOps.kindOf(f.name)
                 when {
@@ -1345,11 +1345,11 @@ fun SysFileApp() {
                             if (encrypted) {
                                 dialog = DialogKind.RarPassword(entry)
                             } else {
-                                show(Overlay.ArchiveView(entry.path)
+                                show(Overlay.ArchiveView(entry.path))
                             }
                         }
                     }
-                    else -> show(Overlay.ArchiveView(entry.path)
+                    else -> show(Overlay.ArchiveView(entry.path))
                 }
             }
             else -> openExternal(f)

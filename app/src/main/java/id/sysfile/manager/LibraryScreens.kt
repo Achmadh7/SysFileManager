@@ -625,8 +625,7 @@ fun TrashScreen(
             title = { Text(t.emptyTrash) },
             text = {
                 Text(
-                    if (hiddenCount > 0) t.emptyTrashConfirm + "
-" + t.trashLockedHidden(hiddenCount)
+                    if (hiddenCount > 0) t.emptyTrashConfirm + "\n" + t.trashLockedHidden(hiddenCount)
                     else t.emptyTrashConfirm
                 )
             },
