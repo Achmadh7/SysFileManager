@@ -827,6 +827,83 @@ fun SysFileApp() {
         }
     }
 
+    // r167: dipindah ke atas openEntry — local fun WAJIB dideklarasi
+    // sebelum pemakaian pertamanya. r159 menaruh blok ini di bawah
+    // (setelah openEntry), jadi beginLongWork di 936 tidak ter-resolve
+    // dan compileDebugKotlin gagal (Unresolved name + Unresolved 'clear').
+    /** LD3 r159: siapkan dialog kerja berprogres untuk satu operasi
+     *  panjang .img (pola yang sama seperti PayloadExtract: onProgress
+     *  per 64 KiB + AtomicBoolean). Kembalikan (flag, reporter, clear)
+     *  — pemanggil WAJIB memanggil clear() di finally supaya state
+     *  dialog tidak tertinggal. [format] mengubah (done, total) menjadi
+     *  teks di bawah bar; default-nya "1,2 GB / 4,0 GB • 30%". */
+    fun beginLongWork(
+        stage: String,
+        format: ((Long, Long) -> String)? = null
+    ): Triple<AtomicBoolean, (Long, Long) -> Unit, () -> Unit> {
+        val flag = AtomicBoolean(false)
+        workCancelFlag = flag
+        workStage = stage
+        workProgress = 0f
+        workProgressText = null
+        working = true
+        val fmt = format ?: { done: Long, total: Long ->
+            "${FileOps.formatSize(done)} / ${FileOps.formatSize(total)} • ${(done * 100 / total).toInt()}%"
+        }
+        val report: (Long, Long) -> Unit = { done, total ->
+            if (total > 0L) {
+                workProgress = (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                workProgressText = fmt(done, total)
+            } else {
+                workProgress = null
+                workProgressText = null
+            }
+        }
+        val clear: () -> Unit = {
+            working = false
+            workProgress = null
+            workProgressText = null
+            workCancelFlag = null
+            workStage = null
+        }
+        return Triple(flag, report, clear)
+    }
+
+    /** LD3 r159: jalankan satu operasi panjang .img dengan dialog
+     *  berprogres + tombol Batal — [block] menerima flag + reporter
+     *  dan mengembalikan true bila berhasil; batal dilempar sebagai
+     *  ImgCancelledException. Selesai: sukses -> successMsg, batal ->
+     *  workCancelled, gagal -> opFailed. */
+    fun runLongOp(
+        stage: String,
+        successMsg: String,
+        format: ((Long, Long) -> String)? = null,
+        block: suspend (flag: AtomicBoolean, onProgress: (Long, Long) -> Unit) -> Boolean
+    ) {
+        val (flag, report, clear) = beginLongWork(stage, format)
+        scope.launch {
+            val outcome = try {
+                val ok = withContext(Dispatchers.IO) { block(flag, report) }
+                if (ok) 0 else 1
+            } catch (_: ImgCancelledException) {
+                2
+            } catch (_: Exception) {
+                1
+            } finally {
+                clear()
+            }
+            when (outcome) {
+                0 -> {
+                    notify(successMsg)
+                    reloadKey++
+                    selected = emptySet()
+                }
+                2 -> notify(t.workCancelled)
+                else -> notify(t.opFailed)
+            }
+        }
+    }
+
     fun openEntry(entry: FEntry, siblings: List<FEntry>? = null) {
         if (entry.isDir) {
             openFolderGuarded(entry.path) { browseStack = browseStack + entry.path }
@@ -1076,79 +1153,6 @@ fun SysFileApp() {
                 selected = emptySet()
             } else {
                 notify(t.opFailed)
-            }
-        }
-    }
-
-    /** LD3 r159: siapkan dialog kerja berprogres untuk satu operasi
-     *  panjang .img (pola yang sama seperti PayloadExtract: onProgress
-     *  per 64 KiB + AtomicBoolean). Kembalikan (flag, reporter, clear)
-     *  — pemanggil WAJIB memanggil clear() di finally supaya state
-     *  dialog tidak tertinggal. [format] mengubah (done, total) menjadi
-     *  teks di bawah bar; default-nya "1,2 GB / 4,0 GB • 30%". */
-    fun beginLongWork(
-        stage: String,
-        format: ((Long, Long) -> String)? = null
-    ): Triple<AtomicBoolean, (Long, Long) -> Unit, () -> Unit> {
-        val flag = AtomicBoolean(false)
-        workCancelFlag = flag
-        workStage = stage
-        workProgress = 0f
-        workProgressText = null
-        working = true
-        val fmt = format ?: { done: Long, total: Long ->
-            "${FileOps.formatSize(done)} / ${FileOps.formatSize(total)} • ${(done * 100 / total).toInt()}%"
-        }
-        val report: (Long, Long) -> Unit = { done, total ->
-            if (total > 0L) {
-                workProgress = (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                workProgressText = fmt(done, total)
-            } else {
-                workProgress = null
-                workProgressText = null
-            }
-        }
-        val clear: () -> Unit = {
-            working = false
-            workProgress = null
-            workProgressText = null
-            workCancelFlag = null
-            workStage = null
-        }
-        return Triple(flag, report, clear)
-    }
-
-    /** LD3 r159: jalankan satu operasi panjang .img dengan dialog
-     *  berprogres + tombol Batal — [block] menerima flag + reporter
-     *  dan mengembalikan true bila berhasil; batal dilempar sebagai
-     *  ImgCancelledException. Selesai: sukses -> successMsg, batal ->
-     *  workCancelled, gagal -> opFailed. */
-    fun runLongOp(
-        stage: String,
-        successMsg: String,
-        format: ((Long, Long) -> String)? = null,
-        block: suspend (flag: AtomicBoolean, onProgress: (Long, Long) -> Unit) -> Boolean
-    ) {
-        val (flag, report, clear) = beginLongWork(stage, format)
-        scope.launch {
-            val outcome = try {
-                val ok = withContext(Dispatchers.IO) { block(flag, report) }
-                if (ok) 0 else 1
-            } catch (_: ImgCancelledException) {
-                2
-            } catch (_: Exception) {
-                1
-            } finally {
-                clear()
-            }
-            when (outcome) {
-                0 -> {
-                    notify(successMsg)
-                    reloadKey++
-                    selected = emptySet()
-                }
-                2 -> notify(t.workCancelled)
-                else -> notify(t.opFailed)
             }
         }
     }
