@@ -336,11 +336,15 @@ fun HomeScreen(
                 }
                 // KG1 (r114): ubin rapat — 64dp, lingkaran 32dp +
                 // ikon 18dp, sudut 16dp, jarak antar ubin 8dp.
-                // BR4 (r161): tinggi ubin 64dp -> 72dp. Tanpa sub-label
-                // ukuran: tidak ada sumber ukuran per kategori yang murah
-                // + tepercaya di Beranda (pemindaian kategori r128
-                // dibatasi; analisis penuh hanya di tab Analisis) —
-                // angka dari daftar terpotong akan menyesatkan.
+                // BR4 (r161): tinggi ubin 64dp -> 72dp.
+                // KG14 (r173): grid 2 kolom, ubin 56dp, lingkaran
+                // 28dp + ikon 16dp di KIRI label (bodyMedium,
+                // ellipsis), sudut tetap 16dp, jarak 8dp.
+                // Tanpa sub-label ukuran: tidak ada sumber ukuran
+                // per kategori yang murah + tepercaya di Beranda
+                // (pemindaian kategori r128 dibatasi; analisis
+                // penuh hanya di tab Analisis) — angka dari daftar
+                // terpotong akan menyesatkan.
                 val cats = listOf(
                     Category.IMAGE to t.catImagesS,
                     Category.VIDEO to t.catVideosS,
@@ -350,65 +354,66 @@ fun HomeScreen(
                     Category.ARCHIVE to t.catArchivesS,
                     Category.OTHER to t.catOtherS
                 )
-                cats.chunked(3).forEach { rowCats ->
+                cats.chunked(2).forEach { rowCats ->
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         rowCats.forEach { (cat, label) ->
                             val color = MaterialTheme.colorScheme.primary
-                            Column(
-                                Modifier.weight(1f).height(72.dp)
+                            Row(
+                                Modifier.weight(1f).height(56.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(color.copy(alpha = 0.16f))
                                     .clickable { onOpenCategory(cat) }
-                                    .padding(vertical = 4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
-                                    Modifier.size(32.dp).clip(CircleShape).background(color),
+                                    Modifier.size(28.dp).clip(CircleShape).background(color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
                                 }
+                                Spacer(Modifier.width(12.dp))
                                 Text(
                                     label,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
                         }
                         if (rowCats.size == 1) {
                             val trashColor = Color(0xFFEF5350)
-                            Column(
-                                Modifier.weight(1f).height(72.dp)
+                            Row(
+                                Modifier.weight(1f).height(56.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(trashColor.copy(alpha = 0.16f))
                                     .clickable { onOpenTrash() }
-                                    .padding(vertical = 4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
-                                    Modifier.size(32.dp).clip(CircleShape).background(trashColor),
+                                    Modifier.size(28.dp).clip(CircleShape).background(trashColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 }
+                                Spacer(Modifier.width(12.dp))
                                 Text(
                                     t.trash,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
-                            Spacer(Modifier.weight(1f))
                         } else {
-                            repeat(3 - rowCats.size) { Spacer(Modifier.weight(1f)) }
+                            repeat(2 - rowCats.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
