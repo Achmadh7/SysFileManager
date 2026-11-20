@@ -418,7 +418,46 @@ fun SysFileApp() {
     // membaca /proc/mounts + sysfs — dulu ANR saat storage lambat).
     fun refreshRoots() {
         scope.launch {
-            val fresh = withContext(Dispatchers.IO) { FileOps.storageRoots(context) }
+            // r201: pulihkan akses root saat startup — RootShell.state
+            // selalu UNKNOWN di proses baru, dan L17 melarang prompt su
+            // pasif; tapi bila root PERNAH diberikan (pref
+            // root_granted_before), Magisk sudah mengingat izinnya
+            // sehingga ensureRoot() berhasil tanpa prompt. Tanpa ini
+            // Root storage tak terbaca sampai sakelar di-off/on dulu.
+            // (Gate memakai pref root_entry, bukan state showRootEntry:
+            // state itu dideklarasi SETELAH fun ini — local fun tak bisa
+            // menangkap val yang dideklarasi sesudahnya.)
+            val rootOn = prefs.getBoolean("root_entry", false)
+            if (rootOn && prefs.getBoolean("root_granted_before", false) &&
+                RootShell.state == RootShell.UNKNOWN
+            ) {
+                withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+                prefs.edit().putBoolean(
+                    "root_granted_before",
+                    RootShell.state == RootShell.GRANTED
+                ).apply()
+            }
+            if (RootShell.state == RootShell.GRANTED &&
+                !prefs.getBoolean("root_granted_before", false)
+            ) {
+                prefs.edit().putBoolean("root_granted_before", true).apply()
+            }
+            val fresh = withContext(Dispatchers.IO) { FileOps.storageRoots(context) }.toMutableList()
+            // r201: OTG yang tak terlihat di /storage (di HP ini mount
+            // FUSE-nya tidak diekspos ke aplikasi) — baca titik mount
+            // mentah /mnt/media_rw lewat root; browsing-nya jatuh ke
+            // RootShell.listDir seperti folder root lainnya.
+            if (fresh.none { it.kind == "usb" } && rootOn &&
+                RootShell.state == RootShell.GRANTED
+            ) {
+                val raw = withContext(Dispatchers.IO) {
+                    RootShell.listDir(File("/mnt/media_rw"), false, SortKey.NAME, true)
+                }
+                raw?.filter { it.isDir }?.forEach { e ->
+                    val p = "/mnt/media_rw/" + e.name
+                    if (fresh.none { it.path == p }) fresh += RootInfo(p, "usb", 0L, 0L)
+                }
+            }
             roots = fresh
             lockedFolders = FileOps.canonicalizeLocked(
                 prefs.getStringSet("locked_folders", emptySet()) ?: emptySet()
@@ -1526,6 +1565,10 @@ fun SysFileApp() {
                     if (v && RootShell.state == RootShell.UNKNOWN) {
                         scope.launch {
                             val ok = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+                            // r201: ingat hasil root — dipakai refreshRoots
+                            // untuk memulihkan GRANTED saat startup tanpa
+                            // prompt baru (Magisk sudah mengingat izinnya).
+                            prefs.edit().putBoolean("root_granted_before", ok).apply()
                             if (!ok) {
                                 showRootEntry = false
                                 prefs.edit().putBoolean("root_entry", false).apply()
