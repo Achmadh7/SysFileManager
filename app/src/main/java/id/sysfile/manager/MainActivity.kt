@@ -1118,6 +1118,47 @@ fun SysFileApp() {
         }
     }
 
+    /** r197: jalankan satu operasi dengan kartu progres di TENGAH layar
+     *  (kartu yang sama dengan ekstrak r182 — state extractCard* dipakai
+     *  bersama; jangan ganti nama tanpa mengubah semua call site ekstrak).
+     *  Dipakai hapus (pindah ke Sampah): bar TAK TENTU karena moveToTrash
+     *  tidak melaporkan progres, tanpa tombol Batal (tidak bisa dibatalkan
+     *  di tengah jalan dengan aman). Selesai: sukses -> successMsg, gagal
+     *  -> opFailed (pill r193). Dialog modal `working` TIDAK dipakai di
+     *  sini — saat hapus hanya kartu progres yang tampil. Bila ekstrak
+     *  sedang berjalan, kartu ini menimpa kartu ekstrak (sama seperti
+     *  ekstrak kedua menimpa yang pertama, r182). */
+    fun runCardOp(
+        name: String,
+        successMsg: String,
+        block: suspend () -> Boolean
+    ) {
+        extractCardName = name
+        extractCardProgress = null
+        extractCardText = null
+        extractCardCancelFlag = null
+        extractCardVisible = true
+        scope.launch {
+            val ok = try {
+                withContext(Dispatchers.IO) { block() }
+            } catch (_: Exception) {
+                false
+            } finally {
+                extractCardVisible = false
+                extractCardProgress = null
+                extractCardText = null
+                extractCardCancelFlag = null
+            }
+            if (ok) {
+                notify(successMsg)
+                reloadKey++
+                selected = emptySet()
+            } else {
+                notify(t.opFailed)
+            }
+        }
+    }
+
     // L26: [onOverlayOpened] dipanggil setiap kali overlay dibuka —
     // pemanggil (mis. CategoryScreen) bisa mencatat overlayReturn
     // dengan benar juga untuk jalur async (.img/.bin/arsip); dulu
@@ -2739,7 +2780,10 @@ fun SysFileApp() {
                             if (stillLocked != null) {
                                 requestUnlock(stillLocked.path, ::doDelete)
                             } else {
-                                runOp(t.movedToTrash) {
+                                runCardOp(
+                                    name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
+                                    successMsg = t.movedToTrash
+                                ) {
                                     var allOk = true
                                     d.entries.forEach { if (!TrashOps.moveToTrash(it.file)) allOk = false }
                                     allOk
