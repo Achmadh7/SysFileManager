@@ -13,6 +13,10 @@ import android.os.Environment
 import android.os.Process
 import android.os.storage.StorageManager
 import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -197,6 +201,16 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
         if (sortBySize) base.sortedByDescending { it.totalSize ?: it.apkSize } else base
     }
 
+    // r145: animasi masuk sama seperti FormatsScreen — geser
+    // dari kanan 1/3 lebar + pudar (motionScheme).
+    val visState = remember { MutableTransitionState(false) }
+    val motion = MaterialTheme.motionScheme
+    LaunchedEffect(Unit) { visState.targetState = true }
+    AnimatedVisibility(
+        visibleState = visState,
+        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+            fadeIn(animationSpec = motion.defaultEffectsSpec())
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -319,6 +333,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                 }
             }
         }
+    }
     }
 
     actionApp?.let { app ->

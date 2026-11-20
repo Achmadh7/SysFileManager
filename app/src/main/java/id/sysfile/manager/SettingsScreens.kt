@@ -553,7 +553,7 @@ fun FormatsScreen(onBack: () -> Unit) {
 // Layar Tentang (halaman penuh, menggantikan dialog Tentang lama)
 // ---------------------------------------------------------------------------
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
@@ -564,6 +564,16 @@ fun AboutScreen(
     val t = txt()
     val context = LocalContext.current
     val internal = remember { FileOps.storageRoots(context).firstOrNull { it.kind == "internal" } }
+    // r145: animasi masuk sama seperti FormatsScreen — geser
+    // dari kanan 1/3 lebar + pudar (motionScheme).
+    val visState = remember { MutableTransitionState(false) }
+    val motion = MaterialTheme.motionScheme
+    LaunchedEffect(Unit) { visState.targetState = true }
+    AnimatedVisibility(
+        visibleState = visState,
+        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+            fadeIn(animationSpec = motion.defaultEffectsSpec())
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -727,12 +737,23 @@ fun AboutScreen(
             }
         }
     }
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SpecScreen(onBack: () -> Unit) {
     val t = txt()
+    // r145: animasi masuk sama seperti FormatsScreen — geser
+    // dari kanan 1/3 lebar + pudar (motionScheme).
+    val visState = remember { MutableTransitionState(false) }
+    val motion = MaterialTheme.motionScheme
+    LaunchedEffect(Unit) { visState.targetState = true }
+    AnimatedVisibility(
+        visibleState = visState,
+        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+            fadeIn(animationSpec = motion.defaultEffectsSpec())
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -792,6 +813,7 @@ fun SpecScreen(onBack: () -> Unit) {
                 )
             }
         }
+    }
     }
 }
 
