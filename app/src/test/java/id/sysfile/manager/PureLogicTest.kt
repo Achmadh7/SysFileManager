@@ -190,4 +190,52 @@ class PureLogicTest {
         assertEquals(listOf("/b/foto9.jpg"), paths)
         assertEquals(0, idx)
     }
+
+    // --- BR4 (r161): angka kartu hero selalu dari TERPAKAI ---
+
+    @Test
+    fun heroCardData_internalUsed() {
+        val d = heroCardData(RootInfo("/storage/emulated/0", "internal", 1000L, 400L))
+        assertEquals(600L, d.usedBytes)
+        assertEquals(400L, d.freeBytes)
+        assertEquals(1000L, d.totalBytes)
+        assertEquals(0.6f, d.usedFraction, 0.001f)
+        assertEquals(60.0, d.usedPercent, 0.001)
+    }
+
+    @Test
+    fun heroCardData_rootFreeBecomesUsed() {
+        // Root dulu tampil "tersisa"; kini terpakai seperti Internal.
+        val d = heroCardData(RootInfo("/", "root", 1900L, 816L))
+        assertEquals(1084L, d.usedBytes)
+        assertEquals(0.5705f, d.usedFraction, 0.001f)
+        assertEquals(57.0526, d.usedPercent, 0.001)
+    }
+
+    @Test
+    fun heroCardData_zeroTotal() {
+        val d = heroCardData(RootInfo("/x", "usb", 0L, 0L))
+        assertEquals(0L, d.usedBytes)
+        assertEquals(0f, d.usedFraction, 0.0f)
+        assertEquals(0.0, d.usedPercent, 0.0)
+    }
+
+    @Test
+    fun heroCardData_freeExceedsTotalNeverNegative() {
+        val d = heroCardData(RootInfo("/x", "sd", 100L, 150L))
+        assertEquals(0L, d.usedBytes)
+        assertEquals(100L, d.freeBytes)
+        assertEquals(0f, d.usedFraction, 0.0f)
+        assertEquals(0.0, d.usedPercent, 0.0)
+    }
+
+    @Test
+    fun heroRoots_onlyKnownTotalsInOrder() {
+        val roots = listOf(
+            RootInfo("/a", "internal", 100L, 40L),
+            RootInfo("/b", "usb", 0L, 0L),
+            RootInfo("/c", "root", 200L, 50L)
+        )
+        assertEquals(listOf(roots[0], roots[2]), heroRoots(roots))
+    }
 }

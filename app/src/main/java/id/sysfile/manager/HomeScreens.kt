@@ -42,6 +42,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -159,6 +161,45 @@ fun rootLabel(root: RootInfo, t: Txt): String {
 // Layar Beranda
 // ---------------------------------------------------------------------------
 
+/** Kartu hero satu volume (BR4, r161): angka besar + persen selalu
+ *  TERPAKAI, baris kedua "dari TOTAL \u00b7 bebas FREE" — Internal dan
+ *  Root/SD/USB kini tampil sama (sebelumnya Root memakai tersisa, dan
+ *  bar + persen mengikuti fraksi sisa). Status kesehatan tetap dari
+ *  fraksi bebas. */
+@Composable
+fun StorageHeroCard(
+    root: RootInfo,
+    rootActive: Boolean,
+    onOpenRoot: (String) -> Unit,
+) {
+    val t = txt()
+    val data = heroCardData(root)
+    val freeFraction =
+        if (data.totalBytes > 0) data.freeBytes.toFloat() / data.totalBytes.toFloat() else 0f
+    val (healthText, healthDot) = storageStatus(freeFraction)
+    StorageCard(
+        label = rootLabel(root, t),
+        usedText = FileOps.formatSize(data.usedBytes),
+        detailText = t.ofTotal(FileOps.formatSize(data.totalBytes)) + " \u00b7 " + t.freeOf(FileOps.formatSize(data.freeBytes)),
+        percentText = String.format(appLocale(), "%.1f%%", data.usedPercent),
+        usedWord = t.usedWord,
+        statusText = if (root.kind == "root") {
+            if (rootActive) t.rootActive else t.rootLimited
+        } else {
+            healthText
+        },
+        statusDot = healthDot,
+        icon = when (root.kind) {
+            "root" -> Icons.Default.Terminal
+            "sd" -> Icons.Default.SdStorage
+            "usb" -> Icons.Default.Usb
+            else -> Icons.Default.Smartphone
+        },
+        usedFraction = data.usedFraction,
+        onClick = { onOpenRoot(root.path) }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
@@ -188,71 +229,74 @@ fun HomeScreen(
         }
         if (roots.isNotEmpty()) {
             item {
+                // BR4 (r161): remember tanpa syarat di kepala blok item
+                // agar slot remember stabil saat roots berubah
+                // (kosong -> terisi).
+                val heroes = heroRoots(roots)
+                val pagerState = rememberPagerState(pageCount = { heroes.size })
+                val scope = rememberCoroutineScope()
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     }
-                    // r53 (2026-11-18, D1 Dua kartu hero — pilihannya):
-                    // Root/SD/USB dipisah jadi kartu hero sendiri, sama
-                    // seperti Internal (angka besar = sisa).
-                    roots.forEach { root ->
-                        if (root.kind != "internal" && root.total > 0) {
-                            // D1: kartu hero seperti Internal — angka besar
-                            // = sisa (tersisa); bar + persen mengikuti
-                            // fraksi sisa agar konsisten.
-                            val (healthText, healthDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
-                            StorageCard(
-                                label = rootLabel(root, t),
-                                usedText = FileOps.formatSize(root.free),
-                                detailText = t.ofTotal(FileOps.formatSize(root.total)),
-                                percentText = String.format(appLocale(), "%.1f%%", root.free * 100.0 / root.total),
-                                usedWord = t.freeWord,
-                                statusText = if (root.kind == "root") {
-                                    if (rootActive) t.rootActive else t.rootLimited
-                                } else {
-                                    healthText
-                                },
-                                statusDot = healthDot,
-                                icon = when (root.kind) {
-                                    "root" -> Icons.Default.Terminal
-                                    "sd" -> Icons.Default.SdStorage
-                                    "usb" -> Icons.Default.Usb
-                                    else -> Icons.Default.Storage
-                                },
-                                usedFraction = (root.free.toFloat() / root.total.toFloat()).coerceIn(0f, 1f),
-                                onClick = { onOpenRoot(root.path) }
+                    // BR4 Hero Geser (r161, pilihannya): kartu hero
+                    // Internal/Root/SD/USB (D1, r53) jadi satu pager yang
+                    // bisa digeser — Internal dulu, geser untuk Root (dan
+                    // USB/SD kalau ada). Titik di bawah: aktif = aksen,
+                    // ketuk titik = geser ke halaman itu.
+                    if (heroes.isNotEmpty()) {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { page ->
+                            StorageHeroCard(
+                                root = heroes[page],
+                                rootActive = rootActive,
+                                onOpenRoot = onOpenRoot
                             )
-                        } else if (root.total > 0) {
-                            val (statusText, statusDot) = storageStatus(root.free.toFloat() / root.total.toFloat())
-                            StorageCard(
-                                label = rootLabel(root, t),
-                                usedText = FileOps.formatSize(root.total - root.free),
-                                detailText = t.ofTotal(FileOps.formatSize(root.total)),
-                                percentText = String.format(appLocale(), "%.1f%%", (root.total - root.free) * 100.0 / root.total),
-                                usedWord = t.usedWord,
-                                statusText = statusText,
-                                statusDot = statusDot,
-                                icon = Icons.Default.Smartphone,
-                                usedFraction = ((root.total - root.free).toFloat() / root.total.toFloat()).coerceIn(0f, 1f),
-                                onClick = { onOpenRoot(root.path) }
-                            )
-                        } else {
-                            Box(
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                        }
+                        if (heroes.size > 1) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                Row(
-                                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                                    Spacer(Modifier.width(12.dp))
-                                    Column {
-                                        Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
-                                        Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                heroes.forEachIndexed { i, _ ->
+                                    Box(
+                                        Modifier.padding(4.dp).clickable {
+                                            scope.launch { pagerState.animateScrollToPage(i) }
+                                        },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Box(
+                                            Modifier.size(8.dp).clip(CircleShape)
+                                                .background(
+                                                    if (pagerState.currentPage == i) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                                )
+                                        )
                                     }
+                                }
+                            }
+                        }
+                    }
+                    // Volume tanpa total diketahui tetap tampil sebagai
+                    // baris kecil seperti sebelumnya.
+                    roots.filter { it.total <= 0 }.forEach { root ->
+                        Box(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
+                                    Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -269,6 +313,11 @@ fun HomeScreen(
                 }
                 // KG1 (r114): ubin rapat — 64dp, lingkaran 32dp +
                 // ikon 18dp, sudut 16dp, jarak antar ubin 8dp.
+                // BR4 (r161): tinggi ubin 64dp -> 72dp. Tanpa sub-label
+                // ukuran: tidak ada sumber ukuran per kategori yang murah
+                // + tepercaya di Beranda (pemindaian kategori r128
+                // dibatasi; analisis penuh hanya di tab Analisis) —
+                // angka dari daftar terpotong akan menyesatkan.
                 val cats = listOf(
                     Category.IMAGE to t.catImagesS,
                     Category.VIDEO to t.catVideosS,
@@ -286,7 +335,7 @@ fun HomeScreen(
                         rowCats.forEach { (cat, label) ->
                             val color = MaterialTheme.colorScheme.primary
                             Column(
-                                Modifier.weight(1f).height(64.dp)
+                                Modifier.weight(1f).height(72.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(color.copy(alpha = 0.16f))
                                     .clickable { onOpenCategory(cat) }
@@ -312,7 +361,7 @@ fun HomeScreen(
                         if (rowCats.size == 1) {
                             val trashColor = Color(0xFFEF5350)
                             Column(
-                                Modifier.weight(1f).height(64.dp)
+                                Modifier.weight(1f).height(72.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(trashColor.copy(alpha = 0.16f))
                                     .clickable { onOpenTrash() }

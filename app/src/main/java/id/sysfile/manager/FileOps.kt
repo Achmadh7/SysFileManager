@@ -44,6 +44,36 @@ data class RootInfo(
     val free: Long
 )
 
+/** Data tampilan kartu hero penyimpanan (BR4, r161): semua angka dihitung
+ *  dari TERPAKAI (total - bebas) agar Internal dan Root/SD/USB tampil
+ *  konsisten (sebelumnya Root memakai tersisa). */
+data class HeroCardData(
+    val usedBytes: Long,
+    val freeBytes: Long,
+    val totalBytes: Long,
+    val usedFraction: Float,
+    val usedPercent: Double
+)
+
+/** Angka kartu hero dari satu volume. Murni (tanpa Android) agar bisa
+ *  diuji unit: total <= 0 atau bebas > total tidak pernah menghasilkan
+ *  angka negatif. */
+fun heroCardData(root: RootInfo): HeroCardData {
+    val total = root.total.coerceAtLeast(0L)
+    val free = root.free.coerceIn(0L, total)
+    val used = total - free
+    return HeroCardData(
+        usedBytes = used,
+        freeBytes = free,
+        totalBytes = total,
+        usedFraction = if (total > 0) (used.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f,
+        usedPercent = if (total > 0) used * 100.0 / total else 0.0
+    )
+}
+
+/** Volume yang punya kartu hero (total diketahui) — halaman pager BR4. */
+fun heroRoots(roots: List<RootInfo>): List<RootInfo> = roots.filter { it.total > 0 }
+
 /** Satu entri di dalam arsip, untuk layar Isi Arsip (dibuka tanpa ekstrak). */
 data class ArchiveItem(val name: String, val isDir: Boolean, val size: Long)
 
