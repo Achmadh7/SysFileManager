@@ -1636,7 +1636,7 @@ fun SysFileApp() {
                                 name = archiveFile.name,
                                 format = { done, total -> t.extractProgress(done, total) }
                             ) { flag, onProgress ->
-                                ArchiveOps.extract(
+                                ArchiveOps.extractToFolder(
                                     archiveFile, archiveFile.parentFile ?: archiveFile,
                                     onProgress = onProgress, cancelFlag = flag
                                 )
@@ -2240,7 +2240,7 @@ fun SysFileApp() {
                                                     ) { _, onProgress ->
                                                         var done = 0L
                                                         targets.count {
-                                                            val r = ArchiveOps.extract(it.file, it.file.parentFile ?: it.file)
+                                                            val r = ArchiveOps.extractToFolder(it.file, it.file.parentFile ?: it.file)
                                                             done++
                                                             onProgress(done, targets.size.toLong())
                                                             r
@@ -2889,7 +2889,7 @@ fun SysFileApp() {
                         name = f.name,
                         format = { done, total -> t.extractProgress(done, total) }
                     ) { flag, onProgress ->
-                        ArchiveOps.extract(f, f.parentFile ?: f, onProgress = onProgress, cancelFlag = flag)
+                        ArchiveOps.extractToFolder(f, f.parentFile ?: f, onProgress = onProgress, cancelFlag = flag)
                     }
                 },
                 onInstall = {

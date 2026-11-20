@@ -478,6 +478,47 @@ class FileOpsTest {
         assertFalse(File(dest, "cancel2/b.txt").exists())
     }
 
+    // --- r190: "Ekstrak di sini" selalu ke folder bernama seperti arsip ---
+
+    @Test
+    fun extractToFolder_createsFolderNamedAfterArchive() {
+        val zip = File(tmp.root, "data.zip")
+        makeZip(zip, listOf("a.txt" to "hello", "sub/b.txt" to "world"))
+        val dest = tmp.newFolder("hereout")
+        assertTrue(ArchiveOps.extractToFolder(zip, dest))
+        assertTrue(File(dest, "data").isDirectory)
+        assertEquals("hello", File(dest, "data/a.txt").readText())
+        assertEquals("world", File(dest, "data/sub/b.txt").readText())
+        // tidak ada isi yang bocor langsung ke folder induk
+        assertFalse(File(dest, "a.txt").exists())
+        assertFalse(File(dest, "sub").exists())
+    }
+
+    @Test
+    fun extractToFolder_uniqueNameWhenFolderExists() {
+        val zip = File(tmp.root, "data.zip")
+        makeZip(zip, listOf("a.txt" to "hello"))
+        val dest = tmp.newFolder("hereout2")
+        val existing = File(dest, "data")
+        assertTrue(existing.mkdirs())
+        File(existing, "keep.txt").writeText("keep")
+        assertTrue(ArchiveOps.extractToFolder(zip, dest))
+        assertEquals("keep", File(dest, "data/keep.txt").readText())
+        assertEquals("hello", File(dest, "data (1)/a.txt").readText())
+    }
+
+    @Test
+    fun archiveBaseName_stripsKnownSuffixes() {
+        assertEquals("data", ArchiveOps.archiveBaseName("data.zip"))
+        assertEquals("data", ArchiveOps.archiveBaseName("data.7z"))
+        assertEquals("data", ArchiveOps.archiveBaseName("data.rar"))
+        assertEquals("data", ArchiveOps.archiveBaseName("data.tar"))
+        assertEquals("game", ArchiveOps.archiveBaseName("game.apk"))
+        assertEquals("main.1.com.game", ArchiveOps.archiveBaseName("main.1.com.game.obb"))
+        assertEquals("plain", ArchiveOps.archiveBaseName("plain"))
+        assertEquals(".zip", ArchiveOps.archiveBaseName(".zip"))
+    }
+
     @Test
     fun listZipContents_entryCapReturnsNull() {
         val zip = File(tmp.root, "many2.zip")
