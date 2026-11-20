@@ -1,6 +1,5 @@
 package id.sysfile.manager
 
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -18,10 +17,21 @@ import java.util.concurrent.atomic.AtomicBoolean
  * "unsupported" sebelum ada berkas yang ditulis. Setiap partisi yang selesai
  * diekstrak diverifikasi ukurannya dan (bila manifest menyertakannya) hash
  * SHA-256-nya terhadap new_partition_info; ketidakcocokan membuang hasil
- * ekstrak dan dilaporkan sebagai "hash". Ekstraksi melaporkan kemajuan
+ * ekstrak dan dilaporkan sebagai "hash". Partisi tanpa ukuran maupun hash
+ * ditolak (tidak terverifikasi). Ukuran satu partisi dibatasi 8 GiB dan
+ * data op di-stream dari berkas (tanpa buffer 512 MB). Ekstraksi melaporkan kemajuan
  * (byte selesai/total) dan bisa dibatalkan lewat AtomicBoolean ("cancelled").
  */
 object PayloadOps {
+
+    /** Batas ukuran satu partisi hasil ekstrak (H6): 8 GiB — sama seperti
+     *  unsparse (ImgOps) dan materialize LP. Payload kecil yang mengklaim
+     *  ZERO extent 100 GB ditolak sebelum ada byte yang ditulis. */
+    const val MAX_PARTITION_BYTES = 8L * 1024L * 1024L * 1024L
+
+    /** Batas ukuran data terkompresi satu operasi (sudah ada sejak awal,
+     *  kini bernama agar bisa dirujuk/diuji). */
+    const val MAX_OP_DATA_BYTES = 512L * 1024L * 1024L
 
     /** Hasil ekstraksi: jumlah partisi yang ditulis, atau kode galat. */
     data class Outcome(val partitions: Int, val error: String?)
@@ -52,6 +62,31 @@ object PayloadOps {
     private class CancelledException : Exception()
 
     private class HashMismatchException : Exception()
+
+    /** InputStream atas satu irisan [RandomAccessFile] ([offset], [length]
+     *  byte) tanpa mem-buffer isinya (M6): decompressor membaca langsung
+     *  dari berkas, jadi op 512 MB tidak pernah memenuhi heap. close()
+     *  sengaja no-op — RAF milik pemanggil. */
+    private class RafSliceInputStream(
+        private val raf: RandomAccessFile,
+        private val offset: Long,
+        private val length: Long
+    ) : InputStream() {
+        private var pos = 0L
+
+        override fun read(): Int {
+            val b = ByteArray(1)
+            return if (read(b, 0, 1) < 0) -1 else b[0].toInt() and 0xFF
+        }
+
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            if (pos >= length) return -1
+            if (raf.filePointer != offset + pos) raf.seek(offset + pos)
+            val n = raf.read(b, off, minOf(len.toLong(), length - pos).toInt())
+            if (n > 0) pos += n
+            return n
+        }
+    }
 
     /** Pembaca protobuf minimal: varint dan field length-delimited saja. */
     private class Cursor(private val buf: ByteArray, private var pos: Int, private val end: Int) {
@@ -283,9 +318,7 @@ object PayloadOps {
                 val parsed = readManifest(raf)
                 checkSupported(parsed.partitions)
                 Listing(parsed.partitions.map { partition ->
-                    val blocks = partition.ops.flatMap { it.dstExtents }
-                        .maxOfOrNull { it.first + it.second } ?: 0L
-                    val extentSize = blocks * parsed.blockSize
+                    val extentSize = partitionBytes(partition, parsed.blockSize)
                     PartitionInfo(
                         partition.name,
                         if (partition.expectedSize > 0L) partition.expectedSize else extentSize,
@@ -346,7 +379,10 @@ object PayloadOps {
     private fun partitionBytes(partition: Partition, blockSize: Long): Long {
         val blocks = partition.ops.flatMap { it.dstExtents }
             .maxOfOrNull { it.first + it.second } ?: 0L
-        return blocks * blockSize
+        // Overflow-safe: blok di luar cap dipotong untuk keperluan progres
+        // saja; extractPartition tetap menolak partisi semacam itu sebelum
+        // menulis apa pun.
+        return blocks.coerceIn(0L, MAX_PARTITION_BYTES / blockSize) * blockSize
     }
 
     private fun doExtract(
@@ -373,7 +409,7 @@ object PayloadOps {
                         .ifBlank { "partition" }
                     extractPartition(
                         raf, parsed.blobOffset, parsed.blockSize, partition,
-                        File(destDir, "$safeName.img"),
+                        File(destDir, FileOps.uniqueName(destDir, "$safeName.img")),
                         reportBase = base,
                         totalBytes = totalBytes,
                         onProgress = onProgress,
@@ -385,7 +421,9 @@ object PayloadOps {
                 return Outcome(done, null)
             } catch (e: Exception) {
                 // Ekstrak semua bersifat atomik: batal/gagal menghapus folder hasil.
-                destDir.deleteRecursively()
+                // Hapus aman r175 (jangan ikuti symlink) — deleteRecursively()
+                // stdlib masih mengikuti symlink.
+                FileOps.deleteRecursively(destDir)
                 throw e
             }
         }
@@ -407,28 +445,41 @@ object PayloadOps {
             doneHere += n
             onProgress(reportBase + doneHere, totalBytes)
         }
+        // H6: validasi SEMUA extent SEBELUM menulis apa pun — akhir tiap
+        // extent (overflow-safe) dan ukuran partisi harus muat dalam cap.
+        if (partition.expectedSize > MAX_PARTITION_BYTES) {
+            throw IllegalArgumentException("partition size")
+        }
+        var totalBlocks = 0L
+        for (op in partition.ops) {
+            for ((start, num) in op.dstExtents) {
+                if (start < 0L || num < 0L) throw IllegalArgumentException("extent")
+                if (num > Long.MAX_VALUE - start) throw IllegalArgumentException("extent")
+                val end = start + num
+                if (end > MAX_PARTITION_BYTES / blockSize) throw IllegalArgumentException("extent")
+                if (end > totalBlocks) totalBlocks = end
+            }
+        }
         RandomAccessFile(outFile, "rw").use { out ->
-            val totalBlocks = partition.ops.flatMap { it.dstExtents }
-                .maxOfOrNull { it.first + it.second } ?: 0L
             out.setLength(totalBlocks * blockSize)
             for (op in partition.ops) {
                 if (cancelFlag?.get() == true) throw CancelledException()
                 when (op.type) {
                     0L, 1L, 8L -> {
-                        if (op.dataLength < 0L || op.dataLength > 512L * 1024 * 1024) {
+                        if (op.dataLength < 0L || op.dataLength > MAX_OP_DATA_BYTES) {
                             throw IllegalArgumentException("op size")
                         }
-                        val chunk = ByteArray(op.dataLength.toInt())
-                        raf.seek(blobOffset + op.dataOffset)
-                        raf.readFully(chunk)
+                        if (op.dataOffset < 0L || op.dataOffset > Long.MAX_VALUE - blobOffset) {
+                            throw IllegalArgumentException("op offset")
+                        }
+                        // M6: data op di-stream dari berkas lewat irisan RAF —
+                        // tidak ada lagi ByteArray sebesar dataLength di heap.
+                        val raw: InputStream =
+                            RafSliceInputStream(raf, blobOffset + op.dataOffset, op.dataLength)
                         val stream: InputStream = when (op.type) {
-                            0L -> ByteArrayInputStream(chunk)
-                            1L -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(
-                                ByteArrayInputStream(chunk)
-                            )
-                            else -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(
-                                ByteArrayInputStream(chunk)
-                            )
+                            0L -> raw
+                            1L -> org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(raw)
+                            else -> org.apache.commons.compress.compressors.xz.XZCompressorInputStream(raw)
                         }
                         stream.use { input ->
                             writeToExtents(input, out, op.dstExtents, blockSize, onBytes, cancelFlag)
@@ -442,11 +493,16 @@ object PayloadOps {
         verifyPartition(outFile, partition)
     }
 
-    /** Verifikasi ukuran + hash SHA-256 hasil ekstrak terhadap new_partition_info. */
+    /** Verifikasi ukuran + hash SHA-256 hasil ekstrak terhadap new_partition_info.
+     *  H6: tanpa ukuran DAN tanpa hash, hasil ekstrak tidak bisa diverifikasi
+     *  sama sekali — payload terpotong akan lolos sebagai .img korup. Tolak
+     *  daripada diam-diam menerima. */
     private fun verifyPartition(outFile: File, partition: Partition) {
         val expectedHash = partition.expectedHash
         val expectedSize = partition.expectedSize
-        if (expectedHash == null && expectedSize <= 0L) return
+        if (expectedHash == null && expectedSize <= 0L) {
+            throw HashMismatchException()
+        }
         if (expectedSize > 0L && outFile.length() != expectedSize) {
             throw HashMismatchException()
         }
@@ -475,7 +531,6 @@ object PayloadOps {
         cancelFlag: AtomicBoolean?
     ) {
         val buffer = ByteArray(64 * 1024)
-        val zeros = ByteArray(64 * 1024)
         for ((startBlock, numBlocks) in extents) {
             out.seek(startBlock * blockSize)
             var remaining = numBlocks * blockSize
@@ -483,20 +538,14 @@ object PayloadOps {
                 if (cancelFlag?.get() == true) throw CancelledException()
                 val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
                 if (read <= 0) {
-                    // Aliran habis sebelum extent penuh: sisa extent diisi nol.
-                    var pad = remaining
-                    while (pad > 0) {
-                        val n = minOf(zeros.size.toLong(), pad).toInt()
-                        out.write(zeros, 0, n)
-                        onBytes(n.toLong())
-                        pad -= n
-                    }
-                    remaining = 0
-                } else {
-                    out.write(buffer, 0, read)
-                    onBytes(read.toLong())
-                    remaining -= read
+                    // H6: aliran habis sebelum extent penuh berarti payload
+                    // terpotong/rusak. Dulu sisa extent diam-diam diisi nol
+                    // sehingga .img korup lolos verifikasi ukuran — kini gagal.
+                    throw IllegalArgumentException("short read")
                 }
+                out.write(buffer, 0, read)
+                onBytes(read.toLong())
+                remaining -= read
             }
         }
     }

@@ -80,10 +80,10 @@ class PayloadTest {
     ): ByteArray {
         val b = ByteArrayOutputStream()
         b.write(bytesField(1, name.toByteArray(Charsets.UTF_8)))
-        if (hash != null) {
+        if (hash != null || size > 0L) {
             val pi = ByteArrayOutputStream()
             pi.write(varField(1, size))
-            pi.write(bytesField(2, hash))
+            if (hash != null) pi.write(bytesField(2, hash))
             b.write(bytesField(7, pi.toByteArray()))
         }
         for (o in ops) b.write(bytesField(8, o))
@@ -202,5 +202,59 @@ class PayloadTest {
         val out = PayloadOps.extractOne(f, "boot", tmp.root, cancelFlag = AtomicBoolean(true))
         assertEquals("cancelled", out.error)
         assertTrue(tmp.root.listFiles()!!.none { it.name.endsWith(".img") })
+    }
+
+    @Test
+    fun oversizedZeroExtentRejectedWithoutWriting() {
+        // H6: ZERO extent 8 GiB + 1 blok ditolak sebelum ada byte ditulis.
+        val blocks = 8L * 1024L * 1024L * 1024L / 4096L + 1L
+        val p = partition("big", 0L, null, listOf(op(9, 0, null, listOf(0L to blocks))))
+        val f = payloadFile("payload.bin", listOf(p), ByteArray(0))
+        val out = PayloadOps.extractOne(f, "big", tmp.root)
+        assertEquals("invalid", out.error)
+        assertNull(out.file)
+        assertTrue(tmp.root.listFiles().orEmpty().none { it.name.endsWith(".img") })
+    }
+
+    @Test
+    fun duplicateSanitisedNamesProduceDistinctFiles() {
+        // M5: "a/b" dan "a_b" sama-sama tersanitasi jadi "a_b" — keduanya
+        // harus tetap ada sebagai berkas berbeda.
+        val dataA = pattern(21, 4096)
+        val dataB = pattern(22, 4096)
+        val pA = partition("a/b", dataA.size.toLong(), sha(dataA), listOf(op(0, 0, dataA, listOf(0L to 1L))))
+        val pB = partition("a_b", dataB.size.toLong(), sha(dataB), listOf(op(0, dataA.size.toLong(), dataB, listOf(0L to 1L))))
+        val f = payloadFile("payload.bin", listOf(pA, pB), dataA + dataB)
+        val all = PayloadOps.extract(f, tmp.root)
+        assertNull(all.error)
+        assertEquals(2, all.partitions)
+        val dir = File(tmp.root, "payload")
+        assertArrayEquals(dataA, File(dir, "a_b.img").readBytes())
+        assertArrayEquals(dataB, File(dir, "a_b (1).img").readBytes())
+    }
+
+    @Test
+    fun shortReadFailsInsteadOfZeroPadding() {
+        // H6: data REPLACE 1 blok untuk extent 2 blok — dulu sisa extent
+        // diam-diam diisi nol dan lolos cek ukuran; kini gagal.
+        val data = pattern(31, 4096)
+        val p = partition("boot", 8192L, null, listOf(op(0, 0, data, listOf(0L to 2L))))
+        val f = payloadFile("payload.bin", listOf(p), data)
+        val out = PayloadOps.extractOne(f, "boot", tmp.root)
+        assertEquals("invalid", out.error)
+        assertNull(out.file)
+        assertTrue(tmp.root.listFiles().orEmpty().none { it.name.endsWith(".img") })
+    }
+
+    @Test
+    fun missingHashAndSizeRejected() {
+        // H6: partisi tanpa ukuran DAN tanpa hash tidak bisa diverifikasi —
+        // ditolak daripada diam-diam menerima .img yang tak terverifikasi.
+        val data = pattern(41, 4096)
+        val p = partition("boot", 0L, null, listOf(op(0, 0, data, listOf(0L to 1L))))
+        val f = payloadFile("payload.bin", listOf(p), data)
+        val out = PayloadOps.extractOne(f, "boot", tmp.root)
+        assertEquals("hash", out.error)
+        assertNull(out.file)
     }
 }

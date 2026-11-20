@@ -2347,8 +2347,12 @@ fun SysFileApp() {
                 onConfirm = { password ->
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone) {
-                        ArchiveOps.extractEncryptedZip(f, f.parentFile ?: f, password)
+                    // M2: ekstrak terenkripsi kini berprogres + bisa dibatalkan.
+                    runLongOp(
+                        t.workStageExtract, t.extractDone,
+                        format = { done, total -> t.extractProgress(done, total) }
+                    ) { flag, onProgress ->
+                        ArchiveOps.extractEncryptedZip(f, f.parentFile ?: f, password, onProgress = onProgress, cancelFlag = flag)
                     }
                 }
             )
@@ -2359,8 +2363,12 @@ fun SysFileApp() {
                 onConfirm = { password ->
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone) {
-                        ArchiveOps.extractEncryptedRar(f, f.parentFile ?: f, password)
+                    // M2: ekstrak terenkripsi kini berprogres + bisa dibatalkan.
+                    runLongOp(
+                        t.workStageExtract, t.extractDone,
+                        format = { done, total -> t.extractProgress(done, total) }
+                    ) { flag, onProgress ->
+                        ArchiveOps.extractEncryptedRar(f, f.parentFile ?: f, password, onProgress = onProgress, cancelFlag = flag)
                     }
                 }
             )

@@ -647,4 +647,141 @@ class FileOpsTest {
         assertFalse(FileOps.isUsbVolume("/storage/1234-ABCD", usbMounts) { _, _ -> "/sys/devices/platform/soc/usb-hub.0/block/sda/sda1" })
     }
 
+
+    // --- r177 H7/M1: ukuran deklarasi yang dipalsukan ---
+
+    /** Timpa ukuran uncompressed deklarasi [entryName] di dalam [file]:
+     *  header lokal (+22) bila [patchLocal], direktori pusat (+24) bila
+     *  [patchCentral]. Dipakai untuk meniru arsip yang berbohong tentang
+     *  ukuran entrinya. */
+    private fun patchDeclaredSize(file: File, entryName: String, declaredSize: Long, patchLocal: Boolean = true, patchCentral: Boolean = true) {
+        val bytes = file.readBytes()
+        fun le16At(pos: Int) = (bytes[pos].toInt() and 0xFF) or ((bytes[pos + 1].toInt() and 0xFF) shl 8)
+        fun putLe32(pos: Int, v: Long) {
+            for (i in 0..3) bytes[pos + i] = ((v ushr (8 * i)) and 0xFF).toByte()
+        }
+        var i = 0
+        while (i + 46 < bytes.size) {
+            val isLocal = bytes[i] == 0x50.toByte() && bytes[i + 1] == 0x4B.toByte() && bytes[i + 2] == 0x03.toByte() && bytes[i + 3] == 0x04.toByte()
+            val isCentral = bytes[i] == 0x50.toByte() && bytes[i + 1] == 0x4B.toByte() && bytes[i + 2] == 0x01.toByte() && bytes[i + 3] == 0x02.toByte()
+            if ((isLocal && patchLocal) || (isCentral && patchCentral)) {
+                val nameOff = if (isLocal) 30 else 46
+                val nameLenOff = if (isLocal) 26 else 28
+                val nameLen = le16At(i + nameLenOff)
+                if (i + nameOff + nameLen <= bytes.size) {
+                    val name = String(bytes, i + nameOff, nameLen, Charsets.UTF_8)
+                    if (name == entryName) {
+                        putLe32(i + if (isLocal) 22 else 24, declaredSize)
+                    }
+                }
+            }
+            i++
+        }
+        file.writeBytes(bytes)
+    }
+
+    /** Tulis ZIP dengan entri STORED (ukuran ada di header lokal), lalu
+     *  timpa ukuran deklarasi [lyingEntry] menjadi [declaredSize] di
+     *  header lokal DAN direktori pusat. */
+    private fun makeStoredZipWithLyingSize(file: File, entries: List<Pair<String, String>>, lyingEntry: String, declaredSize: Long) {
+        ZipOutputStream(FileOutputStream(file)).use { zos ->
+            for ((name, content) in entries) {
+                val bytes = content.toByteArray()
+                val e = ZipEntry(name)
+                e.method = ZipEntry.STORED
+                e.size = bytes.size.toLong()
+                val crc = java.util.zip.CRC32()
+                crc.update(bytes)
+                e.crc = crc.value
+                zos.putNextEntry(e)
+                zos.write(bytes)
+                zos.closeEntry()
+            }
+        }
+        patchDeclaredSize(file, lyingEntry, declaredSize)
+    }
+
+    @Test
+    fun countingOutputStream_limitThrowsMidWrite() {
+        val out = java.io.ByteArrayOutputStream()
+        val counting = CountingOutputStream(out, limit = 100L)
+        counting.write(ByteArray(60))
+        assertEquals(60L, counting.count)
+        assertThrows(BudgetExceededException::class.java) { counting.write(ByteArray(60)) }
+        assertEquals(60L, counting.count)
+        assertEquals(60, out.size())
+    }
+
+    @Test
+    fun unzip_declaredSizeOverBudgetRejectedAndCleaned() {
+        // M1: entri kedua mengklaim 3 GiB — ditolak sebelum dibuka;
+        // entri pertama yang sudah tertulis ikut dibersihkan.
+        val zip = File(tmp.root, "lying.zip")
+        makeStoredZipWithLyingSize(
+            zip,
+            listOf("good.txt" to "good", "big.txt" to "x"),
+            "big.txt", 3L * 1024L * 1024L * 1024L
+        )
+        val dest = tmp.newFolder("lyingout")
+        assertFalse(FileOps.unzip(zip, dest))
+        assertFalse(File(dest, "good.txt").exists())
+        assertFalse(File(dest, "big.txt").exists())
+    }
+
+    @Test
+    fun extractSingle_declaredSizeOverCapReturnsNull() {
+        val zip = File(tmp.root, "lying1.zip")
+        makeStoredZipWithLyingSize(
+            zip,
+            listOf("good.txt" to "good", "big.txt" to "x"),
+            "big.txt", 3L * 1024L * 1024L * 1024L
+        )
+        val dest = tmp.newFolder("singleout")
+        assertNull(ArchiveOps.extractSingle(zip, "big.txt", dest))
+        assertTrue(dest.listFiles().orEmpty().isEmpty())
+        assertEquals("good", ArchiveOps.extractSingle(zip, "good.txt", dest)?.readText())
+    }
+
+    @Test
+    fun extractSingle_midCopyAbortDeletesPartial() {
+        // H7: ukuran deklarasi dipalsukan jadi 50 padahal isi 10.000 byte —
+        // pre-check lolos, tapi copy berhenti di tengah begitu cap
+        // (100 byte) terlampaui; berkas sebagian dihapus.
+        val zip = File(tmp.root, "ten.zip")
+        makeZip(zip, listOf("ten.txt" to "x".repeat(10_000)))
+        patchDeclaredSize(zip, "ten.txt", 50L)
+        val dest = tmp.newFolder("singleout2")
+        assertNull(ArchiveOps.extractSingle(zip, "ten.txt", dest, maxBytes = 100L))
+        assertTrue(dest.listFiles().orEmpty().isEmpty())
+        // Tanpa cap yang diperkecil, entri yang sama terekstrak utuh.
+        assertEquals("x".repeat(10_000), ArchiveOps.extractSingle(zip, "ten.txt", dest)?.readText())
+    }
+
+    @Test
+    fun extractEncryptedZip_failureDeletesWritten() {
+        // M2: entri kedua mengklaim 3 GiB (direktori pusat dipalsukan) —
+        // ekstraksi gagal dan entri pertama yang sudah tertulis dibersihkan.
+        val src = tmp.newFolder("encsrc2")
+        File(src, "a.txt").writeText("aaa")
+        File(src, "b.txt").writeText("bbb")
+        val enc = checkNotNull(ArchiveOps.create(listOf(File(src, "a.txt"), File(src, "b.txt")), tmp.root, "enc2", "zip", "sandi123"))
+        patchDeclaredSize(enc, "b.txt", 3L * 1024L * 1024L * 1024L, patchLocal = false, patchCentral = true)
+        val dest = tmp.newFolder("encout")
+        assertFalse(ArchiveOps.extractEncryptedZip(enc, dest, "sandi123"))
+        assertTrue(dest.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun extractEncryptedZip_cancelDeletesWrittenAndThrows() {
+        // M2: batal sebelum entri pertama — tidak ada berkas yang tertinggal.
+        val src = tmp.newFolder("encsrc3")
+        File(src, "a.txt").writeText("aaa")
+        val enc = checkNotNull(ArchiveOps.create(listOf(File(src, "a.txt")), tmp.root, "enc3", "zip", "sandi123"))
+        val dest = tmp.newFolder("encout3")
+        val flag = AtomicBoolean(true)
+        assertThrows(ImgCancelledException::class.java) {
+            ArchiveOps.extractEncryptedZip(enc, dest, "sandi123", cancelFlag = flag)
+        }
+        assertTrue(dest.listFiles().orEmpty().isEmpty())
+    }
 }

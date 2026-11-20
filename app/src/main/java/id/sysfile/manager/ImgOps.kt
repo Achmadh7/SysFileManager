@@ -348,9 +348,12 @@ object ImgOps {
                     val existed = out.exists()
                     out.parentFile?.mkdirs()
                     val count = (e.dataEnd - e.dataStart).toLong()
+                    // M1: anggaran diperiksa SEBELUM menulis — data sudah
+                    // di memori dan ukurannya diketahui, jadi tidak ada
+                    // alasan menulis dulu baru memeriksa.
+                    if (!budget.addBytes(count)) { ok = false; break }
                     FileOutputStream(out).use { it.write(data, e.dataStart, e.dataEnd - e.dataStart) }
                     if (!existed) written += out
-                    if (!budget.addBytes(count)) { ok = false; break }
                 }
                 // Symlink dan tipe lain dilewati (tidak ditulis sebagai berkas).
                 done++
