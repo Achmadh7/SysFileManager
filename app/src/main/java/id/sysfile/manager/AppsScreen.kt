@@ -57,6 +57,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -171,7 +173,7 @@ object AppOps {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
+fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, snackbarHostState: SnackbarHostState) {
     val t = txt()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -212,6 +214,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(t.appsTitle) },

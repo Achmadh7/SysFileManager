@@ -1412,7 +1412,7 @@ fun SysFileApp() {
                 onRequestUnlock = { path, grant -> requestUnlock(path, grant) }
             )
         } else if (showApps) {
-            AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
+            AppsScreen(notify = { notify(it) }, onBack = { showApps = false }, snackbarHostState = snackbar)
         } else if (showSpecs) {
             SpecScreen(onBack = { showSpecs = false })
         } else if (showFormats) {
