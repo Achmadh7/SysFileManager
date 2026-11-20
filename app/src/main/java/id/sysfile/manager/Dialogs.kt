@@ -205,6 +205,7 @@ private fun imgTypeName(type: ImgType, t: Txt): String {
     }
 }
 
+@Composable
 fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
     val t = txt()
     val clipboard = LocalClipboardManager.current
