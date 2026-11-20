@@ -1697,11 +1697,19 @@ object ArchiveOps {
         return name
     }
 
-    /** Ekstrak arsip ke folder BARU bernama seperti arsip di dalam [destParent]. */
-    fun extractToFolder(file: File, destParent: File): Boolean {
+    /** Ekstrak arsip ke folder BARU bernama seperti arsip di dalam [destParent].
+     *  r182: [onProgress] menerima (entri selesai, total entri) dan
+     *  [cancelFlag] membatalkan lewat ImgCancelledException — diteruskan
+     *  ke [extract] supaya ekstrak biasa juga berprogres + bisa dibatalkan. */
+    fun extractToFolder(
+        file: File,
+        destParent: File,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
         val dir = File(destParent, FileOps.uniqueName(destParent, archiveBaseName(file.name)))
         if (!dir.mkdirs() && !dir.isDirectory) return false
-        return extract(file, dir)
+        return extract(file, dir, onProgress, cancelFlag)
     }
 
     /** Ekstrak SATU entri [entryName] dari arsip ke [destDir]; berkas hasil atau null.

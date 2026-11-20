@@ -446,6 +446,36 @@ class FileOpsTest {
         assertFalse(File(dest, "b.txt").exists())
     }
 
+    // --- r182: extractToFolder meneruskan progres + batal ke extract ---
+
+    @Test
+    fun extractToFolder_reportsEntryProgress() {
+        val zip = File(tmp.root, "prog2.zip")
+        makeZip(zip, listOf("a.txt" to "hello", "b.txt" to "world"))
+        val dest = tmp.newFolder("progout2")
+        val seen = mutableListOf<Pair<Long, Long>>()
+        assertTrue(ArchiveOps.extractToFolder(zip, dest, onProgress = { done, total -> seen += done to total }))
+        assertEquals(listOf(1L to 2L, 2L to 2L), seen)
+        assertEquals("hello", File(dest, "prog2/a.txt").readText())
+    }
+
+    @Test
+    fun extractToFolder_cancelMidwayDeletesWrittenAndThrows() {
+        val zip = File(tmp.root, "cancel2.zip")
+        makeZip(zip, listOf("a.txt" to "hello", "b.txt" to "world", "c.txt" to "!"))
+        val dest = tmp.newFolder("cancelout2")
+        val flag = AtomicBoolean(false)
+        assertThrows(ImgCancelledException::class.java) {
+            ArchiveOps.extractToFolder(
+                zip, dest,
+                onProgress = { done, _ -> if (done >= 1L) flag.set(true) },
+                cancelFlag = flag
+            )
+        }
+        assertFalse(File(dest, "cancel2/a.txt").exists())
+        assertFalse(File(dest, "cancel2/b.txt").exists())
+    }
+
     @Test
     fun listZipContents_entryCapReturnsNull() {
         val zip = File(tmp.root, "many2.zip")

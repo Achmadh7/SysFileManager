@@ -30,6 +30,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
@@ -503,6 +505,14 @@ fun SysFileApp() {
     var workCancelFlag by remember { mutableStateOf<AtomicBoolean?>(null) }
     var workStage by remember { mutableStateOf<String?>(null) }
     var workProgressText by remember { mutableStateOf<String?>(null) }
+    // r182: kartu progres ekstrak di TENGAH layar (EX2, dipindah ke
+    // tengah atas permintaan Achmad) — non-modal, terpisah dari dialog
+    // modal `working` supaya ekstrak tidak lagi memakai dialog itu.
+    var extractCardVisible by remember { mutableStateOf(false) }
+    var extractCardName by remember { mutableStateOf("") }
+    var extractCardProgress by remember { mutableStateOf<Float?>(null) }
+    var extractCardText by remember { mutableStateOf<String?>(null) }
+    var extractCardCancelFlag by remember { mutableStateOf<AtomicBoolean?>(null) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var unlockedSession by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -1033,6 +1043,66 @@ fun SysFileApp() {
         }
     }
 
+    /** r182: jalankan satu operasi ekstrak dengan kartu progres di TENGAH
+     *  layar (EX2, dipindah ke tengah atas permintaan Achmad) — non-modal,
+     *  pengguna tetap bisa browsing selagi ekstrak berjalan. [name] tampil
+     *  di kartu; [format] mengubah (done, total) menjadi teks di bawah bar
+     *  (default format ukuran "1,2 GB / 4,0 GB • 30%" seperti dialog modal;
+     *  jalur entri memakai t.extractProgress). Bila [determinate] false,
+     *  bar tak tentu tanpa tombol Batal (ekstrak satu entri yang tidak
+     *  melaporkan progres). Selesai: sukses -> pill ekstrak, batal ->
+     *  workCancelled, gagal -> opFailed. Dialog modal `working` tidak
+     *  dipakai di sini — runLongOp/runOp tetap untuk operasi lain. */
+    fun runExtractOp(
+        name: String,
+        format: ((Long, Long) -> String)? = null,
+        determinate: Boolean = true,
+        block: suspend (flag: AtomicBoolean, onProgress: (Long, Long) -> Unit) -> Boolean
+    ) {
+        val flag = AtomicBoolean(false)
+        extractCardName = name
+        extractCardProgress = if (determinate) 0f else null
+        extractCardText = null
+        extractCardCancelFlag = if (determinate) flag else null
+        extractCardVisible = true
+        val fmt = format ?: { done: Long, total: Long ->
+            "${FileOps.formatSize(done)} / ${FileOps.formatSize(total)} • ${(done * 100 / total).toInt()}%"
+        }
+        val report: (Long, Long) -> Unit = { done, total ->
+            if (total > 0L) {
+                extractCardProgress = (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                extractCardText = fmt(done, total)
+            } else {
+                extractCardProgress = null
+                extractCardText = null
+            }
+        }
+        scope.launch {
+            val outcome = try {
+                val ok = withContext(Dispatchers.IO) { block(flag, report) }
+                if (ok) 0 else 1
+            } catch (_: ImgCancelledException) {
+                2
+            } catch (_: Exception) {
+                1
+            } finally {
+                extractCardVisible = false
+                extractCardProgress = null
+                extractCardText = null
+                extractCardCancelFlag = null
+            }
+            when (outcome) {
+                0 -> {
+                    showExtractPill()
+                    reloadKey++
+                    selected = emptySet()
+                }
+                2 -> notify(t.workCancelled)
+                else -> notify(t.opFailed)
+            }
+        }
+    }
+
     // L26: [onOverlayOpened] dipanggil setiap kali overlay dibuka —
     // pemanggil (mis. CategoryScreen) bisa mencatat overlayReturn
     // dengan benar juga untuk jalur async (.img/.bin/arsip); dulu
@@ -1553,8 +1623,8 @@ fun SysFileApp() {
                             overlayReturn = null
                             archivePrefix = ""; archivePrefixPath = null
                             // LD3 r160: ekstrak arsip berprogres + bisa dibatalkan.
-                            runLongOp(
-                                t.workStageExtract, t.extractDone, showPill = true,
+                            runExtractOp(
+                                name = archiveFile.name,
                                 format = { done, total -> t.extractProgress(done, total) }
                             ) { flag, onProgress ->
                                 ArchiveOps.extract(
@@ -1610,8 +1680,8 @@ fun SysFileApp() {
                             overlayReturn = null
                             imgPrefix = ""; imgPrefixPath = null
                             // LD3 r160: ekstrak ramdisk berprogres + bisa dibatalkan.
-                            runLongOp(
-                                t.workStageExtract, t.extractDone, showPill = true,
+                            runExtractOp(
+                                name = imgFile.name,
                                 format = { done, total -> t.extractProgress(done, total) }
                             ) { flag, onProgress ->
                                 ImgOps.extractRamdiskAll(
@@ -1651,7 +1721,7 @@ fun SysFileApp() {
                         },
                         onExtractOne = { itemName ->
                             val imgFile = File(ov.path)
-                            runOp(t.extractDone, showPill = true) {
+                            runExtractOp(name = itemName, determinate = false) { _, _ ->
                                 ImgOps.extractRamdiskEntry(imgFile, itemName, imgFile.parentFile ?: imgFile) != null
                             }
                         }
@@ -1680,8 +1750,8 @@ fun SysFileApp() {
                                 // Sesi harus tetap hidup selama ekstrak
                                 // berjalan — ditutup di finally blok runLongOp.
                                 // LD3 r160: ekstrak ext4 berprogres + bisa dibatalkan.
-                                runLongOp(
-                                    t.workStageExtract, t.extractDone, showPill = true,
+                                runExtractOp(
+                                    name = imgFile.name,
                                     format = { done, total -> t.extractProgress(done, total) }
                                 ) { flag, onProgress ->
                                     try {
@@ -1730,7 +1800,7 @@ fun SysFileApp() {
                             if (session == null) {
                                 notify(t.opFailed)
                             } else {
-                                runOp(t.extractDone, showPill = true) {
+                                runExtractOp(name = item.name, determinate = false) { _, _ ->
                                     session.reader.extractEntry(item.inode, item.name, imgFile.parentFile ?: imgFile) != null
                                 }
                             }
@@ -1756,8 +1826,8 @@ fun SysFileApp() {
                                 // Pembaca harus tetap hidup selama ekstrak
                                 // berjalan — ditutup di finally blok runLongOp.
                                 // LD3 r160: ekstrak FAT berprogres + bisa dibatalkan.
-                                runLongOp(
-                                    t.workStageExtract, t.extractDone, showPill = true,
+                                runExtractOp(
+                                    name = imgFile.name,
                                     format = { done, total -> t.extractProgress(done, total) }
                                 ) { flag, onProgress ->
                                     try {
@@ -1805,7 +1875,7 @@ fun SysFileApp() {
                             if (reader == null) {
                                 notify(t.opFailed)
                             } else {
-                                runOp(t.extractDone, showPill = true) {
+                                runExtractOp(name = itemPath.substringAfterLast('/'), determinate = false) { _, _ ->
                                     reader.extractEntry(itemPath, imgFile.parentFile ?: imgFile) != null
                                 }
                             }
@@ -1865,7 +1935,7 @@ fun SysFileApp() {
                                 notify(t.opFailed)
                             } else {
                                 // LD3 r159: unduh partisi berprogres + bisa dibatalkan.
-                                runLongOp(t.workStageMaterialize, t.extractDone, showPill = true) { flag, onProgress ->
+                                runExtractOp(name = part.name + ".img") { flag, onProgress ->
                                     lp.reader.materialize(
                                         part,
                                         File(imgFile.parentFile ?: imgFile, part.name + ".img"),
@@ -2151,9 +2221,16 @@ fun SysFileApp() {
                                                 } else if (only != null) {
                                                     dialog = DialogKind.ArchiveActions(only)
                                                 } else if (targets.isNotEmpty()) {
-                                                    runOp(t.extractDone, showPill = true) {
+                                                    runExtractOp(
+                                                        name = if (targets.size == 1) targets.first().name else t.items(targets.size),
+                                                        format = { done, total -> t.extractProgress(done, total) }
+                                                    ) { _, onProgress ->
+                                                        var done = 0L
                                                         targets.count {
-                                                            ArchiveOps.extract(it.file, it.file.parentFile ?: it.file)
+                                                            val r = ArchiveOps.extract(it.file, it.file.parentFile ?: it.file)
+                                                            done++
+                                                            onProgress(done, targets.size.toLong())
+                                                            r
                                                         } > 0
                                                     }
                                                 }
@@ -2411,6 +2488,80 @@ fun SysFileApp() {
                 contentScale = ContentScale.FillBounds
             )
         }
+        // r182: kartu progres ekstrak di TENGAH layar (EX2, dipindah ke
+        // tengah atas permintaan Achmad) — non-modal: lapisan ini tidak
+        // punya penangan sentuh apa pun, jadi sentuhan di luar kartu jatuh
+        // ke konten di bawahnya; hanya kartu + tombol Batal yang menerima
+        // sentuhan. Menempel di Box akar seperti pill, jadi tampil di
+        // layar browse maupun overlay.
+        val extractCardProg = extractCardProgress
+        val extractCardFlag = extractCardCancelFlag
+        AnimatedVisibility(
+            visible = extractCardVisible,
+            enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                scaleIn(animationSpec = motion.defaultSpatialSpec<Float>(), initialScale = 0.92f),
+            exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                scaleOut(animationSpec = motion.defaultSpatialSpec<Float>(), targetScale = 0.92f),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 6.dp,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                ) {
+                    Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                extractCardName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (extractCardProg != null) {
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    "${(extractCardProg * 100).toInt()}%",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        if (extractCardProg != null) {
+                            LinearWavyProgressIndicator(
+                                progress = { extractCardProg },
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                            )
+                        } else {
+                            LinearWavyProgressIndicator(
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text(
+                                extractCardText ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (extractCardFlag != null) {
+                                TextButton(onClick = { extractCardFlag.set(true) }) { Text(t.cancel) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // r142: penutup SysFileTheme DIPINDAH ke akhir dialog
         // (dulu di sini) — host dialog di bawah ini harus di
         // DALAM tema, kalau tidak dialog memakai skema default
@@ -2514,8 +2665,8 @@ fun SysFileApp() {
                     dialog = null
                     val f = d.entry.file
                     // M2: ekstrak terenkripsi kini berprogres + bisa dibatalkan.
-                    runLongOp(
-                        t.workStageExtract, t.extractDone, showPill = true,
+                    runExtractOp(
+                        name = f.name,
                         format = { done, total -> t.extractProgress(done, total) }
                     ) { flag, onProgress ->
                         ArchiveOps.extractEncryptedZip(f, f.parentFile ?: f, password, onProgress = onProgress, cancelFlag = flag)
@@ -2530,8 +2681,8 @@ fun SysFileApp() {
                     dialog = null
                     val f = d.entry.file
                     // M2: ekstrak terenkripsi kini berprogres + bisa dibatalkan.
-                    runLongOp(
-                        t.workStageExtract, t.extractDone, showPill = true,
+                    runExtractOp(
+                        name = f.name,
                         format = { done, total -> t.extractProgress(done, total) }
                     ) { flag, onProgress ->
                         ArchiveOps.extractEncryptedRar(f, f.parentFile ?: f, password, onProgress = onProgress, cancelFlag = flag)
@@ -2673,7 +2824,12 @@ fun SysFileApp() {
                 onExtractHere = {
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone, showPill = true) { ArchiveOps.extractToFolder(f, f.parentFile ?: f) }
+                    runExtractOp(
+                        name = f.name,
+                        format = { done, total -> t.extractProgress(done, total) }
+                    ) { flag, onProgress ->
+                        ArchiveOps.extractToFolder(f, f.parentFile ?: f, onProgress = onProgress, cancelFlag = flag)
+                    }
                 },
                 onOpenArchive = {
                     dialog = null
@@ -2687,7 +2843,12 @@ fun SysFileApp() {
                 onPick = { picked ->
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone, showPill = true) { ArchiveOps.extractToFolder(f, File(picked)) }
+                    runExtractOp(
+                        name = f.name,
+                        format = { done, total -> t.extractProgress(done, total) }
+                    ) { flag, onProgress ->
+                        ArchiveOps.extractToFolder(f, File(picked), onProgress = onProgress, cancelFlag = flag)
+                    }
                 },
                 onCancel = { dialog = null }
             )
@@ -2711,7 +2872,12 @@ fun SysFileApp() {
                 onExtract = {
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone, showPill = true) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                    runExtractOp(
+                        name = f.name,
+                        format = { done, total -> t.extractProgress(done, total) }
+                    ) { flag, onProgress ->
+                        ArchiveOps.extract(f, f.parentFile ?: f, onProgress = onProgress, cancelFlag = flag)
+                    }
                 },
                 onInstall = {
                     dialog = null
