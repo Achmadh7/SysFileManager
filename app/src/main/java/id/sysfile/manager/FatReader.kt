@@ -4,6 +4,7 @@ import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.BitSet
 
 /** Jenis FAT, ditentukan dari jumlah klaster (Microsoft FAT spec:
@@ -619,8 +620,18 @@ class FatReader private constructor(
 
     /** Ekstrak seluruh isi citra ke [destDir] (batas arsip yang sama:
      *  10.000 entri / 2 GiB). False bila gagal; berkas yang sudah
-     *  tertulis dihapus. */
-    fun extractAll(destDir: File): Boolean {
+     *  tertulis dihapus. LD3 r160: [onProgress] menerima (entri
+     *  selesai, total entri) — total dihitung dulu lewat [countEntries]
+     *  (jalan metadata saja); [cancelFlag] yang terpasang membatalkan
+     *  lewat ImgCancelledException. */
+    fun extractAll(
+        destDir: File,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
+        val total = countEntries(ROOT_CLUSTER, 0, mutableSetOf())
+        var done = 0L
+        val onEntry: () -> Unit = { done++; onProgress(done, total) }
         val budget = ExtractBudget()
         val written = mutableListOf<File>()
         val visitedDirs = mutableSetOf<Long>()
@@ -631,16 +642,35 @@ class FatReader private constructor(
         return try {
             val ok = walkExtract(
                 ROOT_CLUSTER, "", 0, destDir, destCanonical,
-                budget, written, visitedDirs
+                budget, written, visitedDirs, onEntry, cancelFlag
             )
             if (!ok) {
                 for (f in written) f.delete()
             }
             ok
+        } catch (e: ImgCancelledException) {
+            for (f in written) f.delete()
+            throw e
         } catch (_: Exception) {
             for (f in written) f.delete()
             false
         }
+    }
+
+    /** LD3 r160: hitung entri untuk total progres [extractAll] —
+     *  jalan metadata saja (tanpa baca data berkas); traversal-nya
+     *  cerminan [walkExtract] (penjaga kunjungan + batas kedalaman
+     *  sama) supaya total sama dengan jumlah onEntry(). */
+    private fun countEntries(dirCluster: Long, depth: Int, visited: MutableSet<Long>): Long {
+        if (depth > 64) return 0L
+        if (!visited.add(dirCluster)) return 0L
+        val entries = listDirCluster(dirCluster) ?: return 0L
+        var n = 0L
+        for (e in entries) {
+            n++
+            if (e.isDir) n += countEntries(e.firstCluster, depth + 1, visited)
+        }
+        return n
     }
 
     private fun walkExtract(
@@ -651,12 +681,15 @@ class FatReader private constructor(
         destCanonical: String,
         budget: ExtractBudget,
         written: MutableList<File>,
-        visitedDirs: MutableSet<Long>
+        visitedDirs: MutableSet<Long>,
+        onEntry: () -> Unit,
+        cancelFlag: AtomicBoolean?
     ): Boolean {
         if (depth > 64) return false
         if (!visitedDirs.add(dirCluster)) return false
         val entries = listDirCluster(dirCluster) ?: return false
         for (e in entries) {
+            if (cancelFlag?.get() == true) throw ImgCancelledException()
             if (!budget.allowEntry()) return false
             if (!isSafeEntryName(e.name)) return false
             val childRel = if (relPath.isEmpty()) e.name else "$relPath/${e.name}"
@@ -667,9 +700,11 @@ class FatReader private constructor(
                 out.mkdirs()
                 if (!walkExtract(
                         e.firstCluster, childRel, depth + 1, destDir,
-                        destCanonical, budget, written, visitedDirs
+                        destCanonical, budget, written, visitedDirs,
+                        onEntry, cancelFlag
                     )
                 ) return false
+                onEntry()
             } else {
                 if (e.size < 0L || e.size > FileOps.MAX_EXTRACT_BYTES) return false
                 if (!budget.addBytes(e.size)) return false
@@ -679,6 +714,7 @@ class FatReader private constructor(
                     return false
                 }
                 written += out
+                onEntry()
             }
         }
         return true

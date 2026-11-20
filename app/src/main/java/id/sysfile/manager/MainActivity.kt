@@ -1356,7 +1356,16 @@ fun SysFileApp() {
                             overlay = null
                             overlayReturn = null
                             archivePrefix = ""; archivePrefixPath = null
-                            runOp(t.extractDone) { ArchiveOps.extract(archiveFile, archiveFile.parentFile ?: archiveFile) }
+                            // LD3 r160: ekstrak arsip berprogres + bisa dibatalkan.
+                            runLongOp(
+                                t.workStageExtract, t.extractDone,
+                                format = { done, total -> t.extractProgress(done, total) }
+                            ) { flag, onProgress ->
+                                ArchiveOps.extract(
+                                    archiveFile, archiveFile.parentFile ?: archiveFile,
+                                    onProgress = onProgress, cancelFlag = flag
+                                )
+                            }
                         },
                         onOpenFile = { itemName ->
                             val archiveFile = File(ov.path)
@@ -1404,7 +1413,16 @@ fun SysFileApp() {
                             overlay = null
                             overlayReturn = null
                             imgPrefix = ""; imgPrefixPath = null
-                            runOp(t.extractDone) { ImgOps.extractRamdiskAll(imgFile, imgFile.parentFile ?: imgFile) }
+                            // LD3 r160: ekstrak ramdisk berprogres + bisa dibatalkan.
+                            runLongOp(
+                                t.workStageExtract, t.extractDone,
+                                format = { done, total -> t.extractProgress(done, total) }
+                            ) { flag, onProgress ->
+                                ImgOps.extractRamdiskAll(
+                                    imgFile, imgFile.parentFile ?: imgFile,
+                                    onProgress = onProgress, cancelFlag = flag
+                                )
+                            }
                         },
                         onOpenFile = { itemName ->
                             val imgFile = File(ov.path)
@@ -1464,10 +1482,17 @@ fun SysFileApp() {
                                 notify(t.opFailed)
                             } else {
                                 // Sesi harus tetap hidup selama ekstrak
-                                // berjalan — ditutup di finally blok runOp.
-                                runOp(t.extractDone) {
+                                // berjalan — ditutup di finally blok runLongOp.
+                                // LD3 r160: ekstrak ext4 berprogres + bisa dibatalkan.
+                                runLongOp(
+                                    t.workStageExtract, t.extractDone,
+                                    format = { done, total -> t.extractProgress(done, total) }
+                                ) { flag, onProgress ->
                                     try {
-                                        session.reader.extractAll(imgFile.parentFile ?: imgFile)
+                                        session.reader.extractAll(
+                                            imgFile.parentFile ?: imgFile,
+                                            onProgress = onProgress, cancelFlag = flag
+                                        )
                                     } finally {
                                         session.close()
                                     }
@@ -1533,10 +1558,17 @@ fun SysFileApp() {
                                 notify(t.opFailed)
                             } else {
                                 // Pembaca harus tetap hidup selama ekstrak
-                                // berjalan — ditutup di finally blok runOp.
-                                runOp(t.extractDone) {
+                                // berjalan — ditutup di finally blok runLongOp.
+                                // LD3 r160: ekstrak FAT berprogres + bisa dibatalkan.
+                                runLongOp(
+                                    t.workStageExtract, t.extractDone,
+                                    format = { done, total -> t.extractProgress(done, total) }
+                                ) { flag, onProgress ->
                                     try {
-                                        reader.extractAll(imgFile.parentFile ?: imgFile)
+                                        reader.extractAll(
+                                            imgFile.parentFile ?: imgFile,
+                                            onProgress = onProgress, cancelFlag = flag
+                                        )
                                     } finally {
                                         reader.close()
                                     }

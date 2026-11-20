@@ -3,12 +3,14 @@ package id.sysfile.manager
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -299,6 +301,42 @@ class Ext4ReaderTest {
             assertFalse(File(all, "slowlink").exists())
             assertTrue(File(all, "sub").isDirectory)
             assertTrue(File(all, "plaindir").isDirectory)
+        }
+    }
+
+    // --- extractAll (LD3 r160: progres + batal) ---
+    // Total entri fixture: root 9 + sub 1 (deep) + deep 1 (f.txt) + plaindir 0 = 11.
+
+    @Test
+    fun extractAll_progressReportsMonotonicToTotal() {
+        val img = buildExt4Fixture(tmp)
+        Ext4Reader.open(img)!!.use { r ->
+            val all = File(tmp, "allprog").also { it.mkdirs() }
+            val seen = mutableListOf<Pair<Long, Long>>()
+            assertTrue(r.extractAll(all, onProgress = { done, total -> seen += done to total }))
+            assertEquals(11, seen.size)
+            assertTrue(seen.map { it.first }.zipWithNext().all { (a, b) -> b == a + 1 })
+            assertEquals(11L to 11L, seen.last())
+            assertEquals("hello ext4\n", File(all, "hello.txt").readText())
+        }
+    }
+
+    @Test
+    fun extractAll_cancelMidwayDeletesWrittenAndThrows() {
+        val img = buildExt4Fixture(tmp)
+        Ext4Reader.open(img)!!.use { r ->
+            val all = File(tmp, "allcancel").also { it.mkdirs() }
+            val flag = AtomicBoolean(false)
+            // Batal setelah 3 entri: plaindir (dir kosong), lalu sub/deep
+            // menulis f.txt — f.txt harus ikut dibersihkan.
+            assertThrows(ImgCancelledException::class.java) {
+                r.extractAll(
+                    all,
+                    onProgress = { done, _ -> if (done >= 3L) flag.set(true) },
+                    cancelFlag = flag
+                )
+            }
+            assertTrue(all.walkTopDown().filter { it.isFile }.toList().isEmpty())
         }
     }
 

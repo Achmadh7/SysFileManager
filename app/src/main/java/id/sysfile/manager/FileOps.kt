@@ -12,6 +12,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -685,7 +686,17 @@ object FileOps {
      *  Gagal di tengah (entri jahat / batas terlampaui / I/O): kembalikan false dan
      *  hapus berkas yang sudah tertulis selama pemanggilan ini (E3) — kecuali yang
      *  memang sudah ada sebelum ekstraksi (tidak dihapus). */
-    fun unzip(zip: File, destDir: File): Boolean {
+    /** Ekstrak ZIP (dipakai ArchiveOps.extract + EpubOps). LD3 r160:
+     *  [onEntry] dipanggil per entri yang berhasil diekstrak;
+     *  [cancelFlag] yang terpasang membatalkan lewat
+     *  ImgCancelledException — berkas yang sudah tertulis dibersihkan
+     *  sebelum throw, supaya pemanggil membedakan batal dari gagal. */
+    fun unzip(
+        zip: File,
+        destDir: File,
+        onEntry: () -> Unit = {},
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
         val written = mutableListOf<File>()
         var ok = true
         try {
@@ -694,6 +705,7 @@ object FileOps {
             ZipInputStream(BufferedInputStream(FileInputStream(zip))).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
+                    if (cancelFlag?.get() == true) throw ImgCancelledException()
                     if (!budget.allowEntry()) { ok = false; break }
                     // Nama entri absolut bukan path relatif yang valid — tolak.
                     // (File(dest, "/abs/...") diam-diam merelatifkannya ke dalam
@@ -714,9 +726,13 @@ object FileOps {
                         if (!budget.addBytes(counting.count)) { ok = false; break }
                     }
                     zis.closeEntry()
+                    onEntry()
                     entry = zis.nextEntry
                 }
             }
+        } catch (e: ImgCancelledException) {
+            written.forEach { it.delete() }
+            throw e
         } catch (e: Exception) {
             ok = false
         }
@@ -830,15 +846,32 @@ object ArchiveOps {
     }
 
     /** Ekstrak arsip apa pun yang didukung ke [destDir]; false bila gagal/tidak didukung. */
-    fun extract(file: File, destDir: File): Boolean {
+    /** Ekstrak semua isi arsip (dipakai ArchiveScreen + "Ekstrak Di
+     *  Sini"). LD3 r160: [onProgress] menerima (entri selesai, total
+     *  entri); [cancelFlag] yang terpasang membatalkan lewat
+     *  ImgCancelledException (berkas yang sudah tertulis dibersihkan
+     *  di dalam extractor). Total dihitung dulu lewat listContents —
+     *  untuk tar/7z/rar itu satu kali pindai penuh sebelum ekstrak;
+     *  bila daftar isi gagal dibaca, total 0 (bar tak tentu). */
+    fun extract(
+        file: File,
+        destDir: File,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
+        val total = listContents(file)?.size?.toLong() ?: 0L
+        var done = 0L
+        val onEntry: () -> Unit = { done++; onProgress(done, total) }
         return try {
             when (kindOf(file.name)) {
-                "zip" -> FileOps.unzip(file, destDir)
-                "7z" -> extract7z(file, destDir)
-                "tar" -> extractTar(file, destDir)
-                "rar" -> extractRar(file, destDir)
+                "zip" -> FileOps.unzip(file, destDir, onEntry, cancelFlag)
+                "7z" -> extract7z(file, destDir, onEntry, cancelFlag)
+                "tar" -> extractTar(file, destDir, onEntry, cancelFlag)
+                "rar" -> extractRar(file, destDir, onEntry, cancelFlag)
                 else -> false
             }
+        } catch (e: ImgCancelledException) {
+            throw e
         } catch (e: Exception) {
             false
         }
@@ -888,94 +921,152 @@ object ArchiveOps {
         }
     }
 
-    private fun extractTar(archive: File, destDir: File): Boolean {
+    /** LD3 r160: seperti unzip — [onEntry] per entri, [cancelFlag]
+     *  membatalkan lewat ImgCancelledException; berkas yang sudah
+     *  tertulis dilacak dan dibersihkan saat batal/gagal. */
+    private fun extractTar(
+        archive: File,
+        destDir: File,
+        onEntry: () -> Unit = {},
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
         val destPath = destDir.canonicalPath
         val budget = ExtractBudget()
+        val written = mutableListOf<File>()
+        var ok = true
         return try {
             val raw = BufferedInputStream(FileInputStream(archive))
             org.apache.commons.compress.archivers.tar.TarArchiveInputStream(raw).use { tis ->
                 while (true) {
+                    if (cancelFlag?.get() == true) throw ImgCancelledException()
                     val entry = tis.nextEntry ?: break
-                    if (!budget.allowEntry()) return false
+                    if (!budget.allowEntry()) { ok = false; break }
                     val out = File(destDir, entry.name)
-                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
+                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
                     if (entry.isDirectory) {
                         out.mkdirs()
                     } else {
+                        val existed = out.exists()
                         out.parentFile?.mkdirs()
                         val counting = CountingOutputStream(FileOutputStream(out))
                         counting.use { tis.copyTo(it) }
-                        if (!budget.addBytes(counting.count)) return false
+                        if (!existed) written += out
+                        if (!budget.addBytes(counting.count)) { ok = false; break }
                     }
+                    onEntry()
                 }
             }
-            true
+            if (!ok) written.forEach { it.delete() }
+            ok
+        } catch (e: ImgCancelledException) {
+            written.forEach { it.delete() }
+            throw e
         } catch (e: Exception) {
+            written.forEach { it.delete() }
             false
         }
     }
 
-    private fun extract7z(archive: File, destDir: File): Boolean {
+    /** LD3 r160: seperti unzip — [onEntry] per entri, [cancelFlag]
+     *  membatalkan lewat ImgCancelledException; berkas yang sudah
+     *  tertulis dilacak dan dibersihkan saat batal/gagal. */
+    private fun extract7z(
+        archive: File,
+        destDir: File,
+        onEntry: () -> Unit = {},
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
         val destPath = destDir.canonicalPath
         val budget = ExtractBudget()
+        val written = mutableListOf<File>()
+        var ok = true
         return try {
             org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
                 while (true) {
+                    if (cancelFlag?.get() == true) throw ImgCancelledException()
                     val entry = seven.nextEntry ?: break
-                    if (!budget.allowEntry()) return false
+                    if (!budget.allowEntry()) { ok = false; break }
                     val out = File(destDir, entry.name)
-                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
+                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
                     if (entry.isDirectory) {
                         out.mkdirs()
                     } else {
+                        val existed = out.exists()
                         out.parentFile?.mkdirs()
+                        var writtenBytes = 0L
                         FileOutputStream(out).use { fos ->
                             val buffer = ByteArray(8192)
                             var remaining = entry.size
-                            var written = 0L
                             while (remaining > 0) {
+                                if (cancelFlag?.get() == true) throw ImgCancelledException()
                                 val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
                                 if (read <= 0) break
                                 fos.write(buffer, 0, read)
                                 remaining -= read
-                                written += read
+                                writtenBytes += read
                             }
-                            if (!budget.addBytes(written)) return false
                         }
+                        if (!existed) written += out
+                        if (!budget.addBytes(writtenBytes)) { ok = false; break }
                     }
+                    onEntry()
                 }
             }
-            true
+            if (!ok) written.forEach { it.delete() }
+            ok
+        } catch (e: ImgCancelledException) {
+            written.forEach { it.delete() }
+            throw e
         } catch (e: Exception) {
+            written.forEach { it.delete() }
             false
         }
     }
 
     /** Ekstrak arsip RAR (junrar) dengan penjaga path-slip; arsip terenkripsi butuh kata sandi (lihat extractEncryptedRar). */
-    private fun extractRar(archive: File, destDir: File): Boolean {
+    /** LD3 r160: seperti unzip — [onEntry] per entri, [cancelFlag]
+     *  membatalkan lewat ImgCancelledException; berkas yang sudah
+     *  tertulis dilacak dan dibersihkan saat batal/gagal. */
+    private fun extractRar(
+        archive: File,
+        destDir: File,
+        onEntry: () -> Unit = {},
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
         val destPath = destDir.canonicalPath
         val budget = ExtractBudget()
+        val written = mutableListOf<File>()
+        var ok = true
         return try {
             com.github.junrar.Archive(archive).use { rar ->
                 while (true) {
+                    if (cancelFlag?.get() == true) throw ImgCancelledException()
                     val header = rar.nextFileHeader() ?: break
                     val name = header.fileName.replace('\\', '/')
                     if (name.isBlank()) continue
-                    if (!budget.allowEntry()) return false
+                    if (!budget.allowEntry()) { ok = false; break }
                     val out = File(destDir, name)
-                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) return false
+                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
                     if (header.isDirectory) {
                         out.mkdirs()
                     } else {
+                        val existed = out.exists()
                         out.parentFile?.mkdirs()
                         val counting = CountingOutputStream(FileOutputStream(out))
                         counting.use { fos -> rar.extractFile(header, fos) }
-                        if (!budget.addBytes(counting.count)) return false
+                        if (!existed) written += out
+                        if (!budget.addBytes(counting.count)) { ok = false; break }
                     }
+                    onEntry()
                 }
             }
-            true
+            if (!ok) written.forEach { it.delete() }
+            ok
+        } catch (e: ImgCancelledException) {
+            written.forEach { it.delete() }
+            throw e
         } catch (e: Exception) {
+            written.forEach { it.delete() }
             false
         }
     }

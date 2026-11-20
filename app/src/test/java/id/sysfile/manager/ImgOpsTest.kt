@@ -10,6 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -505,6 +506,63 @@ class ImgOpsTest {
         assertFalse(ImgOps.extractRamdiskAll(f, dest))
         assertFalse(File(tmp.root, "evil.txt").exists())
         assertFalse(File(dest, "ok.txt").exists()) // dibersihkan saat gagal
+    }
+
+    // --- extractRamdiskAll + listRamdisk (LD3 r160: progres + batal) ---
+
+    @Test
+    fun extractRamdiskAll_progressReportsMonotonicToTotal() {
+        val f = makeBootV0(2048, 100, gzip(sampleCpio()))
+        val dest = tmp.newFolder("imgallprog")
+        val seen = mutableListOf<Pair<Long, Long>>()
+        assertTrue(ImgOps.extractRamdiskAll(f, dest, onProgress = { done, total -> seen += done to total }))
+        assertEquals(4, seen.size)
+        assertTrue(seen.map { it.first }.zipWithNext().all { (a, b) -> b == a + 1 })
+        assertEquals(4L to 4L, seen.last())
+        assertEquals("on boot\n", File(dest, "init.rc").readText())
+    }
+
+    @Test
+    fun extractRamdiskAll_cancelMidwayDeletesWrittenAndThrows() {
+        val cpio = makeCpio(
+            Triple("a.txt", modeFile, "aaa".toByteArray(Charsets.UTF_8)),
+            Triple("b.txt", modeFile, "bbb".toByteArray(Charsets.UTF_8)),
+            Triple("c.txt", modeFile, "ccc".toByteArray(Charsets.UTF_8))
+        )
+        val f = makeBootV0(2048, 100, gzip(cpio))
+        val dest = tmp.newFolder("imgallcancel")
+        val flag = AtomicBoolean(false)
+        assertThrows(ImgCancelledException::class.java) {
+            ImgOps.extractRamdiskAll(
+                f, dest,
+                onProgress = { done, _ -> if (done >= 1L) flag.set(true) },
+                cancelFlag = flag
+            )
+        }
+        assertFalse(File(dest, "a.txt").exists())
+        assertFalse(File(dest, "b.txt").exists())
+    }
+
+    @Test
+    fun listRamdisk_gzipProgressReportsBytes() {
+        val big = ByteArray(100_000) { 'A'.code.toByte() }
+        val cpio = makeCpio(Triple("big.txt", modeFile, big))
+        val f = makeBootV0(2048, 100, gzip(cpio))
+        val seen = mutableListOf<Long>()
+        val result = ImgOps.listRamdisk(f, onProgress = { seen += it })
+        assertTrue(result is RamdiskResult.Ok)
+        assertTrue(seen.isNotEmpty())
+        assertTrue(seen.zipWithNext().all { (a, b) -> b > a })
+        assertEquals(cpio.size.toLong(), seen.last())
+    }
+
+    @Test
+    fun listRamdisk_cancelThrows() {
+        val f = makeBootV0(2048, 100, gzip(sampleCpio()))
+        val flag = AtomicBoolean(true)
+        assertThrows(ImgCancelledException::class.java) {
+            ImgOps.listRamdisk(f, cancelFlag = flag)
+        }
     }
 
     // --- ramdiskChildren + looksLikeText (r152) ---

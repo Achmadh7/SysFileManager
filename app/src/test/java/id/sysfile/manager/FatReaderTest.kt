@@ -3,12 +3,14 @@ package id.sysfile.manager
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -622,6 +624,42 @@ class FatReaderTest {
             assertEquals(1500, File(all, "LONGFILENAME.TXT").length())
             assertEquals(0L, File(all, "EMPTY.BIN").length())
             assertTrue(File(all, "SUB").isDirectory)
+        }
+    }
+
+    // --- extractAll (LD3 r160: progres + batal) ---
+    // Total entri fixture FAT12: root 4 + SUB 1 (INNER.TXT) = 5.
+
+    @Test
+    fun extractAll_progressReportsMonotonicToTotal() {
+        val img = buildFat12Image()
+        FatReader.open(img)!!.use { r ->
+            val all = File(tmp, "allprog").apply { mkdirs() }
+            val seen = mutableListOf<Pair<Long, Long>>()
+            assertTrue(r.extractAll(all, onProgress = { done, total -> seen += done to total }))
+            assertEquals(5, seen.size)
+            assertTrue(seen.map { it.first }.zipWithNext().all { (a, b) -> b == a + 1 })
+            assertEquals(5L to 5L, seen.last())
+            assertEquals("Hello FAT12\n", File(all, "HELLO.TXT").readText())
+        }
+    }
+
+    @Test
+    fun extractAll_cancelMidwayDeletesWrittenAndThrows() {
+        val img = buildFat12Image()
+        FatReader.open(img)!!.use { r ->
+            val all = File(tmp, "allcancel").apply { mkdirs() }
+            val flag = AtomicBoolean(false)
+            // Batal setelah 1 entri: SUB sudah menulis INNER.TXT —
+            // INNER.TXT harus ikut dibersihkan.
+            assertThrows(ImgCancelledException::class.java) {
+                r.extractAll(
+                    all,
+                    onProgress = { done, _ -> if (done >= 1L) flag.set(true) },
+                    cancelFlag = flag
+                )
+            }
+            assertTrue(all.walkTopDown().filter { it.isFile }.toList().isEmpty())
         }
     }
 

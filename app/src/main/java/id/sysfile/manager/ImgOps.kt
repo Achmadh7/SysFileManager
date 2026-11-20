@@ -249,8 +249,16 @@ object ImgOps {
     }
 
     /** Daftar isi ramdisk boot.img (cpio newc, biasanya gzip). */
-    fun listRamdisk(file: File): RamdiskResult {
-        return when (val bytes = readAndDecompressRamdisk(file)) {
+    /** LD3 r160: [onProgress] menerima byte ramdisk yang sudah
+     *  didekompresi (total tak diketahui — gzip tak menyimpan ukuran
+     *  aslinya di header); [cancelFlag] yang terpasang membatalkan
+     *  lewat ImgCancelledException. */
+    fun listRamdisk(
+        file: File,
+        onProgress: (Long) -> Unit = {},
+        cancelFlag: AtomicBoolean? = null
+    ): RamdiskResult {
+        return when (val bytes = readAndDecompressRamdisk(file, onProgress, cancelFlag)) {
             is RamdiskBytes.Data -> {
                 val entries = parseCpio(bytes.bytes) ?: return RamdiskResult.Invalid
                 RamdiskResult.Ok(entries.map { it.toRamdiskEntry() })
@@ -310,15 +318,25 @@ object ImgOps {
 
     /** Ekstrak seluruh isi ramdisk ke [destDir] (seperti "Ekstrak Di Sini"
      *  untuk arsip); false bila ada entri yang gagal — berkas yang sudah
-     *  tertulis dibersihkan. */
-    fun extractRamdiskAll(file: File, destDir: File): Boolean {
+     *  tertulis dibersihkan. LD3 r160: [onProgress] menerima (entri
+     *  selesai, total entri) — daftar entri sudah di memori; [cancelFlag]
+     *  yang terpasang membatalkan lewat ImgCancelledException. */
+    fun extractRamdiskAll(
+        file: File,
+        destDir: File,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
         val (data, entries) = readRamdiskEntries(file) ?: return false
+        val total = entries.size.toLong()
+        var done = 0L
         val written = mutableListOf<File>()
         var ok = true
         try {
             val destCanonical = destDir.canonicalPath
             val budget = ExtractBudget()
             for (e in entries) {
+                if (cancelFlag?.get() == true) throw ImgCancelledException()
                 if (!budget.allowEntry()) { ok = false; break }
                 if (isUnsafeName(e.name)) { ok = false; break }
                 val out = File(destDir, e.name)
@@ -335,7 +353,12 @@ object ImgOps {
                     if (!budget.addBytes(count)) { ok = false; break }
                 }
                 // Symlink dan tipe lain dilewati (tidak ditulis sebagai berkas).
+                done++
+                onProgress(done, total)
             }
+        } catch (e: ImgCancelledException) {
+            written.forEach { it.delete() }
+            throw e
         } catch (e: Exception) {
             ok = false
         }
@@ -495,7 +518,11 @@ object ImgOps {
     }
 
     /** Parse header + baca + dekompresi ramdisk; data cpio mentah. */
-    private fun readAndDecompressRamdisk(file: File): RamdiskBytes {
+    private fun readAndDecompressRamdisk(
+        file: File,
+        onProgress: (Long) -> Unit = {},
+        cancelFlag: AtomicBoolean? = null
+    ): RamdiskBytes {
         val info = parseBootImg(file) ?: return RamdiskBytes.Invalid
         if (info.ramdiskSize > MAX_RAMDISK_COMPRESSED_BYTES) return RamdiskBytes.Invalid
         val raw = try {
@@ -505,12 +532,16 @@ object ImgOps {
         } catch (e: Exception) {
             return RamdiskBytes.Invalid
         }
-        return decompressRamdisk(raw)
+        return decompressRamdisk(raw, onProgress, cancelFlag)
     }
 
     /** Dekompresi ramdisk: cpio mentah atau gzip. Kompresi lain dikenali
      *  dari magic-nya dan dilaporkan — tidak pernah gagal diam-diam. */
-    private fun decompressRamdisk(raw: ByteArray): RamdiskBytes {
+    private fun decompressRamdisk(
+        raw: ByteArray,
+        onProgress: (Long) -> Unit = {},
+        cancelFlag: AtomicBoolean? = null
+    ): RamdiskBytes {
         if (startsWithAscii(raw, "070701") || startsWithAscii(raw, "070702")) {
             return RamdiskBytes.Data(raw)
         }
@@ -521,14 +552,18 @@ object ImgOps {
                 var total = 0L
                 GZIPInputStream(ByteArrayInputStream(raw)).use { gz ->
                     while (true) {
+                        if (cancelFlag?.get() == true) throw ImgCancelledException()
                         val n = gz.read(buf)
                         if (n < 0) break
                         total += n
                         if (total > MAX_RAMDISK_BYTES) return RamdiskBytes.Invalid
                         out.write(buf, 0, n)
+                        onProgress(total)
                     }
                 }
                 RamdiskBytes.Data(out.toByteArray())
+            } catch (e: ImgCancelledException) {
+                throw e
             } catch (e: Exception) {
                 RamdiskBytes.Invalid
             }

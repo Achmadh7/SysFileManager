@@ -151,6 +151,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import java.util.concurrent.atomic.AtomicBoolean
 
 // Layar Terbaru, Kategori, Pencarian, dan Analisis penyimpanan.
 
@@ -872,9 +873,23 @@ fun ImgBrowseScreen(
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var result by remember(path) { mutableStateOf<RamdiskResult?>(null) }
     var prefix by remember(path) { mutableStateOf(initialPrefix) }
+    // LD3 r160: progres dekompresi ramdisk (byte yang sudah
+    // didekompresi; total tak diketahui) + tombol Batal di layar.
+    var ramdiskBytes by remember(path) { mutableStateOf<Long?>(null) }
+    val ramdiskCancelFlag = remember(path) { AtomicBoolean(false) }
     LaunchedEffect(path) {
-        val loaded = withContext(Dispatchers.IO) { ImgOps.listRamdisk(imgFile) }
-        if (loaded is RamdiskResult.Invalid) onError() else result = loaded
+        try {
+            val loaded = withContext(Dispatchers.IO) {
+                ImgOps.listRamdisk(
+                    imgFile,
+                    onProgress = { ramdiskBytes = it },
+                    cancelFlag = ramdiskCancelFlag
+                )
+            }
+            if (loaded is RamdiskResult.Invalid) onError() else result = loaded
+        } catch (_: ImgCancelledException) {
+            onBack()
+        }
     }
     BackHandler(enabled = prefix.isNotEmpty()) {
         val parent = prefix.removeSuffix("/").substringBeforeLast('/', "")
@@ -921,14 +936,27 @@ fun ImgBrowseScreen(
                 label = "imgContentFade"
             ) { (state, shownPrefix) ->
                 when (state) {
-                    0 -> Box(Modifier.fillMaxSize()) {
-                        Column(
-                            Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            LoadingIndicator()
-                            Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    0 -> Column(
+                        Modifier.fillMaxSize().padding(horizontal = 48.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        LoadingIndicator()
+                        Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        val bytes = ramdiskBytes
+                        if (bytes != null) {
+                            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+                            Text(
+                                t.ramdiskProgress(FileOps.formatSize(bytes)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
                         }
+                        TextButton(
+                            onClick = { ramdiskCancelFlag.set(true) },
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) { Text(t.cancel) }
                     }
                     1 -> Box(Modifier.fillMaxSize()) {
                         Text(

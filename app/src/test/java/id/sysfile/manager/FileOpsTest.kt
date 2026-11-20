@@ -3,6 +3,7 @@ package id.sysfile.manager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -10,6 +11,7 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -205,6 +207,38 @@ class FileOpsTest {
         }
         val dest = tmp.newFolder("manyout")
         assertFalse(FileOps.unzip(zip, dest))
+    }
+
+    // --- extract (LD3 r160: progres + batal) ---
+
+    @Test
+    fun extract_progressReportsMonotonicToTotal() {
+        val zip = File(tmp.root, "prog.zip")
+        makeZip(zip, listOf("a.txt" to "hello", "sub/b.txt" to "world", "c.txt" to "!", "d.txt" to "?"))
+        val dest = tmp.newFolder("progout")
+        val seen = mutableListOf<Pair<Long, Long>>()
+        assertTrue(ArchiveOps.extract(zip, dest, onProgress = { done, total -> seen += done to total }))
+        assertEquals(4, seen.size)
+        assertTrue(seen.map { it.first }.zipWithNext().all { (a, b) -> b == a + 1 })
+        assertEquals(4L to 4L, seen.last())
+        assertEquals("hello", File(dest, "a.txt").readText())
+    }
+
+    @Test
+    fun extract_cancelMidwayDeletesWrittenAndThrows() {
+        val zip = File(tmp.root, "cancel.zip")
+        makeZip(zip, listOf("a.txt" to "hello", "b.txt" to "world", "c.txt" to "!"))
+        val dest = tmp.newFolder("cancelout")
+        val flag = AtomicBoolean(false)
+        assertThrows(ImgCancelledException::class.java) {
+            ArchiveOps.extract(
+                zip, dest,
+                onProgress = { done, _ -> if (done >= 1L) flag.set(true) },
+                cancelFlag = flag
+            )
+        }
+        assertFalse(File(dest, "a.txt").exists())
+        assertFalse(File(dest, "b.txt").exists())
     }
 
     @Test

@@ -4,6 +4,7 @@ import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Satu entri direktori ext4. [symlinkTarget] hanya terisi bila [isSymlink]. */
 data class Ext4Entry(
@@ -568,8 +569,18 @@ class Ext4Reader private constructor(
 
     /** Ekstrak seluruh isi citra ke [destDir] (batas arsip yang sama:
      *  10.000 entri / 2 GiB). Symlink tidak ditulis. False bila gagal;
-     *  berkas yang sudah tertulis dihapus. */
-    fun extractAll(destDir: File): Boolean {
+     *  berkas yang sudah tertulis dihapus. LD3 r160: [onProgress]
+     *  menerima (entri selesai, total entri) — total dihitung dulu
+     *  lewat [countEntries] (jalan metadata saja); [cancelFlag] yang
+     *  terpasang membatalkan lewat ImgCancelledException. */
+    fun extractAll(
+        destDir: File,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        cancelFlag: AtomicBoolean? = null
+    ): Boolean {
+        val total = countEntries(ROOT_INODE, 0, mutableSetOf())
+        var done = 0L
+        val onEntry: () -> Unit = { done++; onProgress(done, total) }
         val budget = ExtractBudget()
         val written = mutableListOf<File>()
         val visitedDirs = mutableSetOf<Long>()
@@ -578,15 +589,34 @@ class Ext4Reader private constructor(
             destDir.canonicalPath
         } catch (_: Exception) { return false }
         return try {
-            val ok = walkExtract(ROOT_INODE, "", 0, destDir, destCanonical, budget, written, visitedDirs)
+            val ok = walkExtract(ROOT_INODE, "", 0, destDir, destCanonical, budget, written, visitedDirs, onEntry, cancelFlag)
             if (!ok) {
                 for (f in written) f.delete()
             }
             ok
+        } catch (e: ImgCancelledException) {
+            for (f in written) f.delete()
+            throw e
         } catch (_: Exception) {
             for (f in written) f.delete()
             false
         }
+    }
+
+    /** LD3 r160: hitung entri untuk total progres [extractAll] —
+     *  jalan metadata saja (tanpa baca data berkas); traversal-nya
+     *  cerminan [walkExtract] (penjaga kunjungan + batas kedalaman
+     *  sama) supaya total sama dengan jumlah onEntry(). */
+    private fun countEntries(dirInode: Long, depth: Int, visited: MutableSet<Long>): Long {
+        if (depth > 64) return 0L
+        if (!visited.add(dirInode)) return 0L
+        val entries = listDir(dirInode) ?: return 0L
+        var n = 0L
+        for (e in entries) {
+            n++
+            if (e.isDir) n += countEntries(e.inode, depth + 1, visited)
+        }
+        return n
     }
 
     private fun walkExtract(
@@ -597,12 +627,15 @@ class Ext4Reader private constructor(
         destCanonical: String,
         budget: ExtractBudget,
         written: MutableList<File>,
-        visitedDirs: MutableSet<Long>
+        visitedDirs: MutableSet<Long>,
+        onEntry: () -> Unit,
+        cancelFlag: AtomicBoolean?
     ): Boolean {
         if (depth > 64) return false
         if (!visitedDirs.add(dirInode)) return false
         val entries = listDir(dirInode) ?: return false
         for (e in entries) {
+            if (cancelFlag?.get() == true) throw ImgCancelledException()
             if (!budget.allowEntry()) return false
             if (!isSafeEntryName(e.name)) return false
             val childRel = if (relPath.isEmpty()) e.name else "$relPath/${e.name}"
@@ -611,9 +644,11 @@ class Ext4Reader private constructor(
             if (!FileOps.isPathInside(destCanonical, outCanonical)) return false
             if (e.isDir) {
                 out.mkdirs()
-                if (!walkExtract(e.inode, childRel, depth + 1, destDir, destCanonical, budget, written, visitedDirs)) return false
+                if (!walkExtract(e.inode, childRel, depth + 1, destDir, destCanonical, budget, written, visitedDirs, onEntry, cancelFlag)) return false
+                onEntry()
             } else if (e.isSymlink) {
                 // Symlink tidak ditulis: targetnya bisa menunjuk ke luar citra.
+                onEntry()
             } else {
                 val data = readInode(e.inode) ?: return false
                 if (data.mode and MODE_MASK != MODE_REG) return false
@@ -626,6 +661,7 @@ class Ext4Reader private constructor(
                     return false
                 }
                 written += out
+                onEntry()
             }
         }
         return true
