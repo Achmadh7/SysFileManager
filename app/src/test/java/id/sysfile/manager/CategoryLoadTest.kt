@@ -77,6 +77,19 @@ class CategoryLoadTest {
     }
 
     @Test
+    fun mediaQueryEmpty_fallsBackToFullWalk() = runBlocking {
+        // r146: MediaStore kosong (berkas tak terindeks, mis.
+        // folder .nomedia) harus jatuh ke penelusuran biasa.
+        val r1 = root("r1")
+        put(File(r1.path), "lagu.mp3", 1000L)
+        val out = loadCategoryFiles(
+            listOf(r1), Category.AUDIO, showHidden = false, locked = emptySet(),
+            mediaQuery = { emptyList() }
+        )
+        assertEquals(listOf("lagu.mp3"), out.map { it.name })
+    }
+
+    @Test
     fun showHiddenTrue_ignoresMediaQuery() = runBlocking {
         val r1 = root("r1")
         put(File(r1.path), "a.jpg", 1000L)

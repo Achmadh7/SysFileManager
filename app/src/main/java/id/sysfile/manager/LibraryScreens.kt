@@ -487,7 +487,11 @@ internal suspend fun loadCategoryFiles(
 ): List<FEntry> = coroutineScope {
     if (MediaStoreOps.isMediaCategory(category) && !showHidden && mediaQuery != null) {
         val media = async(Dispatchers.IO) { mediaQuery(category) }.await()
-        if (media != null) {
+        // r146: MediaStore KOSONG bukan berarti tidak ada berkas —
+        // ia tidak mengindeks folder .nomedia / tersembunyi (mis.
+        // audio WhatsApp) dan belum tentu sudah memindai berkas
+        // baru; hasil kosong harus jatuh ke penelusuran biasa.
+        if (media != null && media.isNotEmpty()) {
             val usb = roots.filter { it.kind == "usb" }.map { root ->
                 async(Dispatchers.IO) {
                     FileOps.categoryFiles(listOf(File(root.path)), category, showHidden, locked)
