@@ -278,7 +278,7 @@ fun isToday(millis: Long): Boolean {
         cal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
 }
 
-/** Baris berkas untuk tampilan daftar (ringkas: ~56dp, tanpa chevron, folder kosong diredupkan). */
+/** Baris berkas untuk tampilan daftar (LB2: 72dp, tanpa chevron, folder kosong diredupkan). */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileRow(
@@ -316,11 +316,12 @@ fun FileRow(
             Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .height(72.dp)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box {
-                FileThumbTile(entry, 40)
+                FileThumbTile(entry, 48)
                 if (locked) {
                     Box(
                         Modifier.align(Alignment.BottomEnd).size(16.dp).clip(CircleShape)
