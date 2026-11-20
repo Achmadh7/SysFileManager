@@ -16,11 +16,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,132 +44,154 @@ import androidx.compose.ui.unit.sp
  * konten bisa di-scroll. Muncul sekali sampai selesai
  * (pref "welcome_done"). Semua teks berbahasa Inggris di kedua mode
  * bahasa (permintaannya). Tulisan kecil rationale dihapus (r139).
+ * r165 WT1: tombol ganti tema di pojok kanan atas (pilihannya).
  */
 @Composable
 fun WelcomeScreen(
     accessGranted: Boolean,
     onRequestAccess: () -> Unit,
-    onFinish: () -> Unit
+    onFinish: () -> Unit,
+    themeMode: String,
+    onTheme: (String) -> Unit
 ) {
     val t = txt()
+    // r165 WT1 Ikon Pojok (pilihannya): tombol ganti tema di pojok
+    // kanan atas — memakai jalur onTheme yang sama dengan Pengaturan
+    // (TM1 fade ikut jalan). Ikon mengikuti konvensi baris Tema di
+    // Pengaturan: matahari saat terang, bulan saat gelap.
     // r164: latar dari skema — tanpa ini, mode terang berlatar
     // #101418 (windowBackground di themes.xml) di layar sambutan.
-    Column(
+    Box(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Column(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+            Modifier.fillMaxSize().padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(Modifier.size(32.dp))
-            // WS12 Hero Lepas (r139, pilihannya): hero TANPA kartu — logo +
-            // judul + pitch langsung di latar, terpusat.
             Column(
-                Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Ubin logo M11 "SF" (sama seperti bilah atas Beranda + Tentang).
-                Box(
-                    Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(19.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "SF",
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 30.sp
-                    )
-                    Box(
-                        Modifier.size(width = 3.dp, height = 88.dp)
-                            .rotate(30f)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                    )
-                }
-                Text(
-                    t.welcomeTitle,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    t.welcomePitch,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                ),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+                Spacer(Modifier.size(32.dp))
+                // WS12 Hero Lepas (r139, pilihannya): hero TANPA kartu — logo +
+                // judul + pitch langsung di latar, terpusat.
                 Column(
-                    Modifier.padding(20.dp),
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Folder, null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
+                    // Ubin logo M11 "SF" (sama seperti bilah atas Beranda + Tentang).
+                    Box(
+                        Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(19.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            t.welcomeAccessTitle,
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f)
+                            "SF",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 30.sp
                         )
-                        // Chip status: ikut berubah saat pulang dari Pengaturan.
-                        Surface(
-                            shape = RoundedCornerShape(11.dp),
-                            border = BorderStroke(
-                                1.dp,
-                                if (accessGranted) Color(0xFF81C995) else Color(0xFFF5C542)
-                            ),
-                            color = Color.Transparent
-                        ) {
-                            Text(
-                                if (accessGranted) t.welcomeGranted else t.welcomeNotGranted,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (accessGranted) Color(0xFF81C995) else Color(0xFFF5C542),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
+                        Box(
+                            Modifier.size(width = 3.dp, height = 88.dp)
+                                .rotate(30f)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                        )
                     }
                     Text(
-                        t.welcomeAccessDesc,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        t.welcomeTitle,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
-                    Button(
-                        onClick = onRequestAccess,
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(t.welcomeGrant) }
+                    Text(
+                        t.welcomePitch,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Folder, null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                t.welcomeAccessTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            // Chip status: ikut berubah saat pulang dari Pengaturan.
+                            Surface(
+                                shape = RoundedCornerShape(11.dp),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (accessGranted) Color(0xFF81C995) else Color(0xFFF5C542)
+                                ),
+                                color = Color.Transparent
+                            ) {
+                                Text(
+                                    if (accessGranted) t.welcomeGranted else t.welcomeNotGranted,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (accessGranted) Color(0xFF81C995) else Color(0xFFF5C542),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            t.welcomeAccessDesc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = onRequestAccess,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(t.welcomeGrant) }
+                    }
                 }
             }
+            Button(
+                onClick = onFinish,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+            ) { Text(t.welcomeStart) }
         }
-        Button(
-            onClick = onFinish,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
-        ) { Text(t.welcomeStart) }
+        // WT1: tombol tema mengambang di pojok kanan atas (sejajar
+        // dengan Spacer 32.dp di atas hero, di bawah bilah status).
+        IconButton(
+            onClick = { onTheme(if (themeMode == "dark") "light" else "dark") },
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 32.dp, end = 8.dp)
+        ) {
+            Icon(
+                if (themeMode == "dark") Icons.Default.DarkMode else Icons.Default.LightMode,
+                contentDescription = t.theme,
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }

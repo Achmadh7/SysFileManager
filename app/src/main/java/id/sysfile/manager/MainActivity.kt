@@ -275,6 +275,28 @@ fun SysFileApp() {
             themeShot = null
         }
     }
+    // r165 WT1: jalur ganti tema dipakai bersama Pengaturan + Welcome —
+    // satu lambda supaya TM1 fade + simpan pref tidak ditulis dua kali.
+    val onThemeChange: (String) -> Unit = { mode ->
+        // r137 TM1: tangkap layar lama SEBELUM ganti tema;
+        // gagal tangkap = ganti instan seperti biasa.
+        // r140: tangkap HANYA bila tidak ada fade yang sedang
+        // berjalan. Ketukan saat overlay masih memudar akan
+        // menangkap overlay itu juga (makin buram tiap
+        // ketukan) + bar atas yang masih beranimasi; tanpa
+        // tangkap ulang, fade lama terus jalan di atas tema
+        // terbaru tanpa tumpukan.
+        if (themeShot == null) {
+            themeShot = try {
+                if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
+            } catch (_: Exception) {
+                null
+            }
+        }
+        themeMode = mode
+        prefs.edit().putString("theme_mode", mode).apply()
+    }
+
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
     AppLang.code = language
     val t = txt()
@@ -1193,25 +1215,7 @@ fun SysFileApp() {
                 language = language,
                 showHidden = showHidden,
                 showRootEntry = showRootEntry,
-                onTheme = { mode ->
-                    // r137 TM1: tangkap layar lama SEBELUM ganti tema;
-                    // gagal tangkap = ganti instan seperti biasa.
-                    // r140: tangkap HANYA bila tidak ada fade yang sedang
-                    // berjalan. Ketukan saat overlay masih memudar akan
-                    // menangkap overlay itu juga (makin buram tiap
-                    // ketukan) + bar atas yang masih beranimasi; tanpa
-                    // tangkap ulang, fade lama terus jalan di atas tema
-                    // terbaru tanpa tumpukan.
-                    if (themeShot == null) {
-                        themeShot = try {
-                            if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-                    themeMode = mode
-                    prefs.edit().putString("theme_mode", mode).apply()
-                },
+                onTheme = onThemeChange,
                 onLanguage = { lang ->
                     language = lang
                     AppLang.code = lang
@@ -1239,7 +1243,9 @@ fun SysFileApp() {
                 onFinish = {
                     prefs.edit().putBoolean("welcome_done", true).apply()
                     welcomeDone = true
-                }
+                },
+                themeMode = themeMode,
+                onTheme = onThemeChange
             )
         } else {
             // r88: Box pembungkus supaya pill audio bisa melayang
