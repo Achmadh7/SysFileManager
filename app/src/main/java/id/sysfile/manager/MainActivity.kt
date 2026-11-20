@@ -2386,10 +2386,10 @@ fun SysFileApp() {
                                     Modifier
                                         .size(28.dp)
                                         .clip(RoundedCornerShape(14.dp))
-                                        .background(Color(0xFF345A41)),
+                                        .background(MaterialTheme.colorScheme.primary),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Text(

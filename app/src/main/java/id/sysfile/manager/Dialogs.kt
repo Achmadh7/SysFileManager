@@ -975,12 +975,12 @@ fun ArchiveActionsDialog(
                     Modifier
                         .size(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFA78BFA).copy(alpha = 0.16f)),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.Unarchive, null,
-                        tint = Color(0xFFA78BFA), modifier = Modifier.size(20.dp)
+                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(Modifier.width(12.dp))
@@ -1000,7 +1000,7 @@ fun ArchiveActionsDialog(
             // EA1: dropdown dihapus — ketiga aksi jadi baris penuh.
             Column {
                 ApkActionRow(
-                    Icons.Default.Unarchive, Color(0xFFA78BFA),
+                    Icons.Default.Unarchive, MaterialTheme.colorScheme.primary,
                     t.extract, t.extractHereDesc, onExtractHere
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
@@ -1010,7 +1010,7 @@ fun ArchiveActionsDialog(
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 ApkActionRow(
-                    Icons.Default.Folder, Color(0xFFA78BFA),
+                    Icons.Default.Folder, MaterialTheme.colorScheme.primary,
                     t.openArchive, t.browseFirst, onOpenArchive
                 )
             }
