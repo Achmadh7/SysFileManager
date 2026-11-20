@@ -285,6 +285,7 @@ fun BrowseScreen(
     lockedPaths: Set<String> = emptySet(),
     safHasGrant: Boolean = false,
     onSafAction: (() -> Unit)? = null
+    safSubtreeBlocked: Boolean = false
 ) {
     val t = txt()
     Column(Modifier.fillMaxSize()) {
@@ -319,26 +320,41 @@ fun BrowseScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if ((!readable || restricted) && onSafAction != null) {
+                    if (restricted && safSubtreeBlocked && !safHasGrant && onSafAction != null) {
+                        // r170: sejak perbaikan CVE-2025-26427 (buletin Mei
+                        // 2025, patch 2025-05-01) DocumentsUI menolak memilih
+                        // subfolder di dalam Android/data|obb|sandbox — tombol
+                        // "Gunakan folder ini" tidak akan aktif, jadi jangan
+                        // tawarkan jalan yang mustahil; arahkan ke akses root.
                         Spacer(Modifier.height(14.dp))
-                        Button(onClick = onSafAction) {
-                            Text(if (safHasGrant) t.safOpen else t.safGrant)
-                        }
-                    }
-                    if (restricted && !safHasGrant && onSafAction != null) {
-                        // Pemilih sistem membuang URI awal di dalam Android/data|obb,
-                        // jadi ia tidak terbuka di folder ini — beri tahu pengguna
-                        // persis folder mana yang harus dibuka di pemilih.
-                        val hintRel = currentPath.substringAfter("/Android/", "")
-                        val hintPath = if (hintRel.isNotEmpty()) "Android/$hintRel"
-                            else File(currentPath).name
-                        Spacer(Modifier.height(10.dp))
                         Text(
-                            t.safPickHint(hintPath),
+                            t.safSubtreeBlocked,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+                    } else {
+                        if ((!readable || restricted) && onSafAction != null) {
+                            Spacer(Modifier.height(14.dp))
+                            Button(onClick = onSafAction) {
+                                Text(if (safHasGrant) t.safOpen else t.safGrant)
+                            }
+                        }
+                        if (restricted && !safHasGrant && onSafAction != null) {
+                            // Pemilih sistem membuang URI awal di dalam Android/data|obb,
+                            // jadi ia tidak terbuka di folder ini — beri tahu pengguna
+                            // persis folder mana yang harus dibuka di pemilih.
+                            val hintRel = currentPath.substringAfter("/Android/", "")
+                            val hintPath = if (hintRel.isNotEmpty()) "Android/$hintRel"
+                                else File(currentPath).name
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                t.safPickHint(hintPath),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
                 gridView -> LazyVerticalGrid(

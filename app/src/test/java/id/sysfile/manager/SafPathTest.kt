@@ -35,4 +35,17 @@ class SafPathTest {
         assertFalse(SafPath.isRestrictedRel("Download"))
         assertFalse(SafPath.isRestrictedRel(""))
     }
+
+    @Test
+    fun isSubtreeBlocked_may2025PatchLevelAndLater() {
+        // Perbaikan CVE-2025-26427 masuk buletin Mei 2025 (patch 2025-05-01).
+        assertTrue(SafPath.isSubtreeBlocked("2025-05-01"))
+        assertTrue(SafPath.isSubtreeBlocked("2025-05-05"))
+        assertTrue(SafPath.isSubtreeBlocked("2025-06-01"))
+        assertTrue(SafPath.isSubtreeBlocked("2026-01-05"))
+        assertFalse(SafPath.isSubtreeBlocked("2025-04-01"))
+        assertFalse(SafPath.isSubtreeBlocked("2024-12-05"))
+        assertFalse(SafPath.isSubtreeBlocked(""))
+        assertFalse(SafPath.isSubtreeBlocked("unknown"))
+    }
 }

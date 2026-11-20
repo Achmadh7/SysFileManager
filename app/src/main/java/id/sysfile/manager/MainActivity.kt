@@ -652,7 +652,12 @@ fun SysFileApp() {
                 // Tanpa fitur root, hasil biasa dipakai dan UI menawarkan SAF.
                 val dirFile = File(path)
                 val plain = FileOps.listDir(dirFile, showHidden, sortKey, sortAsc)
-                if (plain != null && (plain.isNotEmpty() || dirFile.canRead())) {
+                // r170: folder terkunci sistem bisa mengaku kosong (listFiles()
+                // = []) padahal canRead() true — hasil kosong untuk folder
+                // terlarang jangan dipercaya; lewatkan ke cabang root di bawah
+                // (RootShell.listDir membaca Android/obb lewat /data/media/0).
+                if (plain != null && (plain.isNotEmpty() ||
+                    (dirFile.canRead() && !FileOps.isRestrictedDir(path)))) {
                     plain
                 } else if (showRootEntry) {
                     val showedWorking = RootShell.state == RootShell.UNKNOWN
@@ -690,7 +695,11 @@ fun SysFileApp() {
                     // array kosong untuk folder terkunci).
                     fun unreadable(f: File): Boolean {
                         val lf = f.listFiles()
-                        return lf == null || (lf.isEmpty() && !f.canRead())
+                        // r170: folder terlarang yang mengaku kosong
+                        // (canRead() true) juga tak terbaca — hitung lewat
+                        // shell root / SAF, bukan percaya angka 0.
+                        return lf == null || (lf.isEmpty() &&
+                            (!f.canRead() || FileOps.isRestrictedDir(f.absolutePath)))
                     }
                     // Siapkan akses root sekali di depan (bila fitur root
                     // aktif) agar hitungan folder terkunci tidak berlomba
@@ -2126,7 +2135,8 @@ fun SysFileApp() {
                                             } else {
                                                 safLauncher.launch(SafOps.initialUriFor(animatedPath))
                                             }
-                                        }
+                                        },
+                                        safSubtreeBlocked = SafPath.isSubtreeBlocked(Build.VERSION.SECURITY_PATCH)
                                         )
                                     }
                                 }
