@@ -536,6 +536,22 @@ fun SysFileApp() {
         scope.launch { snackbar.showSnackbar(msg) }
     }
 
+    // r180 EP2: pill "Berhasil diekstrak" — menggantikan snackbar
+    // khusus untuk sukses ekstrak; auto-hilang 2,6 dtk, ketuk menutup.
+    // Timer di-reset bila sukses baru datang selagi pill tampil.
+    var extractPillVisible by remember { mutableStateOf(false) }
+    var extractPillNonce by remember { mutableStateOf(0) }
+    fun showExtractPill() {
+        extractPillNonce++
+        extractPillVisible = true
+    }
+    LaunchedEffect(extractPillNonce) {
+        if (extractPillVisible) {
+            delay(2600)
+            extractPillVisible = false
+        }
+    }
+
     /** Minta verifikasi biometrik/PIN untuk membuka folder terkunci [path]. */
     fun requestUnlock(path: String, onGranted: () -> Unit) {
         val activity = context as? FragmentActivity
@@ -990,6 +1006,7 @@ fun SysFileApp() {
         stage: String,
         successMsg: String,
         format: ((Long, Long) -> String)? = null,
+        showPill: Boolean = false,
         block: suspend (flag: AtomicBoolean, onProgress: (Long, Long) -> Unit) -> Boolean
     ) {
         val (flag, report, clear) = beginLongWork(stage, format)
@@ -1006,7 +1023,7 @@ fun SysFileApp() {
             }
             when (outcome) {
                 0 -> {
-                    notify(successMsg)
+                    if (showPill) showExtractPill() else notify(successMsg)
                     reloadKey++
                     selected = emptySet()
                 }
@@ -1238,7 +1255,7 @@ fun SysFileApp() {
                             if (encrypted) {
                                 dialog = DialogKind.ZipPassword(entry)
                             } else {
-                                dialog = DialogKind.ArchiveActions(entry)
+                                show(Overlay.ArchiveView(entry.path))
                             }
                         }
                     }
@@ -1261,13 +1278,13 @@ fun SysFileApp() {
         }
     }
 
-    fun runOp(successMsg: String, block: suspend () -> Boolean) {
+    fun runOp(successMsg: String, showPill: Boolean = false, block: suspend () -> Boolean) {
         working = true
         scope.launch {
             val ok = withContext(Dispatchers.IO) { block() }
             working = false
             if (ok) {
-                notify(successMsg)
+                if (showPill) showExtractPill() else notify(successMsg)
                 reloadKey++
                 // Seleksi hanya dibersihkan bila operasi berhasil (B5): bila
                 // gagal, seleksi dipertahankan supaya pengguna bisa mengulang.
@@ -1537,7 +1554,7 @@ fun SysFileApp() {
                             archivePrefix = ""; archivePrefixPath = null
                             // LD3 r160: ekstrak arsip berprogres + bisa dibatalkan.
                             runLongOp(
-                                t.workStageExtract, t.extractDone,
+                                t.workStageExtract, t.extractDone, showPill = true,
                                 format = { done, total -> t.extractProgress(done, total) }
                             ) { flag, onProgress ->
                                 ArchiveOps.extract(
@@ -1594,7 +1611,7 @@ fun SysFileApp() {
                             imgPrefix = ""; imgPrefixPath = null
                             // LD3 r160: ekstrak ramdisk berprogres + bisa dibatalkan.
                             runLongOp(
-                                t.workStageExtract, t.extractDone,
+                                t.workStageExtract, t.extractDone, showPill = true,
                                 format = { done, total -> t.extractProgress(done, total) }
                             ) { flag, onProgress ->
                                 ImgOps.extractRamdiskAll(
@@ -1634,7 +1651,7 @@ fun SysFileApp() {
                         },
                         onExtractOne = { itemName ->
                             val imgFile = File(ov.path)
-                            runOp(t.extractDone) {
+                            runOp(t.extractDone, showPill = true) {
                                 ImgOps.extractRamdiskEntry(imgFile, itemName, imgFile.parentFile ?: imgFile) != null
                             }
                         }
@@ -1664,7 +1681,7 @@ fun SysFileApp() {
                                 // berjalan — ditutup di finally blok runLongOp.
                                 // LD3 r160: ekstrak ext4 berprogres + bisa dibatalkan.
                                 runLongOp(
-                                    t.workStageExtract, t.extractDone,
+                                    t.workStageExtract, t.extractDone, showPill = true,
                                     format = { done, total -> t.extractProgress(done, total) }
                                 ) { flag, onProgress ->
                                     try {
@@ -1713,7 +1730,7 @@ fun SysFileApp() {
                             if (session == null) {
                                 notify(t.opFailed)
                             } else {
-                                runOp(t.extractDone) {
+                                runOp(t.extractDone, showPill = true) {
                                     session.reader.extractEntry(item.inode, item.name, imgFile.parentFile ?: imgFile) != null
                                 }
                             }
@@ -1740,7 +1757,7 @@ fun SysFileApp() {
                                 // berjalan — ditutup di finally blok runLongOp.
                                 // LD3 r160: ekstrak FAT berprogres + bisa dibatalkan.
                                 runLongOp(
-                                    t.workStageExtract, t.extractDone,
+                                    t.workStageExtract, t.extractDone, showPill = true,
                                     format = { done, total -> t.extractProgress(done, total) }
                                 ) { flag, onProgress ->
                                     try {
@@ -1788,7 +1805,7 @@ fun SysFileApp() {
                             if (reader == null) {
                                 notify(t.opFailed)
                             } else {
-                                runOp(t.extractDone) {
+                                runOp(t.extractDone, showPill = true) {
                                     reader.extractEntry(itemPath, imgFile.parentFile ?: imgFile) != null
                                 }
                             }
@@ -1848,7 +1865,7 @@ fun SysFileApp() {
                                 notify(t.opFailed)
                             } else {
                                 // LD3 r159: unduh partisi berprogres + bisa dibatalkan.
-                                runLongOp(t.workStageMaterialize, t.extractDone) { flag, onProgress ->
+                                runLongOp(t.workStageMaterialize, t.extractDone, showPill = true) { flag, onProgress ->
                                     lp.reader.materialize(
                                         part,
                                         File(imgFile.parentFile ?: imgFile, part.name + ".img"),
@@ -2117,9 +2134,7 @@ fun SysFileApp() {
                                                         if (enc) {
                                                             dialog = DialogKind.ZipPassword(only)
                                                         } else {
-                                                            runOp(t.extractDone) {
-                                                                ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
-                                                            }
+                                                            dialog = DialogKind.ArchiveActions(only)
                                                         }
                                                     }
                                                 } else if (only != null && ArchiveOps.kindOf(only.name) == "rar") {
@@ -2130,13 +2145,13 @@ fun SysFileApp() {
                                                         if (enc) {
                                                             dialog = DialogKind.RarPassword(only)
                                                         } else {
-                                                            runOp(t.extractDone) {
-                                                                ArchiveOps.extract(only.file, only.file.parentFile ?: only.file)
-                                                            }
+                                                            dialog = DialogKind.ArchiveActions(only)
                                                         }
                                                     }
+                                                } else if (only != null) {
+                                                    dialog = DialogKind.ArchiveActions(only)
                                                 } else if (targets.isNotEmpty()) {
-                                                    runOp(t.extractDone) {
+                                                    runOp(t.extractDone, showPill = true) {
                                                         targets.count {
                                                             ArchiveOps.extract(it.file, it.file.parentFile ?: it.file)
                                                         } > 0
@@ -2335,6 +2350,57 @@ fun SysFileApp() {
                         }
                     }
                 }
+                // r180 EP2: pill "Berhasil diekstrak" (tanpa jumlah
+                // file) — di atas nav bar (76dp), atau di atas
+                // mini-player bila audio sedang tampil (140dp).
+                // Menempel di Box akar, jadi tampil di layar browse
+                // maupun overlay.
+                val extractPillBottom = if (audioPath != null && audioOrigin == currentScreenId()) 140.dp else 76.dp
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = extractPillBottom)
+                ) {
+                    AnimatedVisibility(
+                        visible = extractPillVisible,
+                        enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                            expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
+                        exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                            shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Bottom)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(28.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            tonalElevation = 3.dp,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier.clip(RoundedCornerShape(28.dp)).clickable { extractPillVisible = false }
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(Color(0xFF345A41)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    t.extractPill,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
         themeShot?.let { shot ->
@@ -2449,7 +2515,7 @@ fun SysFileApp() {
                     val f = d.entry.file
                     // M2: ekstrak terenkripsi kini berprogres + bisa dibatalkan.
                     runLongOp(
-                        t.workStageExtract, t.extractDone,
+                        t.workStageExtract, t.extractDone, showPill = true,
                         format = { done, total -> t.extractProgress(done, total) }
                     ) { flag, onProgress ->
                         ArchiveOps.extractEncryptedZip(f, f.parentFile ?: f, password, onProgress = onProgress, cancelFlag = flag)
@@ -2465,7 +2531,7 @@ fun SysFileApp() {
                     val f = d.entry.file
                     // M2: ekstrak terenkripsi kini berprogres + bisa dibatalkan.
                     runLongOp(
-                        t.workStageExtract, t.extractDone,
+                        t.workStageExtract, t.extractDone, showPill = true,
                         format = { done, total -> t.extractProgress(done, total) }
                     ) { flag, onProgress ->
                         ArchiveOps.extractEncryptedRar(f, f.parentFile ?: f, password, onProgress = onProgress, cancelFlag = flag)
@@ -2607,7 +2673,7 @@ fun SysFileApp() {
                 onExtractHere = {
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone) { ArchiveOps.extractToFolder(f, f.parentFile ?: f) }
+                    runOp(t.extractDone, showPill = true) { ArchiveOps.extractToFolder(f, f.parentFile ?: f) }
                 },
                 onOpenArchive = {
                     dialog = null
@@ -2621,7 +2687,7 @@ fun SysFileApp() {
                 onPick = { picked ->
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone) { ArchiveOps.extractToFolder(f, File(picked)) }
+                    runOp(t.extractDone, showPill = true) { ArchiveOps.extractToFolder(f, File(picked)) }
                 },
                 onCancel = { dialog = null }
             )
@@ -2645,7 +2711,7 @@ fun SysFileApp() {
                 onExtract = {
                     dialog = null
                     val f = d.entry.file
-                    runOp(t.extractDone) { ArchiveOps.extract(f, f.parentFile ?: f) }
+                    runOp(t.extractDone, showPill = true) { ArchiveOps.extract(f, f.parentFile ?: f) }
                 },
                 onInstall = {
                     dialog = null
