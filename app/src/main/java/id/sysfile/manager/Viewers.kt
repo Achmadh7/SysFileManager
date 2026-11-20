@@ -252,10 +252,12 @@ fun ImageViewerScreen(
  *  di WebView yang sama (JS mati, base file:// folder induk supaya gambar
  *  relatif termuat). Teks/kode tetap tampilan default. Bila dipanggil
  *  dengan extractedText (teks hasil ekstrak Office, BC3), tampilannya
- *  read-only: tidak ada tombol edit/simpan. */
+ *  read-only: tidak ada tombol edit/simpan. Pengecualian (AT1): bila
+ *  onSaveArchiveText diberikan, teks dari dalam arsip ZIP bisa diedit
+ *  dan disimpan kembali ke arsipnya. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit, extractedText: String? = null) {
+fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit, extractedText: String? = null, onSaveArchiveText: ((String) -> Boolean)? = null, onSaved: (() -> Unit)? = null) {
     val t = txt()
     val scope = rememberCoroutineScope()
     var content by remember { mutableStateOf<String?>(null) }
@@ -279,7 +281,7 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit,
             try {
                 val f = File(path)
                 val bytes = f.inputStream().use { it.readBytes() }
-                val capped = if (bytes.size > 1_000_000) bytes.copyOf(1_000_000) else bytes
+                val capped = if (bytes.size > 2_000_000) bytes.copyOf(2_000_000) else bytes
                 String(capped, Charsets.UTF_8)
             } catch (e: Exception) {
                 null
@@ -310,22 +312,27 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit,
                                 val toSave = content ?: ""
                                 scope.launch {
                                     val ok = withContext(Dispatchers.IO) {
-                                        try {
-                                            File(path).writeText(toSave, Charsets.UTF_8)
-                                            true
-                                        } catch (e: Exception) {
-                                            false
+                                        if (onSaveArchiveText != null) {
+                                            onSaveArchiveText(toSave)
+                                        } else {
+                                            try {
+                                                File(path).writeText(toSave, Charsets.UTF_8)
+                                                true
+                                            } catch (e: Exception) {
+                                                false
+                                            }
                                         }
                                     }
                                     if (ok) {
                                         editing = false
                                         notify(t.textSaved)
+                                        if (onSaveArchiveText != null) onSaved?.invoke()
                                     } else {
                                         notify(t.opFailed)
                                     }
                                 }
                             }) { Icon(Icons.Default.Save, t.save) }
-                        } else if (!preview && extractedText == null) {
+                        } else if (!preview && (extractedText == null || onSaveArchiveText != null)) {
                             IconButton(onClick = { editing = true }) { Icon(Icons.Default.Edit, t.edit) }
                         }
                     }

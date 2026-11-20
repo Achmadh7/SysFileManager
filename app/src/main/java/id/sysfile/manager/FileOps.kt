@@ -12,6 +12,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.Locale
+import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
@@ -1026,6 +1027,100 @@ object ArchiveOps {
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /** True bila entri teks arsip ini bisa ditulis kembali ke arsipnya
+     *  (AT1): hanya berkas .zip biasa yang tidak terenkripsi. APK/OBB/
+     *  JAR sengaja dikecualikan — menulis ulang akan merusak tanda
+     *  tangannya; arsip terenkripsi tidak bisa dibaca java.util.zip. */
+    fun canReplaceEntry(archive: File): Boolean {
+        return archive.name.lowercase().endsWith(".zip") && !isZipEncrypted(archive)
+    }
+
+    /** Ganti isi satu entri teks di dalam arsip ZIP dengan [newText]
+     *  (AT1). Arsip ditulis ulang ke berkas temp di folder yang sama,
+     *  lalu ditukar secara aman (cadangan dulu, kembalikan bila gagal)
+     *  — arsip asli tidak berubah bila ada kegagalan. Entri lain
+     *  disalin apa adanya (nama, waktu, metode STORED/DEFLATED, dan
+     *  CRC untuk STORED). False bila bukan .zip, terenkripsi, entri
+     *  tidak ditemukan atau direktori, atau ada kegagalan I/O. */
+    fun replaceZipEntry(archive: File, entryName: String, newText: String): Boolean {
+        if (!canReplaceEntry(archive)) return false
+        val newBytes = newText.toByteArray(Charsets.UTF_8)
+        val parent = archive.parentFile ?: return false
+        val tmp = File(parent, "${archive.name}.tmp-${System.nanoTime()}")
+        val backup = File(parent, "${archive.name}.bak-${System.nanoTime()}")
+        var found = false
+        var count = 0
+        try {
+            ZipFile(archive).use { zip ->
+                ZipOutputStream(BufferedOutputStream(FileOutputStream(tmp))).use { zos ->
+                    val enumeration = zip.entries()
+                    while (enumeration.hasMoreElements()) {
+                        val entry = enumeration.nextElement()
+                        count++
+                        if (count > FileOps.MAX_ARCHIVE_ENTRIES) return false
+                        val isTarget = entry.name == entryName
+                        if (isTarget) {
+                            if (entry.isDirectory) return false
+                            found = true
+                        }
+                        val out = ZipEntry(entry.name)
+                        if (isTarget) out.time = System.currentTimeMillis()
+                        else if (entry.time > 0) out.time = entry.time
+                        if (entry.method == ZipEntry.STORED) {
+                            out.method = ZipEntry.STORED
+                            if (isTarget) {
+                                val crc = CRC32()
+                                crc.update(newBytes)
+                                out.size = newBytes.size.toLong()
+                                out.crc = crc.value
+                            } else {
+                                out.size = entry.size
+                                out.crc = entry.crc
+                            }
+                        }
+                        zos.putNextEntry(out)
+                        if (!entry.isDirectory) {
+                            if (isTarget) {
+                                zos.write(newBytes)
+                            } else {
+                                zip.getInputStream(entry).use { it.copyTo(zos, 64 * 1024) }
+                            }
+                        }
+                        zos.closeEntry()
+                    }
+                }
+            }
+            if (!found) return false
+            // Verifikasi ringan sebelum tukar: temp masih ZIP valid,
+            // jumlah entri sama, dan entri target berisi teks baru.
+            val ok = try {
+                ZipFile(tmp).use { zip ->
+                    val names = mutableListOf<String>()
+                    val enumeration = zip.entries()
+                    while (enumeration.hasMoreElements()) names += enumeration.nextElement().name
+                    names.size == count && names.count { it == entryName } == 1 &&
+                        zip.getInputStream(zip.getEntry(entryName)).use { it.readBytes() }
+                            .contentEquals(newBytes)
+                }
+            } catch (e: Exception) {
+                false
+            }
+            if (!ok) return false
+            if (!archive.renameTo(backup)) return false
+            if (!tmp.renameTo(archive)) {
+                backup.renameTo(archive)
+                return false
+            }
+            backup.delete()
+            return true
+        } catch (e: Exception) {
+            return false
+        } finally {
+            tmp.delete()
+            if (backup.exists() && !archive.exists()) backup.renameTo(archive)
         }
     }
 

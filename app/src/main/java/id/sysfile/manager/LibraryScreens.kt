@@ -752,6 +752,7 @@ fun PayloadScreen(
 fun ArchiveScreen(
     path: String,
     initialPrefix: String = "",
+    reloadKey: Int = 0,
     onPrefixChange: (String) -> Unit = {},
     onBack: () -> Unit,
     onError: () -> Unit,
@@ -763,7 +764,7 @@ fun ArchiveScreen(
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var items by remember(path) { mutableStateOf<List<ArchiveItem>?>(null) }
     var prefix by remember(path) { mutableStateOf(initialPrefix) }
-    LaunchedEffect(path) {
+    LaunchedEffect(path, reloadKey) {
         val loaded = withContext(Dispatchers.IO) { ArchiveOps.listContents(archiveFile) }
         if (loaded == null) onError() else items = loaded
     }

@@ -175,13 +175,13 @@ private sealed interface Overlay {
     data class ImageView(val paths: List<String>, val startIndex: Int) : Overlay
     data class VideoView(val paths: List<String>, val startIndex: Int) : Overlay
     data class TextView(val path: String) : Overlay
-    data class ArchiveText(val name: String, val content: String) : Overlay
+    data class ArchiveText(val name: String, val content: String, val archivePath: String, val canSave: Boolean) : Overlay
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
     data class OfficeView(val path: String) : Overlay
     data class FontView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
-    data class ArchiveView(val path: String) : Overlay
+    data class ArchiveView(val path: String, val reload: Int = 0) : Overlay
     data class PayloadView(val path: String) : Overlay
 }
 
@@ -990,7 +990,14 @@ fun SysFileApp() {
                     )
                     is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
                     is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null })
-                    is Overlay.ArchiveText -> TextViewerScreen(ov.name, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, extractedText = ov.content)
+                    is Overlay.ArchiveText -> TextViewerScreen(
+                        ov.name,
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        notify = { notify(it) },
+                        extractedText = ov.content,
+                        onSaveArchiveText = if (ov.canSave) { { newText -> ArchiveOps.replaceZipEntry(File(ov.archivePath), ov.name, newText) } } else null,
+                        onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) }
+                    )
                     is Overlay.PdfView -> PdfViewerScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
@@ -1046,6 +1053,7 @@ fun SysFileApp() {
                     )
                     is Overlay.ArchiveView -> ArchiveScreen(
                         path = ov.path,
+                        reloadKey = ov.reload,
                         initialPrefix = if (archivePrefixPath == ov.path) archivePrefix else "",
                         onPrefixChange = { archivePrefixPath = ov.path; archivePrefix = it },
                         onBack = { overlay = overlayReturn; overlayReturn = null; archivePrefix = ""; archivePrefixPath = null },
@@ -1066,15 +1074,16 @@ fun SysFileApp() {
                                 // diekstrak ke penyimpanan. Selain teks, ekstrak
                                 // ke cache aplikasi (privat, tak terlihat) lalu
                                 // buka dari sana — bukan lagi ke folder ZIP.
-                                val text = withContext(Dispatchers.IO) {
-                                    if (FileOps.isTextFile(File(itemName))) {
+                                val (text, canSave) = withContext(Dispatchers.IO) {
+                                    val t = if (FileOps.isTextFile(File(itemName))) {
                                         ArchiveOps.readEntryText(archiveFile, itemName)
                                     } else null
+                                    t to (t != null && ArchiveOps.canReplaceEntry(archiveFile))
                                 }
                                 if (text != null) {
                                     working = false
                                     overlayReturn = ov
-                                    overlay = Overlay.ArchiveText(itemName, text)
+                                    overlay = Overlay.ArchiveText(itemName, text, archiveFile.path, canSave)
                                 } else {
                                     val out = withContext(Dispatchers.IO) {
                                         val cache = File(context.cacheDir, "archive-view").apply { mkdirs() }

@@ -219,6 +219,75 @@ class FileOpsTest {
         assertNull(ArchiveOps.listZipContents(zip))
     }
 
+    // --- replaceZipEntry (AT1: edit teks di dalam ZIP, simpan kembali) ---
+
+    @Test
+    fun replaceZipEntry_replacesTargetKeepsOthers() {
+        val zip = File(tmp.root, "mod.zip")
+        // Satu entri STORED (agar jalur size/crc teruji) + dua DEFLATED + satu direktori.
+        ZipOutputStream(FileOutputStream(zip)).use { zos ->
+            val bytes = byteArrayOf(1, 2, 3, 4, 5)
+            val stored = ZipEntry("data.bin")
+            stored.method = ZipEntry.STORED
+            stored.size = bytes.size.toLong()
+            val crc = java.util.zip.CRC32()
+            crc.update(bytes)
+            stored.crc = crc.value
+            zos.putNextEntry(stored)
+            zos.write(bytes)
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("module.prop"))
+            zos.write("version=1.0".toByteArray())
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("folder/"))
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("folder/customize.sh"))
+            zos.write("echo hi".toByteArray())
+            zos.closeEntry()
+        }
+        assertTrue(ArchiveOps.canReplaceEntry(zip))
+        assertTrue(ArchiveOps.replaceZipEntry(zip, "module.prop", "version=2.0"))
+        java.util.zip.ZipFile(zip).use { z ->
+            assertEquals("version=2.0", z.getInputStream(z.getEntry("module.prop")).readBytes().toString(Charsets.UTF_8))
+            assertEquals("echo hi", z.getInputStream(z.getEntry("folder/customize.sh")).readBytes().toString(Charsets.UTF_8))
+            val bin = z.getEntry("data.bin")
+            assertEquals(ZipEntry.STORED, bin.method)
+            assertEquals(listOf(1.toByte(), 2.toByte(), 3.toByte(), 4.toByte(), 5.toByte()),
+                z.getInputStream(bin).readBytes().toList())
+            assertEquals(4, z.size())
+        }
+    }
+
+    @Test
+    fun replaceZipEntry_missingEntryReturnsFalseAndKeepsArchive() {
+        val zip = File(tmp.root, "mod2.zip")
+        makeZip(zip, listOf("a.txt" to "hello", "b.txt" to "world"))
+        val before = zip.readBytes()
+        assertFalse(ArchiveOps.replaceZipEntry(zip, "tidak-ada.txt", "x"))
+        assertEquals(before.toList(), zip.readBytes().toList())
+        // Tidak ada berkas temp/cadangan yang tertinggal.
+        assertTrue(tmp.root.listFiles().orEmpty().none { it.name.startsWith("mod2.zip.tmp-") || it.name.startsWith("mod2.zip.bak-") })
+    }
+
+    @Test
+    fun replaceZipEntry_nonZipAndEncryptedRejected() {
+        val txt = File(tmp.root, "bukan.zip.txt")
+        txt.writeText("bukan arsip")
+        assertFalse(ArchiveOps.canReplaceEntry(txt))
+        assertFalse(ArchiveOps.replaceZipEntry(txt, "a.txt", "x"))
+        // APK (kontainer ZIP) sengaja ditolak — menulis ulang merusak tanda tangan.
+        val apk = File(tmp.root, "app.apk")
+        makeZip(apk, listOf("a.txt" to "hello"))
+        assertFalse(ArchiveOps.canReplaceEntry(apk))
+        assertFalse(ArchiveOps.replaceZipEntry(apk, "a.txt", "x"))
+        // ZIP terenkripsi ditolak.
+        val src = tmp.newFolder("encsrc")
+        File(src, "a.txt").writeText("rahasia")
+        val enc = checkNotNull(ArchiveOps.create(listOf(File(src, "a.txt")), tmp.root, "enc", "zip", "sandi123"))
+        assertFalse(ArchiveOps.canReplaceEntry(enc))
+        assertFalse(ArchiveOps.replaceZipEntry(enc, "a.txt", "x"))
+    }
+
     // --- tar / 7z (C1: penjaga yang sama, jalur kode berbeda) ---
 
     @Test
