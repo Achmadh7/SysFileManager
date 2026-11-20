@@ -86,7 +86,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.key
 import androidx.compose.ui.text.AnnotatedString
@@ -102,7 +106,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FileInputStream
 
 /** Penampil foto layar penuh: geser antar foto sefolder, cubit-zoom, ketuk untuk mode imersif, toolbar aksi melayang. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -393,15 +399,74 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit,
                     AndroidView(
                         factory = { ctx ->
                             WebView(ctx).apply {
-                                // Pratinjau HTML statis (C3): JavaScript mati dan
-                                // akses file-URL dari halaman dimatikan eksplisit.
-                                // allowFileAccess tetap nyala supaya gambar/CSS
-                                // relatif (base file:// folder induk) bisa dimuat.
+                                // Pratinjau HTML statis (r176: H5/M11/M12):
+                                // JavaScript mati, DOM storage mati, akses
+                                // file WebView dimatikan (allowFileAccess=false)
+                                // dan muatan jaringan diblokir (blockNetworkLoads).
+                                // Subresource file:// yang sah (gambar/CSS di
+                                // folder induk) dilayani klien di bawah lewat
+                                // WebViewPolicy — file di luar folder itu dan
+                                // semua http(s) diblokir. Tautan hanya boleh
+                                // http/https (dibuka eksternal lewat chooser).
                                 settings.javaScriptEnabled = false
-                                settings.allowFileAccess = true
+                                settings.allowFileAccess = false
                                 settings.allowFileAccessFromFileURLs = false
                                 settings.allowUniversalAccessFromFileURLs = false
                                 settings.domStorageEnabled = false
+                                settings.blockNetworkLoads = true
+                                val allowedDir = File(path).parent
+                                    ?.takeIf { it.isNotEmpty() }?.let { File(it) }
+                                webViewClient = object : WebViewClient() {
+                                    override fun shouldOverrideUrlLoading(
+                                        view: WebView,
+                                        request: WebResourceRequest
+                                    ): Boolean {
+                                        if (WebViewPolicy.isExternalHttpLink(request.url.toString())) {
+                                            try {
+                                                ctx.startActivity(
+                                                    Intent.createChooser(
+                                                        Intent(Intent.ACTION_VIEW, request.url),
+                                                        null
+                                                    )
+                                                )
+                                            } catch (_: Exception) {
+                                                notify(t.openFailed)
+                                            }
+                                        }
+                                        return true
+                                    }
+
+                                    override fun shouldInterceptRequest(
+                                        view: WebView,
+                                        request: WebResourceRequest
+                                    ): WebResourceResponse? {
+                                        if (request.isForMainFrame) return null
+                                        val scheme = request.url.scheme?.lowercase()
+                                        if (scheme != "file" && scheme != "http" && scheme != "https") return null
+                                        val file = WebViewPolicy.resolveAllowedSubresource(
+                                            request.url.toString(), allowedDir
+                                        )
+                                        if (file != null) {
+                                            return try {
+                                                val mime = WebViewPolicy.mimeTypeFor(file.name)
+                                                val encoding = if (mime.startsWith("text/") ||
+                                                    mime == "image/svg+xml" ||
+                                                    mime == "application/json"
+                                                ) "UTF-8" else null
+                                                WebResourceResponse(mime, encoding, FileInputStream(file))
+                                            } catch (_: Exception) {
+                                                WebResourceResponse(
+                                                    "text/plain", "UTF-8",
+                                                    ByteArrayInputStream(ByteArray(0))
+                                                )
+                                            }
+                                        }
+                                        return WebResourceResponse(
+                                            "text/plain", "UTF-8",
+                                            ByteArrayInputStream(ByteArray(0))
+                                        )
+                                    }
+                                }
                             }
                         },
                         update = { wv ->
@@ -409,6 +474,9 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit,
                             val html = if (isMarkdown) Markdown.toHtml(content ?: "") else (content ?: "")
                             wv.loadDataWithBaseURL(baseUrl, html, "text/html", "UTF-8", null)
                         },
+                        // L8 (r176): WebView dihancurkan saat keluar layar,
+                        // kalau tidak resource native-nya bocor.
+                        onRelease = { it.stopLoading(); it.destroy() },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
