@@ -747,7 +747,11 @@ class ImgOpsTest {
         // Tanpa INCOMPAT_64BIT, kata hi diabaikan: total = lo saja.
         val f = makeExt4(
             fileSize = 8192, totalBlocks = 4, freeBlocks = 2,
-            blocksHi = 7, freeHi = 3, label = "", incompat = 0x40L, name = "c32.img"
+            blocksHi = 7, freeHi = 3, label = "", incompat = 0x40L,
+            // r157: roCompat default makeExt4 (0x400) berarti
+            // hasMetadataCsum true — tes ini mau semuanya false
+            // kecuali hasExtents, jadi matikan explisit.
+            roCompat = 0L, name = "c32.img"
         )
         val info = ImgOps.parseExt4Superblock(f)
         assertNotNull(info)
@@ -795,7 +799,7 @@ class ImgOpsTest {
     @Test
     fun readExt4Info_raw() {
         val f = makeExt4(fileSize = 16384, totalBlocks = 4, freeBlocks = 1, label = "system")
-        val info = ImgOps.readExt4Info(f, tmp.root)
+        val info = ImgOps.readExt4Info(f)
         assertNotNull(info)
         assertEquals("system", info!!.label)
         assertEquals(4096L, info.blockSize)
@@ -811,20 +815,18 @@ class ImgOpsTest {
             rawChunk(ext4Bytes.copyOfRange(4096, 8192), 4096)
         )
         val sparse = makeSparse(4096, 2, chunks, name = "sparse.img")
-        val cache = tmp.newFolder("cache")
-        val info = ImgOps.readExt4Info(sparse, cache)
+        val info = ImgOps.readExt4Info(sparse)
         assertNotNull(info)
         assertEquals("vendor", info!!.label)
         assertEquals(8192L, info.totalBytes)
-        // Temp hasil unsparse dihapus setelah dibaca.
-        val leftovers = File(cache, "sparse-view").listFiles()
-        assertTrue(leftovers == null || leftovers.isEmpty())
+        // LD2 r157: tidak ada temp yang dibuat — cuma 2 berkas fixture.
+        assertEquals(listOf("raw.img", "sparse.img"), tmp.root.listFiles()!!.map { it.name }.sorted())
     }
 
     @Test
     fun readExt4Info_notExt4() {
         val boot = makeBootV0(2048, 100, gzip(sampleCpio()))
-        assertNull(ImgOps.readExt4Info(boot, tmp.root))
-        assertNull(ImgOps.readExt4Info(writeFile("raw.img", ByteArray(64) { 0x42 }), tmp.root))
+        assertNull(ImgOps.readExt4Info(boot))
+        assertNull(ImgOps.readExt4Info(writeFile("raw.img", ByteArray(64) { 0x42 })))
     }
 }

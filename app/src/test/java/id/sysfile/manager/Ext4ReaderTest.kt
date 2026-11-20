@@ -253,7 +253,7 @@ class Ext4ReaderTest {
     @Test
     fun sessionRawAndSparse() {
         val img = buildExt4Fixture(tmp)
-        val rawSession = Ext4Reader.openSession(img, tmp)
+        val rawSession = Ext4Reader.openSession(img)
         assertNotNull(rawSession)
         assertNull(rawSession!!.tempFile)
         assertEquals(9, rawSession.reader.listDir(2L)!!.size)
@@ -262,16 +262,17 @@ class Ext4ReaderTest {
 
         val sparse = File(tmp, "system-sparse.img")
             .also { it.writeBytes(makeSparse(img.readBytes())) }
-        val session = Ext4Reader.openSession(sparse, tmp)
+        val session = Ext4Reader.openSession(sparse)
         assertNotNull(session)
         session!!.use {
-            assertNotNull(it.tempFile)
-            assertTrue(it.tempFile!!.exists())
+            // LD2 r157: sparse dibaca langsung — tanpa temp.
+            assertNull(it.tempFile)
             val root = it.reader.listDir(2L)
             assertNotNull(root)
             assertEquals(9, root!!.size)
         }
-        assertFalse(session.tempFile!!.exists())
+        // Menutup sesi tidak menghapus berkas sumber.
+        assertTrue(sparse.exists())
     }
 
     @Test
@@ -570,9 +571,9 @@ class Ext4ReaderTest {
         u16(1)
         u16(0)
         u16(28)
-        u16(16)
+        u16(12)
         u32(chunkSize.toLong())
-        u32(raw.size.toLong())
+        u32(chunks.toLong())
         u32(chunks.toLong())
         u32(0)
         for (i in 0 until chunks) {

@@ -15,9 +15,10 @@ data class Ext4Entry(
     val symlinkTarget: String? = null
 )
 
-/** Sesi baca ext4: citra mentah yang dibaca + temp hasil unsparse
- *  (null bila citra memang mentah) + reader yang memegang file itu.
- *  [close] menutup reader dan menghapus temp bila ada. */
+/** Sesi baca ext4: citra yang dibaca + temp hasil unsparse + reader.
+ *  Sejak LD2 (r157) temp selalu null — sparse dibaca langsung tanpa
+ *  unsparse, mentah dibuka langsung. [close] menutup reader dan
+ *  menghapus temp bila ada. */
 class Ext4Session(
     val rawFile: File,
     val tempFile: File?,
@@ -31,7 +32,8 @@ class Ext4Session(
 
 /** Pembaca ext4 read-only untuk citra .img mentah (system.img / super.img).
  *
- *  Dibaca lewat [RandomAccessFile] — citra multi-GB TIDAK PERNAH dimuat
+ *  Dibaca lewat [RandomSource] (berkas mentah, atau citra sparse
+ *  langsung sejak LD2 r157) — citra multi-GB TIDAK PERNAH dimuat
  *  utuh ke memori; yang dibaca hanya superblock, deskriptor grup, tabel
  *  inode, blok extent, dan blok direktori yang sedang dituju.
  *
@@ -52,7 +54,7 @@ class Ext4Session(
  *    berbagi satu reader yang sama.
  */
 class Ext4Reader private constructor(
-    private val raf: RandomAccessFile,
+    private val src: RandomSource,
     val blockSize: Long,
     private val inodesPerGroup: Long,
     private val blocksPerGroup: Long,
@@ -82,46 +84,51 @@ class Ext4Reader private constructor(
         /** Buka citra ext4 mentah. Null bila bukan ext4 / rusak / terpotong. */
         fun open(rawFile: File): Ext4Reader? {
             if (!rawFile.isFile) return null
-            val raf = try { RandomAccessFile(rawFile, "r") } catch (_: Exception) { return null }
+            val src = try { FileSource(RandomAccessFile(rawFile, "r")) } catch (_: Exception) { return null }
             return try {
-                val reader = openOn(raf)
+                val reader = openOn(src)
                 if (reader == null) {
-                    try { raf.close() } catch (_: Exception) { }
+                    try { src.close() } catch (_: Exception) { }
                     null
                 } else reader
             } catch (_: Exception) {
-                try { raf.close() } catch (_: Exception) { }
+                try { src.close() } catch (_: Exception) { }
                 null
             }
         }
 
-        /** Buka .img apa pun: EXT4 langsung, SPARSE di-unsparse ke temp
-         *  dulu (r153). Null bila tipenya bukan EXT4/SPARSE atau citra
-         *  tidak bisa dibaca. Temp dihapus saat [Ext4Session.close]. */
-        fun openSession(file: File, cacheDir: File): Ext4Session? {
+        /** Buka citra sparse langsung tanpa unsparse (LD2 r157):
+         *  superblock, GDT, dan blok data dibaca dari chunk sparse
+         *  lewat SparseSource — tidak ada temp multi-GB. Null bila
+         *  bukan sparse/ext4 atau rusak. */
+        fun openSparse(file: File): Ext4Reader? {
+            val src = SparseSource.open(file) ?: return null
+            return try {
+                val reader = openOn(src)
+                if (reader == null) {
+                    try { src.close() } catch (_: Exception) { }
+                    null
+                } else reader
+            } catch (_: Exception) {
+                try { src.close() } catch (_: Exception) { }
+                null
+            }
+        }
+
+        /** Buka .img apa pun: EXT4 langsung, SPARSE dibaca langsung
+         *  tanpa unsparse (LD2 r157 — dulu di-unsparse ke temp, r153).
+         *  Null bila tipenya bukan EXT4/SPARSE atau citra tidak bisa
+         *  dibaca. */
+        fun openSession(file: File): Ext4Session? {
             return when (ImgOps.detectImgType(file)) {
                 ImgType.EXT4 -> {
                     val reader = open(file) ?: return null
                     Ext4Session(file, null, reader)
                 }
                 ImgType.SPARSE -> {
-                    val dir = File(cacheDir, "ext4-view").apply { mkdirs() }
-                    val tmp = File(dir, "ext4-${System.nanoTime()}.img")
-                    try {
-                        when (ImgOps.unsparse(file, tmp)) {
-                            is UnsparseResult.Ok -> {
-                                val reader = open(tmp)
-                                if (reader == null) {
-                                    tmp.delete()
-                                    null
-                                } else Ext4Session(tmp, tmp, reader)
-                            }
-                            else -> null
-                        }
-                    } catch (_: Exception) {
-                        tmp.delete()
-                        null
-                    }
+                    // LD2 r157: baca langsung dari sparse, tanpa temp.
+                    val reader = openSparse(file) ?: return null
+                    Ext4Session(file, null, reader)
                 }
                 else -> null
             }
@@ -142,10 +149,10 @@ class Ext4Reader private constructor(
             return out.joinToString("/")
         }
 
-        private fun openOn(raf: RandomAccessFile): Ext4Reader? {
-            val len = raf.length()
+        private fun openOn(src: RandomSource): Ext4Reader? {
+            val len = src.length()
             if (len < 2048L) return null
-            val sb = readBytes(raf, 1024L, 1024) ?: return null
+            val sb = readBytes(src, 1024L, 1024) ?: return null
             if (u16le(sb, 0x38) != 0xEF53) return null
             val logBlockSize = u32le(sb, 0x18)
             if (logBlockSize > 6L) return null
@@ -183,7 +190,7 @@ class Ext4Reader private constructor(
             if (groupCount > (len - gdtOffset) / descSize) return null
             val inodeTables = LongArray(groupCount.toInt())
             for (g in 0 until groupCount) {
-                val desc = readBytes(raf, gdtOffset + g * descSize, descSize) ?: return null
+                val desc = readBytes(src, gdtOffset + g * descSize, descSize) ?: return null
                 var table = u32le(desc, 0x8)
                 if (has64bit) table = table or (u32le(desc, 0x28) shl 32)
                 if (table <= 0L || table >= totalBlocks) return null
@@ -193,26 +200,16 @@ class Ext4Reader private constructor(
                 inodeTables[g.toInt()] = table
             }
             return Ext4Reader(
-                raf, blockSize, inodesPerGroup, blocksPerGroup, inodeSize,
+                src, blockSize, inodesPerGroup, blocksPerGroup, inodeSize,
                 descSize, groupCount, inodeTables, has64bit, totalBlocks, inodesCount
             )
         }
 
-        private fun readBytes(raf: RandomAccessFile, offset: Long, size: Int): ByteArray? {
+        private fun readBytes(src: RandomSource, offset: Long, size: Int): ByteArray? {
             if (offset < 0L || size < 0) return null
-            val len = try { raf.length() } catch (_: Exception) { return null }
+            val len = try { src.length() } catch (_: Exception) { return null }
             if (offset > len || size > len - offset) return null
-            return try {
-                val buf = ByteArray(size)
-                raf.seek(offset)
-                var read = 0
-                while (read < size) {
-                    val n = raf.read(buf, read, size - read)
-                    if (n < 0) return null
-                    read += n
-                }
-                buf
-            } catch (_: Exception) { null }
+            return try { src.readAt(offset, size) } catch (_: Exception) { null }
         }
 
         private fun u16le(b: ByteArray, off: Int): Int =
@@ -244,11 +241,11 @@ class Ext4Reader private constructor(
     )
 
     override fun close() {
-        try { raf.close() } catch (_: Exception) { }
+        try { src.close() } catch (_: Exception) { }
     }
 
     private fun readAt(offset: Long, size: Int): ByteArray? {
-        synchronized(lock) { return readBytes(raf, offset, size) }
+        synchronized(lock) { return readBytes(src, offset, size) }
     }
 
     private fun readBlock(n: Long): ByteArray? {

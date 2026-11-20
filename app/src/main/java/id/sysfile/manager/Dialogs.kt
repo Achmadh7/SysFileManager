@@ -208,7 +208,6 @@ private fun imgTypeName(type: ImgType, t: Txt): String {
 fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
     val t = txt()
     val clipboard = LocalClipboardManager.current
-    val context = LocalContext.current
     var stats by remember { mutableStateOf<FileOps.FolderStats?>(null) }
     var stat by remember(entry.path) { mutableStateOf<FileOps.StatInfo?>(null) }
     var imgType by remember(entry.path) { mutableStateOf<ImgType?>(null) }
@@ -230,11 +229,12 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
         stat = withContext(Dispatchers.IO) { FileOps.statInfo(entry.path) }
         if (FileOps.extOf(entry.name) == "img") {
             imgType = withContext(Dispatchers.IO) { ImgOps.detectImgType(entry.file) }
-            // r153: ext4 (mentah atau hasil unsparse sparse) tampil
-            // ukuran volume, ukuran blok, dan label di bawah Jenis citra.
-            // LaunchedEffect memang suspend, jadi withContext di sini legal.
+            // r153: ext4 tampil ukuran volume, ukuran blok, dan label
+            // di bawah Jenis citra. r157: sparse dibaca langsung tanpa
+            // unsparse. LaunchedEffect memang suspend, jadi withContext
+            // di sini legal.
             if (imgType == ImgType.SPARSE || imgType == ImgType.EXT4) {
-                ext4Info = withContext(Dispatchers.IO) { ImgOps.readExt4Info(entry.file, context.cacheDir) }
+                ext4Info = withContext(Dispatchers.IO) { ImgOps.readExt4Info(entry.file) }
                 ext4Loaded = true
             }
         }

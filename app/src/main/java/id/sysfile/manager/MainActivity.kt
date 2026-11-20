@@ -853,7 +853,7 @@ fun SysFileApp() {
                     ImgType.EXT4 -> {
                         // Unsparse multi-GB bisa makan waktu — working
                         // tetap menyala sampai sesi siap.
-                        val session = withContext(Dispatchers.IO) { Ext4Reader.openSession(f, context.cacheDir) }
+                        val session = withContext(Dispatchers.IO) { Ext4Reader.openSession(f) }
                         working = false
                         if (session != null) {
                             ext4Session = session
@@ -863,47 +863,54 @@ fun SysFileApp() {
                         }
                     }
                     ImgType.SPARSE -> {
-                        // Unsparse SEKALI ke temp, lalu temp itu dicoba
-                        // sebagai super.img dulu (LpReader), baru ext4
-                        // (Ext4Reader) — supaya sparse ext4 tidak
-                        // di-unsparse dua kali (r156).
-                        val opened: Pair<LpSession?, Ext4Session?> = withContext(Dispatchers.IO) {
-                            val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
-                            val tmp = File(dir, "super-${System.nanoTime()}.img")
-                            try {
-                                when (ImgOps.unsparse(f, tmp)) {
-                                    is UnsparseResult.Ok -> {
-                                        val lpReader = LpReader.open(tmp)
-                                        if (lpReader != null) {
-                                            LpSession(tmp, tmp, lpReader) to null
-                                        } else {
-                                            val extReader = Ext4Reader.open(tmp)
-                                            if (extReader != null) {
-                                                null to Ext4Session(tmp, tmp, extReader)
-                                            } else {
-                                                tmp.delete()
-                                                null to null
-                                            }
-                                        }
-                                    }
-                                    else -> null to null
-                                }
-                            } catch (_: Exception) {
-                                tmp.delete()
-                                null to null
-                            }
-                        }
-                        working = false
-                        val lp = opened.first
-                        val ext = opened.second
-                        if (lp != null) {
-                            lpSession = lp
-                            overlay = Overlay.LpView(entry.path)
-                        } else if (ext != null) {
-                            ext4Session = ext
+                        // LD2 r157: sparse ext4 dibuka langsung tanpa
+                        // unsparse; gagal -> jalur lama (unsparse sekali
+                        // ke temp, dicoba sebagai super.img dulu baru
+                        // ext4 — r156).
+                        val direct = withContext(Dispatchers.IO) { Ext4Reader.openSession(f) }
+                        if (direct != null) {
+                            working = false
+                            ext4Session = direct
                             overlay = Overlay.Ext4View(entry.path)
                         } else {
-                            notify(t.opFailed)
+                            val opened: Pair<LpSession?, Ext4Session?> = withContext(Dispatchers.IO) {
+                                val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
+                                val tmp = File(dir, "super-${System.nanoTime()}.img")
+                                try {
+                                    when (ImgOps.unsparse(f, tmp)) {
+                                        is UnsparseResult.Ok -> {
+                                            val lpReader = LpReader.open(tmp)
+                                            if (lpReader != null) {
+                                                LpSession(tmp, tmp, lpReader) to null
+                                            } else {
+                                                val extReader = Ext4Reader.open(tmp)
+                                                if (extReader != null) {
+                                                    null to Ext4Session(tmp, tmp, extReader)
+                                                } else {
+                                                    tmp.delete()
+                                                    null to null
+                                                }
+                                            }
+                                        }
+                                        else -> null to null
+                                    }
+                                } catch (_: Exception) {
+                                    tmp.delete()
+                                    null to null
+                                }
+                            }
+                            working = false
+                            val lp = opened.first
+                            val ext = opened.second
+                            if (lp != null) {
+                                lpSession = lp
+                                overlay = Overlay.LpView(entry.path)
+                            } else if (ext != null) {
+                                ext4Session = ext
+                                overlay = Overlay.Ext4View(entry.path)
+                            } else {
+                                notify(t.opFailed)
+                            }
                         }
                     }
                     ImgType.FAT -> {

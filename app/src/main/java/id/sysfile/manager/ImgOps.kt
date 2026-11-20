@@ -400,57 +400,57 @@ object ImgOps {
     fun parseExt4Superblock(file: File): Ext4Info? {
         if (!file.isFile) return null
         return try {
-            RandomAccessFile(file, "r").use { raf ->
-                val len = raf.length()
-                if (len < EXT4_SUPERBLOCK_OFFSET + EXT4_SUPERBLOCK_SIZE) return null
-                val sb = readAt(raf, EXT4_SUPERBLOCK_OFFSET, EXT4_SUPERBLOCK_SIZE) ?: return null
-                // Magic 0xEF53 little-endian di 0x38 dari awal superblock.
-                if (u16le(sb, 0x38) != 0xEF53) return null
-                val logBlockSize = u32le(sb, 0x18)
-                if (logBlockSize > 6) return null // blok 1 KiB..64 KiB
-                val blockSize = 1024L shl logBlockSize.toInt()
-                val compat = u32le(sb, 0x5C)
-                val incompat = u32le(sb, 0x60)
-                val roCompat = u32le(sb, 0x64)
-                val is64bit = incompat and 0x80L != 0L
-                val blocksLo = u32le(sb, 0x4)
-                val blocksHi = if (is64bit) u32le(sb, 0x150) else 0L
-                val totalBlocks = blocksLo or (blocksHi shl 32)
-                val freeLo = u32le(sb, 0xC)
-                val freeHi = if (is64bit) u32le(sb, 0x158) else 0L
-                val freeBlocks = freeLo or (freeHi shl 32)
-                if (totalBlocks <= 0 || freeBlocks > totalBlocks) return null
-                if (totalBlocks > Long.MAX_VALUE / blockSize) return null
-                val totalBytes = totalBlocks * blockSize
-                val freeBytes = freeBlocks * blockSize
-                val labelBytes = sb.copyOfRange(0x78, 0x78 + 16)
-                val nul = labelBytes.indexOf(0.toByte())
-                val label = String(labelBytes, 0, if (nul >= 0) nul else 16, Charsets.UTF_8).trim()
-                Ext4Info(blockSize, totalBlocks, freeBlocks, totalBytes, freeBytes, label, compat, incompat, roCompat)
-            }
+            FileSource(RandomAccessFile(file, "r")).use { src -> parseExt4Superblock(src) }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Sama seperti [parseExt4Superblock] tapi dari sumber akses-acak
+     *  apa pun — dipakai untuk membaca superblock langsung dari citra
+     *  sparse tanpa unsparse (LD2 r157). */
+    fun parseExt4Superblock(src: RandomSource): Ext4Info? {
+        return try {
+            val len = src.length()
+            if (len < EXT4_SUPERBLOCK_OFFSET + EXT4_SUPERBLOCK_SIZE) return null
+            val sb = src.readAt(EXT4_SUPERBLOCK_OFFSET, EXT4_SUPERBLOCK_SIZE) ?: return null
+            // Magic 0xEF53 little-endian di 0x38 dari awal superblock.
+            if (u16le(sb, 0x38) != 0xEF53) return null
+            val logBlockSize = u32le(sb, 0x18)
+            if (logBlockSize > 6) return null // blok 1 KiB..64 KiB
+            val blockSize = 1024L shl logBlockSize.toInt()
+            val compat = u32le(sb, 0x5C)
+            val incompat = u32le(sb, 0x60)
+            val roCompat = u32le(sb, 0x64)
+            val is64bit = incompat and 0x80L != 0L
+            val blocksLo = u32le(sb, 0x4)
+            val blocksHi = if (is64bit) u32le(sb, 0x150) else 0L
+            val totalBlocks = blocksLo or (blocksHi shl 32)
+            val freeLo = u32le(sb, 0xC)
+            val freeHi = if (is64bit) u32le(sb, 0x158) else 0L
+            val freeBlocks = freeLo or (freeHi shl 32)
+            if (totalBlocks <= 0 || freeBlocks > totalBlocks) return null
+            if (totalBlocks > Long.MAX_VALUE / blockSize) return null
+            val totalBytes = totalBlocks * blockSize
+            val freeBytes = freeBlocks * blockSize
+            val labelBytes = sb.copyOfRange(0x78, 0x78 + 16)
+            val nul = labelBytes.indexOf(0.toByte())
+            val label = String(labelBytes, 0, if (nul >= 0) nul else 16, Charsets.UTF_8).trim()
+            Ext4Info(blockSize, totalBlocks, freeBlocks, totalBytes, freeBytes, label, compat, incompat, roCompat)
         } catch (e: Exception) {
             null
         }
     }
 
     /** Info ext4 untuk berkas .img apa pun yang memang ext4: mentah
-     *  langsung dibaca, sparse di-unsparse dulu ke temp di [cacheDir]
-     *  lalu temp-nya dihapus. null bila bukan ext4/sparse atau rusak. */
-    fun readExt4Info(file: File, cacheDir: File): Ext4Info? {
+     *  langsung dibaca, sparse dibaca langsung dari chunk-nya tanpa
+     *  unsparse (LD2 r157 — dulu seluruh citra di-unsparse ke temp
+     *  cuma untuk membaca 1 KB superblock). null bila bukan
+     *  ext4/sparse atau rusak. */
+    fun readExt4Info(file: File): Ext4Info? {
         return when (detectImgType(file)) {
             ImgType.EXT4 -> parseExt4Superblock(file)
-            ImgType.SPARSE -> {
-                val dir = File(cacheDir, "sparse-view").apply { mkdirs() }
-                val tmp = File(dir, "ext4-${System.nanoTime()}.img")
-                try {
-                    when (unsparse(file, tmp)) {
-                        is UnsparseResult.Ok -> parseExt4Superblock(tmp)
-                        else -> null
-                    }
-                } finally {
-                    tmp.delete()
-                }
-            }
+            ImgType.SPARSE -> SparseSource.open(file)?.use { src -> parseExt4Superblock(src) }
             else -> null
         }
     }
