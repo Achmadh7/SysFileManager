@@ -133,14 +133,17 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -248,6 +251,10 @@ fun HomeScreen(
                     // USB/SD kalau ada). Titik di bawah: aktif = aksen,
                     // ketuk titik = geser ke halaman itu.
                     if (heroes.isNotEmpty()) {
+                        // r171 (HC6 Naik Pudar, pilihannya): kartu hero naik
+                        // + memudar saat berpindah — translateY + alfa dari
+                        // offset pager (graphicsLayer per halaman).
+                        val risePx = with(LocalDensity.current) { 24.dp.toPx() }
                         // r169: pageSpacing 16dp - kartu yang
                         // bersebelahan tidak menempel saat digeser.
                         // Settled page tetap penuh (PageSize.Fill
@@ -257,11 +264,21 @@ fun HomeScreen(
                             pageSpacing = 16.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) { page ->
-                            StorageHeroCard(
-                                root = heroes[page],
-                                rootActive = rootActive,
-                                onOpenRoot = onOpenRoot
-                            )
+                            // r171: offset halaman -> naik + pudar (HC6).
+                            val pageOffset = pagerState.getOffsetDistanceInPages(page)
+                            val heroAlpha = lerp(1f, 0.5f, minOf(1f, abs(pageOffset)))
+                            Box(
+                                Modifier.graphicsLayer {
+                                    translationY = pageOffset * risePx
+                                    alpha = heroAlpha
+                                }
+                            ) {
+                                StorageHeroCard(
+                                    root = heroes[page],
+                                    rootActive = rootActive,
+                                    onOpenRoot = onOpenRoot
+                                )
+                            }
                         }
                         if (heroes.size > 1) {
                             Row(
