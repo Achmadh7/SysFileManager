@@ -420,7 +420,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                         scope.launch {
                             val staged = withContext(Dispatchers.IO) {
                                 try {
-                                    val dir = File(context.cacheDir, "apkshare").apply { mkdirs() }
+                                    val dir = File(context.cacheDir, "apkshare").apply { FileOps.evictStaleCache(this); mkdirs() }
                                     val out = File(dir, app.packageName + ".apk")
                                     File(app.apkPath).copyTo(out, overwrite = true)
                                     out

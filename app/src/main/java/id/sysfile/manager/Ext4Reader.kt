@@ -523,46 +523,103 @@ class Ext4Reader private constructor(
         if (data.mode and MODE_MASK != MODE_REG) return null
         if (data.flags and ENCRYPT_FLAG != 0L) return null
         if (data.size < 0L || data.size > FileOps.MAX_EXTRACT_BYTES) return null
-        val out = File(destDir, name)
+        // M4: tulis ke temp unik di dir yang sama lalu rename bila
+        // sukses — berkas yang sudah ada (nama sama) tidak pernah
+        // terpotong, dan tidak ada berkas sebagian yang tertinggal.
+        // Tabrakan nama memakai nama unik (seperti extractSingle).
+        val out = File(destDir, FileOps.uniqueName(destDir, name))
         val destCanonical = try { destDir.canonicalPath } catch (_: Exception) { return null }
         val outCanonical = try { out.canonicalPath } catch (_: Exception) { return null }
         if (!FileOps.isPathInside(destCanonical, outCanonical)) return null
         destDir.mkdirs()
-        return if (writeFileData(data, out)) out else null
+        val tmp = FileOps.tempFileIn(destDir) ?: return null
+        return try {
+            if (!writeFileData(data, tmp)) null
+            else if (tmp.renameTo(out)) out
+            else null
+        } finally {
+            if (tmp.exists()) tmp.delete()
+        }
     }
 
     /** Tulis isi data inode ke [out] secara streaming per blok
      *  (tidak pernah memuat berkas utuh ke memori). False bila gagal;
-     *  berkas setengah ditulis dihapus. */
+     *  berkas setengah ditulis dihapus. M10: celah di peta extent
+     *  (berkas sparse — blok tanpa extent) ditulis sebagai nol,
+     *  seperti [readData]; dulu celah membuat `written != data.size`
+     *  dan ekstrak gagal padahal isi sudah tertulis sebagian.
+     *  Kegagalan di tengah loop tidak lagi `return` dari dalam `use`
+     *  (dulu non-local return melewati `catch` sehingga berkas
+     *  sebagian tidak terhapus — M4). */
     private fun writeFileData(data: InodeData, out: File): Boolean {
         val extents = resolveExtents(data) ?: return false
         var written = 0L
-        return try {
+        var pos = 0L
+        var ok = true
+        try {
             FileOutputStream(out).use { fos ->
                 for (e in extents) {
+                    if (!ok) break
                     val logicalStart = e.fileBlock * blockSize
                     if (logicalStart >= data.size) break
+                    // M10: celah sebelum extent ini — tulis nol (chunk
+                    // 64 KiB supaya celah multi-MB tidak mengalokasi
+                    // ByteArray sebesar celahnya).
+                    if (logicalStart > pos) {
+                        val gap = minOf(logicalStart, data.size) - pos
+                        if (!writeZeros(fos, gap)) { ok = false; break }
+                        written += gap
+                        pos += gap
+                    }
                     var j = 0L
                     while (j < e.len) {
-                        val pos = logicalStart + j * blockSize
-                        if (pos >= data.size) break
-                        val take = minOf(blockSize, data.size - pos)
+                        val p = logicalStart + j * blockSize
+                        if (p >= data.size) break
+                        val take = minOf(blockSize, data.size - p)
                         if (e.uninit) {
                             val zeros = ByteArray(take.toInt())
                             fos.write(zeros)
                         } else {
-                            val src = readBlock(e.physBlock + j) ?: return false
+                            val src = readBlock(e.physBlock + j)
+                            if (src == null) { ok = false; break }
                             fos.write(src, 0, take.toInt())
                         }
                         written += take
-                        if (written > FileOps.MAX_EXTRACT_BYTES) return false
+                        pos = p + take
+                        if (written > FileOps.MAX_EXTRACT_BYTES) { ok = false; break }
                         j++
                     }
                 }
+                // M10: celah di ujung (peta extent berakhir sebelum
+                // ukuran berkas) — tulis nol sampai data.size.
+                if (ok && pos < data.size) {
+                    val gap = data.size - pos
+                    if (!writeZeros(fos, gap)) ok = false
+                    else { written += gap; pos = data.size }
+                }
             }
-            written == data.size
         } catch (_: Exception) {
+            ok = false
+        }
+        if (!ok || written != data.size) {
             out.delete()
+            return false
+        }
+        return true
+    }
+
+    /** Tulis [count] byte nol ke [fos] dalam chunk 64 KiB. False bila gagal. */
+    private fun writeZeros(fos: java.io.OutputStream, count: Long): Boolean {
+        return try {
+            val zeros = ByteArray(64 * 1024)
+            var left = count
+            while (left > 0) {
+                val n = minOf(zeros.size.toLong(), left).toInt()
+                fos.write(zeros, 0, n)
+                left -= n
+            }
+            true
+        } catch (_: Exception) {
             false
         }
     }
@@ -655,12 +712,26 @@ class Ext4Reader private constructor(
                 if (data.flags and ENCRYPT_FLAG != 0L) return false
                 if (data.size < 0L || data.size > FileOps.MAX_EXTRACT_BYTES) return false
                 if (!budget.addBytes(data.size)) return false
-                out.parentFile?.mkdirs()
-                if (!writeFileData(data, out)) {
-                    out.delete()
+                // M3: tabrakan nama memakai nama unik — berkas yang
+                // sudah ada tidak pernah ditimpa; tulis ke temp lalu
+                // rename supaya gagal/batal tidak meninggalkan sebagian
+                // dan tidak menghapus berkas lama (dulu cleanup
+                // menghapus semua `written`, termasuk yang sudah ada).
+                val parent = out.parentFile ?: destDir
+                val final = File(parent, FileOps.uniqueName(parent, out.name))
+                val finalCanonical = try { final.canonicalPath } catch (_: Exception) { return false }
+                if (!FileOps.isPathInside(destCanonical, finalCanonical)) return false
+                parent.mkdirs()
+                val tmp = FileOps.tempFileIn(parent) ?: return false
+                if (!writeFileData(data, tmp)) {
+                    tmp.delete()
                     return false
                 }
-                written += out
+                if (!tmp.renameTo(final)) {
+                    tmp.delete()
+                    return false
+                }
+                written += final
                 onEntry()
             }
         }

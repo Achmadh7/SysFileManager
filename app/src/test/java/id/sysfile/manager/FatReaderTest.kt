@@ -645,6 +645,51 @@ class FatReaderTest {
     }
 
     @Test
+    fun extractAllPreservesPreExistingFile() {
+        val img = buildFat12Image()
+        FatReader.open(img)!!.use { r ->
+            val all = File(tmp, "allkeep").apply { mkdirs() }
+            File(all, "HELLO.TXT").writeText("ORIGINAL")
+            assertTrue(r.extractAll(all))
+            assertEquals("ORIGINAL", File(all, "HELLO.TXT").readText())
+            assertEquals("Hello FAT12\n", File(all, "HELLO (1).TXT").readText())
+        }
+    }
+
+    @Test
+    fun extractEntryCollisionUsesUniqueName() {
+        val img = buildFat12Image()
+        FatReader.open(img)!!.use { r ->
+            val dest = File(tmp, "collide").apply { mkdirs() }
+            File(dest, "INNER.TXT").writeText("ORIGINAL")
+            val out = r.extractEntry("SUB/INNER.TXT", dest)
+            assertNotNull(out)
+            assertEquals("INNER (1).TXT", out!!.name)
+            assertEquals("inner", out.readText())
+            assertEquals("ORIGINAL", File(dest, "INNER.TXT").readText())
+        }
+    }
+
+    @Test
+    fun extractAllCancelKeepsPreExistingFile() {
+        val img = buildFat12Image()
+        FatReader.open(img)!!.use { r ->
+            val all = File(tmp, "allkeepcancel").apply { mkdirs() }
+            File(all, "HELLO.TXT").writeText("ORIGINAL")
+            val flag = AtomicBoolean(false)
+            assertThrows(ImgCancelledException::class.java) {
+                r.extractAll(
+                    all,
+                    onProgress = { done, _ -> if (done >= 1L) flag.set(true) },
+                    cancelFlag = flag
+                )
+            }
+            assertEquals("ORIGINAL", File(all, "HELLO.TXT").readText())
+            assertEquals(listOf("HELLO.TXT"), all.walkTopDown().filter { it.isFile }.map { it.name }.toList())
+        }
+    }
+
+    @Test
     fun extractAll_cancelMidwayDeletesWrittenAndThrows() {
         val img = buildFat12Image()
         FatReader.open(img)!!.use { r ->

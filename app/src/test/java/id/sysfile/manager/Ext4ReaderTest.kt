@@ -23,11 +23,12 @@ import org.junit.Test
  *  blok 4), 2 bitmap blok, 3 bitmap inode, 4-5 tabel inode (32 inode
  *  x 256 byte), 6 root, 7 hello.txt, 8 sub, 9-11 big.bin, 12 deep,
  *  13 f.txt, 14 target slowlink, 15 daun extent, 16 deepfile, 17 plaindir,
- *  18 plainfile.
+ *  18 plainfile + gap.bin.
  *  Inode: 2 root, 12 hello.txt, 13 big.bin (2 extent), 14 sub,
  *  15 link.txt (fast symlink), 16 slowlink, 17 deepfile (pohon extent
  *  kedalaman 1), 18 deep, 19 f.txt, 20 hole.bin (extent uninitialized),
- *  21 plainfile, 22 plaindir (direktori kosong).
+ *  21 plainfile, 22 plaindir (direktori kosong), 23 gap.bin (celah
+ *  extent: hanya blok 0 terpetakan, blok 1 lubang — M10).
  *
  *  Citra 1K (16 blok): 0 boot, 1 superblock, 2 GDT (tabel inode di
  *  blok 5), 3-4 bitmap, 5-12 tabel inode, 13 root, 14 hello.txt.
@@ -57,8 +58,8 @@ class Ext4ReaderTest {
             assertNotNull(root)
             assertEquals(
                 listOf(
-                    "plaindir", "sub", "big.bin", "deepfile", "hello.txt", "hole.bin",
-                    "link.txt", "plainfile", "slowlink"
+                    "plaindir", "sub", "big.bin", "deepfile", "gap.bin", "hello.txt",
+                    "hole.bin", "link.txt", "plainfile", "slowlink"
                 ),
                 root!!.map { e -> e.name }
             )
@@ -258,7 +259,7 @@ class Ext4ReaderTest {
         val rawSession = Ext4Reader.openSession(img)
         assertNotNull(rawSession)
         assertNull(rawSession!!.tempFile)
-        assertEquals(9, rawSession.reader.listDir(2L)!!.size)
+        assertEquals(10, rawSession.reader.listDir(2L)!!.size)
         rawSession.close()
         assertTrue(img.exists())
 
@@ -271,7 +272,7 @@ class Ext4ReaderTest {
             assertNull(it.tempFile)
             val root = it.reader.listDir(2L)
             assertNotNull(root)
-            assertEquals(9, root!!.size)
+            assertEquals(10, root!!.size)
         }
         // Menutup sesi tidak menghapus berkas sumber.
         assertTrue(sparse.exists())
@@ -305,7 +306,7 @@ class Ext4ReaderTest {
     }
 
     // --- extractAll (LD3 r160: progres + batal) ---
-    // Total entri fixture: root 9 + sub 1 (deep) + deep 1 (f.txt) + plaindir 0 = 11.
+    // Total entri fixture: root 10 + sub 1 (deep) + deep 1 (f.txt) + plaindir 0 = 12.
 
     @Test
     fun extractAll_progressReportsMonotonicToTotal() {
@@ -314,10 +315,98 @@ class Ext4ReaderTest {
             val all = File(tmp, "allprog").also { it.mkdirs() }
             val seen = mutableListOf<Pair<Long, Long>>()
             assertTrue(r.extractAll(all, onProgress = { done, total -> seen += done to total }))
-            assertEquals(11, seen.size)
-            assertTrue(seen.map { it.first }.zipWithNext().all { (a, b) -> b == a + 1 })
-            assertEquals(11L to 11L, seen.last())
+            assertEquals(12, seen.size)
+            assertEquals(12L to 12L, seen.last())
             assertEquals("hello ext4\n", File(all, "hello.txt").readText())
+        }
+    }
+
+    @Test
+    fun readFileTrueGapReturnsZeros() {
+        val img = buildExt4Fixture(tmp)
+        Ext4Reader.open(img)!!.use { r ->
+            // gap.bin: ukuran 8192, hanya blok 0 terpetakan (isi
+            // "plain"), blok 1 celah — readData sudah benar (nol).
+            val bytes = r.readFile(23L, 1_000_000L)
+            assertNotNull(bytes)
+            assertEquals(8192, bytes!!.size)
+            assertEquals("plain", String(bytes.copyOfRange(0, 5), Charsets.UTF_8))
+            assertTrue(bytes.copyOfRange(5, 8192).all { it == 0.toByte() })
+        }
+    }
+
+    @Test
+    fun extractEntryTrueGapWritesZeros() {
+        val img = buildExt4Fixture(tmp)
+        Ext4Reader.open(img)!!.use { r ->
+            val dest = File(tmp, "gapout").also { it.mkdirs() }
+            val out = r.extractEntry(23L, "gap.bin", dest)
+            assertNotNull(out)
+            assertEquals(8192L, out!!.length())
+            assertArrayEquals(r.readFile(23L, 1_000_000L)!!, out.readBytes())
+        }
+    }
+
+    @Test
+    fun extractEntryCollisionUsesUniqueName() {
+        val img = buildExt4Fixture(tmp)
+        Ext4Reader.open(img)!!.use { r ->
+            val dest = File(tmp, "collide").also { it.mkdirs() }
+            File(dest, "hello.txt").writeText("ORIGINAL")
+            val out = r.extractEntry(12L, "hello.txt", dest)
+            assertNotNull(out)
+            assertEquals("hello (1).txt", out!!.name)
+            assertEquals("hello ext4\n", out.readText())
+            assertEquals("ORIGINAL", File(dest, "hello.txt").readText())
+        }
+    }
+
+    @Test
+    fun extractEntryFailureLeavesNoPartialAndKeepsExisting() {
+        val img = buildExt4Fixture(tmp)
+        val raw = img.readBytes()
+        // Rusak extent hello.txt: phys di luar total blok (offset
+        // iBlock inode 12 + 12 header extent + 8 = physLo).
+        val off = 4 * 4096 + 11 * 256 + 0x28 + 12 + 8
+        val bad = raw.copyOf().also { putU32(it, off, 9999) }
+        val f = File(tmp, "badext.img").also { it.writeBytes(bad) }
+        Ext4Reader.open(f)!!.use { r ->
+            val dest = File(tmp, "badout").also { it.mkdirs() }
+            File(dest, "hello.txt").writeText("ORIGINAL")
+            assertNull(r.extractEntry(12L, "hello.txt", dest))
+            assertEquals("ORIGINAL", File(dest, "hello.txt").readText())
+            assertEquals(listOf("hello.txt"), dest.listFiles()!!.map { it.name })
+        }
+    }
+
+    @Test
+    fun extractAllPreservesPreExistingFile() {
+        val img = buildExt4Fixture(tmp)
+        Ext4Reader.open(img)!!.use { r ->
+            val all = File(tmp, "allkeep").also { it.mkdirs() }
+            File(all, "hello.txt").writeText("ORIGINAL")
+            assertTrue(r.extractAll(all))
+            assertEquals("ORIGINAL", File(all, "hello.txt").readText())
+            assertEquals("hello ext4\n", File(all, "hello (1).txt").readText())
+        }
+    }
+
+    @Test
+    fun extractAllCancelKeepsPreExistingFile() {
+        val img = buildExt4Fixture(tmp)
+        Ext4Reader.open(img)!!.use { r ->
+            val all = File(tmp, "allkeepcancel").also { it.mkdirs() }
+            File(all, "hello.txt").writeText("ORIGINAL")
+            val flag = AtomicBoolean(false)
+            assertThrows(ImgCancelledException::class.java) {
+                r.extractAll(
+                    all,
+                    onProgress = { done, _ -> if (done >= 3L) flag.set(true) },
+                    cancelFlag = flag
+                )
+            }
+            assertEquals("ORIGINAL", File(all, "hello.txt").readText())
+            assertEquals(listOf("hello.txt"), all.walkTopDown().filter { it.isFile }.map { it.name }.toList())
         }
     }
 
@@ -525,6 +614,9 @@ class Ext4ReaderTest {
             extentRoot(ExtentSpec(0, 18, 1)))
         putInode(img, 4096, 4, 22, 0x41ED, 4096, 0x80000, 1,
             extentRoot(ExtentSpec(0, 17, 1)))
+        // gap.bin: ukuran 8192 (2 blok), hanya blok 0 terpetakan ke
+        // blok fisik 18 (isi "plain"); blok 1 celah (M10).
+        putInode(img, 4096, 4, 23, 0x81A4, 8192, 0x80000, 1, extentRoot(ExtentSpec(0, 18, 1)))
         dirBlock(
             4096,
             listOf(
@@ -538,7 +630,8 @@ class Ext4ReaderTest {
                 Triple(17, "deepfile", 1),
                 Triple(20, "hole.bin", 1),
                 Triple(21, "plainfile", 1),
-                Triple(22, "plaindir", 2)
+                Triple(22, "plaindir", 2),
+                Triple(23, "gap.bin", 1)
             )
         ).copyInto(img, 6 * 4096)
         dirBlock(

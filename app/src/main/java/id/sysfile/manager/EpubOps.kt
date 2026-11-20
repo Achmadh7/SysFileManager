@@ -18,24 +18,38 @@ data class EpubBook(val title: String, val opfDir: String, val chapters: List<Ep
 
 object EpubOps {
 
+    /** M8: batas XML metadata (container/OPF/NCX) yang di-parse ke DOM. */
+    const val MAX_META_XML_BYTES = 1024L * 1024L
+
+    /** Parse berkas XML dengan cap ukuran (M8). Null bila hilang /
+     *  melebihi cap / gagal parse. */
+    private fun parseXmlFile(file: File, maxBytes: Long = MAX_META_XML_BYTES): org.w3c.dom.Document? {
+        if (!file.isFile || file.length() > maxBytes) return null
+        return try {
+            newSafeDocumentBuilder().parse(file)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /** Buka EPUB: ekstrak ke [destDir] (dihapus dulu bila sudah ada) lalu
      *  parse container + OPF (+ toc.ncx bila ada). Null bila bukan EPUB
      *  valid / ekstraksi gagal / spine kosong. */
     fun open(epub: File, destDir: File): EpubBook? {
         try {
             if (!epub.isFile) return null
-            if (destDir.exists()) destDir.deleteRecursively()
+            if (destDir.exists()) FileOps.deleteRecursively(destDir)
             if (!FileOps.unzip(epub, destDir)) return null
             val container = File(destDir, "META-INF/container.xml")
             if (!container.isFile) return null
-            val containerDoc = newSafeDocumentBuilder().parse(container)
+            val containerDoc = parseXmlFile(container) ?: return null
             val rootfile = containerDoc.getElementsByTagNameNS("*", "rootfile")
                 .item(0) as? Element ?: return null
             val opfPath = rootfile.getAttribute("full-path").ifBlank { return null }
             val opfFile = File(destDir, opfPath)
             if (!opfFile.isFile) return null
             if (!FileOps.isPathInside(destDir.canonicalPath, opfFile.canonicalPath)) return null
-            val opf = newSafeDocumentBuilder().parse(opfFile)
+            val opf = parseXmlFile(opfFile) ?: return null
             val opfDir = opfPath.substringBeforeLast('/', "")
             val manifest = mutableMapOf<String, String>()
             var ncxHref: String? = null
@@ -89,7 +103,8 @@ object EpubOps {
             val ncx = File(base, decodeHref(ncxHref.substringBefore('#')))
             if (!ncx.isFile) return emptyMap()
             if (!FileOps.isPathInside(destDir.canonicalPath, ncx.canonicalPath)) return emptyMap()
-            val doc = newSafeDocumentBuilder().parse(ncx)
+            // M8: NCX raksasa ditolak -> judul kosong, fallback nama file.
+            val doc = parseXmlFile(ncx) ?: return emptyMap()
             val out = mutableMapOf<String, String>()
             val points = doc.getElementsByTagNameNS("*", "navPoint")
             for (i in 0 until points.length) {
@@ -133,7 +148,7 @@ object EpubOps {
 /** DocumentBuilder yang aman dari XXE: entitas eksternal + DTD eksternal
  *  dimatikan, DOCTYPE tetap diizinkan (toc.ncx memakainya). Dipakai juga
  *  oleh OfficeText (BC3). */
-internal fun newSafeDocumentBuilder(): DocumentBuilder {
+internal fun newSafeDocumentBuilder(allowDoctype: Boolean = true): DocumentBuilder {
     val factory = DocumentBuilderFactory.newInstance()
     factory.isNamespaceAware = true
     factory.isXIncludeAware = false
@@ -149,6 +164,16 @@ internal fun newSafeDocumentBuilder(): DocumentBuilder {
     try {
         factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
     } catch (_: Exception) {
+    }
+    // M8: pemanggil yang tidak pernah memakai DOCTYPE (Office) boleh
+    // memintanya ditolak — entity expansion tidak lagi bisa mengembang
+    // sebelum parser membaca isinya. Jalur EPUB memakai default true
+    // karena toc.ncx yang sah memakai DOCTYPE.
+    if (!allowDoctype) {
+        try {
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        } catch (_: Exception) {
+        }
     }
     return factory.newDocumentBuilder()
 }

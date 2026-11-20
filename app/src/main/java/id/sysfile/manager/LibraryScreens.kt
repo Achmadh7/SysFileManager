@@ -521,16 +521,38 @@ internal suspend fun loadCategoryFiles(
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TrashScreen(onBack: () -> Unit, notify: (String) -> Unit) {
+fun TrashScreen(
+    onBack: () -> Unit,
+    notify: (String) -> Unit,
+    lockedPaths: Set<String> = emptySet(),
+    unlockedPaths: Set<String> = emptySet(),
+    onRequestUnlock: (String, () -> Unit) -> Unit = { _, grant -> grant() }
+) {
     val t = txt()
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<TrashItem>?>(null) }
+    var hiddenCount by remember { mutableStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var reloadTick by remember { mutableStateOf(0) }
     var confirmEmpty by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<TrashItem?>(null) }
-    LaunchedEffect(reloadTick) {
-        items = withContext(Dispatchers.IO) { TrashOps.listTrash() }
+    LaunchedEffect(reloadTick, lockedPaths, unlockedPaths) {
+        items = withContext(Dispatchers.IO) { TrashOps.listTrash(lockedPaths, unlockedPaths) }
+        hiddenCount = withContext(Dispatchers.IO) { TrashOps.countHiddenLocked(lockedPaths, unlockedPaths) }
+    }
+    // M13: pulihkan / hapus permanen item dari folder terkunci butuh
+    // biometrik dulu (biasanya tak terjangkau — item semacam itu
+    // disembunyikan — tapi gerbang ini menutup celah bila daftar
+    // dimuat sebelum folder dikunci).
+    fun guardedTrashAction(item: TrashItem, action: () -> Unit) {
+        if (item.originalPath.isNotBlank() &&
+            FileOps.isLockedPath(item.originalPath, lockedPaths) &&
+            !FileOps.isUnlockedPath(item.originalPath, unlockedPaths)
+        ) {
+            onRequestUnlock(item.originalPath, action)
+        } else {
+            action()
+        }
     }
     fun runAction(successMsg: String, block: () -> Boolean) {
         busy = true
@@ -563,17 +585,33 @@ fun TrashScreen(onBack: () -> Unit, notify: (String) -> Unit) {
             when {
                 loaded == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 loaded.isEmpty() -> Text(
-                    t.trashEmpty,
+                    // M13: bila ada item tersembunyi, jangan klaim
+                    // sampah kosong — hanya jumlahnya yang disebut.
+                    if (hiddenCount > 0) t.trashLockedHidden(hiddenCount) else t.trashEmpty,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.Center)
                 )
                 else -> LazyColumn(Modifier.fillMaxSize()) {
+                    if (hiddenCount > 0) {
+                        item {
+                            Text(
+                                t.trashLockedHidden(hiddenCount),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                     items(loaded, key = { it.trashName }) { item ->
                         TrashItemRow(
                             item = item,
                             busy = busy,
-                            onRestore = { runAction(t.restoredDone) { TrashOps.restore(item) } },
+                            onRestore = {
+                                guardedTrashAction(item) {
+                                    runAction(t.restoredDone) { TrashOps.restore(item) }
+                                }
+                            },
                             onDelete = { confirmDelete = item }
                         )
                     }
@@ -585,11 +623,17 @@ fun TrashScreen(onBack: () -> Unit, notify: (String) -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmEmpty = false },
             title = { Text(t.emptyTrash) },
-            text = { Text(t.emptyTrashConfirm) },
+            text = {
+                Text(
+                    if (hiddenCount > 0) t.emptyTrashConfirm + "
+" + t.trashLockedHidden(hiddenCount)
+                    else t.emptyTrashConfirm
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmEmpty = false
-                    runAction(t.deletedDone) { TrashOps.emptyTrash() }
+                    runAction(t.deletedDone) { TrashOps.emptyTrash(lockedPaths, unlockedPaths) }
                 }) { Text(t.deleteForever) }
             },
             dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text(t.cancel) } }
@@ -603,7 +647,9 @@ fun TrashScreen(onBack: () -> Unit, notify: (String) -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = null
-                    runAction(t.deletedDone) { TrashOps.deleteForever(item) }
+                    guardedTrashAction(item) {
+                        runAction(t.deletedDone) { TrashOps.deleteForever(item) }
+                    }
                 }) { Text(t.deleteForever) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(t.cancel) } }

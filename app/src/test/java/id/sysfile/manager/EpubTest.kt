@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -101,6 +102,76 @@ class EpubTest {
         val book = EpubOps.open(epub, File(tmp.root, "out"))
         assertTrue(book != null)
         assertEquals(listOf("ch1", "ch2"), book!!.chapters.map { it.title })
+    }
+
+    @Test
+    fun openRejectsOversizedOpf() {
+        val file = File(tmp.root, "bigopf.epub")
+        val bigOpf = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+            "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"2.0\" unique-identifier=\"id\">" +
+            "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>" +
+            "x".repeat(1024 * 1024 + 1) +
+            "</dc:title></metadata><manifest>" +
+            "<item id=\"item0\" href=\"ch1.xhtml\" media-type=\"application/xhtml+xml\"/>" +
+            "</manifest><spine><itemref idref=\"item0\"/></spine></package>"
+        // ZIP dibuat langsung (makeEpub tidak menyediakan OPF sebesar ini).
+        ZipOutputStream(FileOutputStream(file)).use { zos ->
+            zos.putNextEntry(ZipEntry("META-INF/container.xml"))
+            zos.write((
+                "<?xml version=\"1.0\"?><container version=\"1.0\" " +
+                "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">" +
+                "<rootfiles><rootfile full-path=\"OEBPS/content.opf\" " +
+                "media-type=\"application/oebps-package+xml\"/></rootfiles></container>"
+            ).toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("OEBPS/content.opf"))
+            zos.write(bigOpf.toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("OEBPS/ch1.xhtml"))
+            zos.write("<html><body>Bab</body></html>".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+        val dest = File(tmp.root, "bigopf-out")
+        assertNull(EpubOps.open(file, dest))
+    }
+
+    @Test
+    fun openOversizedNcxFallsBackToFileNames() {
+        val file = File(tmp.root, "bigncx.epub")
+        val bigNcx = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+            "<ncx xmlns=\"http://www.daisy.org/z3986/2005/ncx/\" version=\"2005-1\">" +
+            "<head></head><docTitle><text>" + "x".repeat(1024 * 1024 + 1) + "</text></docTitle>" +
+            "<navMap></navMap></ncx>"
+        ZipOutputStream(FileOutputStream(file)).use { zos ->
+            zos.putNextEntry(ZipEntry("META-INF/container.xml"))
+            zos.write((
+                "<?xml version=\"1.0\"?><container version=\"1.0\" " +
+                "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">" +
+                "<rootfiles><rootfile full-path=\"OEBPS/content.opf\" " +
+                "media-type=\"application/oebps-package+xml\"/></rootfiles></container>"
+            ).toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("OEBPS/content.opf"))
+            zos.write((
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"2.0\" unique-identifier=\"id\">" +
+                "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>T</dc:title></metadata>" +
+                "<manifest><item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\"/>" +
+                "<item id=\"item0\" href=\"ch1.xhtml\" media-type=\"application/xhtml+xml\"/></manifest>" +
+                "<spine toc=\"ncx\"><itemref idref=\"item0\"/></spine></package>"
+            ).toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("OEBPS/toc.ncx"))
+            zos.write(bigNcx.toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+            zos.putNextEntry(ZipEntry("OEBPS/ch1.xhtml"))
+            zos.write("<html><body>Bab</body></html>".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+        val dest = File(tmp.root, "bigncx-out")
+        val book = EpubOps.open(file, dest)
+        assertNotNull(book)
+        assertEquals("ch1", book!!.chapters[0].title)
     }
 
     @Test

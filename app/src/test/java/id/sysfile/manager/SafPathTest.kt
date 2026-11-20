@@ -37,6 +37,17 @@ class SafPathTest {
     }
 
     @Test
+    fun coversRequested_exactAndAncestor() {
+        assertTrue(SafPath.coversRequested("/storage/emulated/0/Android/data", "/storage/emulated/0/Android/data"))
+        assertTrue(SafPath.coversRequested("/storage/emulated/0/Android", "/storage/emulated/0/Android/data/com.x"))
+        assertTrue(SafPath.coversRequested("/storage/emulated/0/Android/data/com.x", "/storage/emulated/0/Android/data"))
+        assertFalse(SafPath.coversRequested("/storage/emulated/0/Android/obb", "/storage/emulated/0/Android/obb2"))
+        assertFalse(SafPath.coversRequested("/storage/emulated/0/Android/data", "/storage/emulated/0/Download"))
+        assertFalse(SafPath.coversRequested("", "/storage/emulated/0/Android/data"))
+        assertFalse(SafPath.coversRequested("/storage/emulated/0/Android/data", ""))
+    }
+
+    @Test
     fun isSubtreeBlocked_may2025PatchLevelAndLater() {
         // Perbaikan CVE-2025-26427 masuk buletin Mei 2025 (patch 2025-05-01).
         assertTrue(SafPath.isSubtreeBlocked("2025-05-01"))

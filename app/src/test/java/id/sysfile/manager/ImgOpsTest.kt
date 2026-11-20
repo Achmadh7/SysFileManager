@@ -468,6 +468,22 @@ class ImgOpsTest {
     }
 
     @Test
+    fun extractRamdiskEntry_collisionUsesUniqueName() {
+        val cpio = makeCpio(
+            Triple("sbin/adbd", modeFile, ByteArray(16) { it.toByte() })
+        )
+        val f = makeBootV0(2048, 100, gzip(cpio))
+        val dest = tmp.newFolder("imgcollision")
+        val sub = File(dest, "sbin").also { it.mkdirs() }
+        File(sub, "adbd").writeText("ORIGINAL")
+        val out = ImgOps.extractRamdiskEntry(f, "sbin/adbd", dest)
+        assertNotNull(out)
+        assertEquals("adbd (1)", out!!.name)
+        assertEquals(ByteArray(16) { it.toByte() }.toList(), out.readBytes().toList())
+        assertEquals("ORIGINAL", File(sub, "adbd").readText())
+    }
+
+    @Test
     fun extractRamdiskEntry() {
         val cpio = makeCpio(
             Triple("init.rc", modeFile, "on boot\n".toByteArray(Charsets.UTF_8)),

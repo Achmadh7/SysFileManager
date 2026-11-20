@@ -173,8 +173,35 @@ object FileOps {
      *  true tapi listFiles() kosong (sebagian ROM). Dipakai UI untuk
      *  menawarkan SAF sebagai jalan keluar. */
     fun isRestrictedDir(path: String): Boolean {
-        return path.contains("/Android/data/") || path.endsWith("/Android/data") ||
-            path.contains("/Android/obb/") || path.endsWith("/Android/obb")
+        // M16: dulu contains() — folder pengguna seperti
+        // .../Backup/Android/data/... ikut dianggap restricted.
+        // Sekarang dijangkar ke jalur relatif volume (dua segmen
+        // pertama harus Android/data|obb|sandbox), sama seperti
+        // SafPath.isRestrictedRel.
+        val rel = volumeRelativePath(path) ?: return false
+        return SafPath.isRestrictedRel(rel)
+    }
+
+    /** Jalur relatif terhadap akar volume penyimpanan
+     *  ("/storage/emulated/0", "/sdcard", "/storage/<vol>",
+     *  "/data/media/0", "/storage/self/primary"), atau null bila
+     *  bukan di bawah volume yang dikenali. Dipakai M16. */
+    fun volumeRelativePath(path: String): String? {
+        val norm = path.replace(0x5C.toChar(), '/').trimEnd('/')
+        val prefixes = listOf(
+            "/storage/emulated/0", "/sdcard", "/data/media/0",
+            "/storage/self/primary"
+        )
+        for (prefix in prefixes) {
+            if (norm == prefix) return ""
+            if (norm.startsWith("$prefix/")) return norm.removePrefix("$prefix/")
+        }
+        val parts = norm.split("/")
+        // /storage/<volume>/...
+        if (parts.size >= 4 && parts[1] == "storage" && parts[2].isNotEmpty()) {
+            return parts.drop(3).joinToString("/")
+        }
+        return null
     }
 
     fun entryOf(file: File): FEntry {
@@ -425,6 +452,31 @@ object FileOps {
         }
     }
 
+    /** Berkas temp unik di [dir] (tidak dibuat di disk — pemanggil
+     *  yang menulis lalu rename). Null bila dir tidak bisa dipakai.
+     *  Dipakai M3/M4/M15 supaya ekstrak/staging tidak pernah menulis
+     *  langsung ke nama akhir. */
+    fun tempFileIn(dir: File): File? {
+        if (!dir.isDirectory && !dir.mkdirs()) return null
+        val tmp = File(dir, ".sysfile-tmp-" + System.nanoTime())
+        return if (tmp.exists()) null else tmp
+    }
+
+    /** Hapus entri cache basi di [dir]: yang lebih tua dari [maxAgeMs]
+     *  atau di luar [keepNewest] terbaru (urut lastModified turun).
+     *  Dipakai M15 untuk cache staging (epub, archive-view, apkshare).
+     *  Tanpa pengecualian — yang sedang dipakai viewer tidak dihapus
+     *  karena entri segar selalu dalam 20 terbaru. */
+    fun evictStaleCache(dir: File?, maxAgeMs: Long = 24L * 60L * 60L * 1000L, keepNewest: Int = 20) {
+        if (dir == null || !dir.isDirectory) return
+        val now = System.currentTimeMillis()
+        val children = dir.listFiles()?.sortedByDescending { it.lastModified() } ?: return
+        for ((i, child) in children.withIndex()) {
+            val stale = now - child.lastModified() > maxAgeMs || i >= keepNewest
+            if (stale) deleteRecursively(child)
+        }
+    }
+
     private fun copyOne(src: File, destDir: File): Boolean {
         val dest = File(destDir, uniqueName(destDir, src.name))
         var ok = false
@@ -529,6 +581,20 @@ object FileOps {
         }
     }
 
+    /** M9: skala dimensi ikon APK supaya sisi terpanjang <= [maxDim]
+     *  (ikon adaptif bisa 512+; intrinsicWidth/Height yang tidak
+     *  dibatasi pernah mengalokasi bitmap raksasa -> OOM). Murni. */
+    fun iconBitmapSize(width: Int, height: Int, maxDim: Int = 512): Pair<Int, Int> {
+        val w = width.coerceAtLeast(1)
+        val h = height.coerceAtLeast(1)
+        val longest = maxOf(w, h)
+        if (longest <= maxDim) return w to h
+        val scale = maxDim.toDouble() / longest.toDouble()
+        val nw = (w * scale).toInt().coerceAtLeast(1)
+        val nh = (h * scale).toInt().coerceAtLeast(1)
+        return nw to nh
+    }
+
     /** Ikon aplikasi dari dalam berkas APK sebagai Bitmap; null bila gagal. */
     fun apkIcon(context: Context, file: File): android.graphics.Bitmap? {
         return try {
@@ -538,8 +604,9 @@ object FileOps {
             appInfo.sourceDir = file.absolutePath
             appInfo.publicSourceDir = file.absolutePath
             val drawable = pm.getApplicationIcon(appInfo)
-            val width = drawable.intrinsicWidth.coerceAtLeast(1)
-            val height = drawable.intrinsicHeight.coerceAtLeast(1)
+            // M9: dimensi dibatasi sebelum createBitmap (dulu intrinsic
+            // langsung, bisa ribuan px -> OOM pada APK tertentu).
+            val (width, height) = iconBitmapSize(drawable.intrinsicWidth, drawable.intrinsicHeight)
             val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(bitmap)
             drawable.setBounds(0, 0, width, height)
@@ -1266,6 +1333,18 @@ object ArchiveOps {
     }
 
     /** Daftar isi arsip (ZIP/7Z/TAR/RAR) untuk dibuka tanpa ekstrak; null bila gagal/tidak didukung. */
+    /** Baca teks berkas dengan cap byte (M8). Null bila berkas hilang,
+     *  melebihi [maxBytes], atau gagal dibaca — tanpa memuat isi utuh
+     *  ke memori dulu. */
+    fun readTextCapped(file: File, maxBytes: Long): String? {
+        if (!file.isFile || file.length() > maxBytes) return null
+        return try {
+            file.readText(Charsets.UTF_8)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /** Baca satu entri teks dari arsip ZIP ke memori (tanpa menulis ke disk);
      *  null bila bukan ZIP, entri tidak ada/direktori, terlalu besar, atau gagal.
      *  Arsip selain ZIP mengembalikan null — pemanggil memakai jalur cache. */

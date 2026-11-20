@@ -570,12 +570,22 @@ class FatReader private constructor(
         if (entry.isDir) return null
         if (!isSafeEntryName(entry.name)) return null
         if (entry.size < 0L || entry.size > FileOps.MAX_EXTRACT_BYTES) return null
-        val out = File(destDir, entry.name)
+        // M4: tulis ke temp unik di dir yang sama lalu rename bila
+        // sukses — berkas yang sudah ada tidak pernah terpotong,
+        // dan tidak ada berkas sebagian yang tertinggal.
+        val out = File(destDir, FileOps.uniqueName(destDir, entry.name))
         val destCanonical = try { destDir.canonicalPath } catch (_: Exception) { return null }
         val outCanonical = try { out.canonicalPath } catch (_: Exception) { return null }
         if (!FileOps.isPathInside(destCanonical, outCanonical)) return null
         destDir.mkdirs()
-        return if (writeFileData(entry, out)) out else null
+        val tmp = FileOps.tempFileIn(destDir) ?: return null
+        return try {
+            if (!writeFileData(entry, tmp)) null
+            else if (tmp.renameTo(out)) out
+            else null
+        } finally {
+            if (tmp.exists()) tmp.delete()
+        }
     }
 
     /** Tulis isi berkas ke [out] secara streaming per klaster (tidak
@@ -708,12 +718,25 @@ class FatReader private constructor(
             } else {
                 if (e.size < 0L || e.size > FileOps.MAX_EXTRACT_BYTES) return false
                 if (!budget.addBytes(e.size)) return false
-                out.parentFile?.mkdirs()
-                if (!writeFileData(e, out)) {
-                    out.delete()
+                // M3: tabrakan nama memakai nama unik — berkas yang
+                // sudah ada tidak pernah ditimpa; tulis ke temp lalu
+                // rename supaya gagal/batal tidak meninggalkan sebagian
+                // dan tidak menghapus berkas lama.
+                val parent = out.parentFile ?: destDir
+                val final = File(parent, FileOps.uniqueName(parent, out.name))
+                val finalCanonical = try { final.canonicalPath } catch (_: Exception) { return false }
+                if (!FileOps.isPathInside(destCanonical, finalCanonical)) return false
+                parent.mkdirs()
+                val tmp = FileOps.tempFileIn(parent) ?: return false
+                if (!writeFileData(e, tmp)) {
+                    tmp.delete()
                     return false
                 }
-                written += out
+                if (!tmp.renameTo(final)) {
+                    tmp.delete()
+                    return false
+                }
+                written += final
                 onEntry()
             }
         }

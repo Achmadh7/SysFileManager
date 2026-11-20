@@ -304,13 +304,22 @@ object ImgOps {
         val (data, entries) = readRamdiskEntries(file) ?: return null
         val target = entries.firstOrNull { it.name == entryName } ?: return null
         if ((target.mode and 0xF000L) != 0x8000L) return null
-        val out = File(destDir, target.name)
+        val rawOut = File(destDir, target.name)
         return try {
             val destCanonical = destDir.canonicalPath
-            if (isUnsafeName(target.name) || !FileOps.isPathInside(destCanonical, out.canonicalPath)) return null
+            if (isUnsafeName(target.name) || !FileOps.isPathInside(destCanonical, rawOut.canonicalPath)) return null
+            // M4: tabrakan nama memakai nama unik; tulis ke temp unik
+            // lalu rename bila sukses — berkas yang sudah ada tidak
+            // terpotong, dan tidak ada berkas sebagian yang tertinggal.
+            val out = File(destDir, FileOps.uniqueName(destDir, target.name))
             out.parentFile?.mkdirs()
-            FileOutputStream(out).use { it.write(data, target.dataStart, target.dataEnd - target.dataStart) }
-            out
+            val tmp = FileOps.tempFileIn(out.parentFile ?: destDir) ?: return null
+            try {
+                FileOutputStream(tmp).use { it.write(data, target.dataStart, target.dataEnd - target.dataStart) }
+                if (tmp.renameTo(out)) out else null
+            } finally {
+                if (tmp.exists()) tmp.delete()
+            }
         } catch (e: Exception) {
             null
         }

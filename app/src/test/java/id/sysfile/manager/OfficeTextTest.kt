@@ -44,6 +44,32 @@ class OfficeTextTest {
     }
 
     @Test
+    fun extractDocx_oversizedEntryRejected() {
+        val file = File(tmp.root, "big.docx")
+        val big = "x".repeat(4 * 1024 * 1024 + 1)
+        makeZip(file, listOf(
+            "word/document.xml" to
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+                "<w:body><w:p><w:r><w:t>$big</w:t></w:r></w:p></w:body></w:document>"
+        ))
+        assertNull(OfficeText.extract(file))
+    }
+
+    @Test
+    fun extractDocx_doctypeRejected() {
+        val file = File(tmp.root, "doctype.docx")
+        makeZip(file, listOf(
+            "word/document.xml" to
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                "<!DOCTYPE w:document [<!ENTITY x \"yyy\">]>" +
+                "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+                "<w:body><w:p><w:r><w:t>&x;</w:t></w:r></w:p></w:body></w:document>"
+        ))
+        assertNull(OfficeText.extract(file))
+    }
+
+    @Test
     fun extractXlsx_sharedStringsAndInline() {
         val file = File(tmp.root, "data.xlsx")
         makeZip(file, listOf(

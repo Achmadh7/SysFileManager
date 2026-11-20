@@ -2,6 +2,8 @@ package id.sysfile.manager
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -602,13 +604,79 @@ class FileOpsTest {
 
     @Test
     fun isRestrictedDir_androidDataObb() {
+        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/data/com.x"))
+        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/obb/com.x"))
         assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/data"))
-        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/data/com.example"))
-        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/obb"))
-        assertTrue(FileOps.isRestrictedDir("/storage/ABCD-1234/Android/data/com.example/files"))
+        // M16: sandbox ikut restricted; alias volume ikut dikenali.
+        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/sandbox"))
+        assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/sandbox/com.x"))
+        assertTrue(FileOps.isRestrictedDir("/sdcard/Android/obb/com.x"))
+        assertTrue(FileOps.isRestrictedDir("/data/media/0/Android/data/com.x"))
+        assertTrue(FileOps.isRestrictedDir("/storage/ABCD-1234/Android/sandbox/com.x"))
         assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Download"))
         assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Android"))
-        assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Android/media"))
+        // M16: folder pengguna yang kebetulan mengandung
+        // "Android/data" BUKAN restricted lagi.
+        assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Backup/Android/data/com.x"))
+        assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Backup/Android/obb/com.x"))
+        assertFalse(FileOps.isRestrictedDir("/storage/ABCD-1234/Backup/Android/data"))
+    }
+
+    @Test
+    fun volumeRelativePath_anchors() {
+        assertEquals("Android/data/com.x", FileOps.volumeRelativePath("/storage/emulated/0/Android/data/com.x"))
+        assertEquals("Android/obb", FileOps.volumeRelativePath("/sdcard/Android/obb"))
+        assertEquals("Download", FileOps.volumeRelativePath("/storage/ABCD-1234/Download"))
+        assertEquals("", FileOps.volumeRelativePath("/storage/emulated/0"))
+        assertNull(FileOps.volumeRelativePath("/data/data/id.sysfile.manager"))
+        // Fallback /storage/<vol>/... memperlakukan "emulated" sebagai
+        // nama volume — hasilnya tetap bukan restricted (tidak diawali
+        // "Android/"), jadi aman.
+        assertEquals("0x/Android/data", FileOps.volumeRelativePath("/storage/emulated/0x/Android/data"))
+    }
+
+    @Test
+    fun iconBitmapSize_capsLongestSide() {
+        assertEquals(100 to 100, FileOps.iconBitmapSize(100, 100))
+        assertEquals(512 to 512, FileOps.iconBitmapSize(8192, 8192))
+        assertEquals(512 to 256, FileOps.iconBitmapSize(1024, 512))
+        assertEquals(25 to 512, FileOps.iconBitmapSize(100, 2000))
+        assertEquals(1 to 1, FileOps.iconBitmapSize(0, 0))
+        assertEquals(1 to 100, FileOps.iconBitmapSize(-5, 100))
+    }
+
+    @Test
+    fun tempFileIn_uniqueAndInsideDir() {
+        val dir = tmp.newFolder("tmpdir")
+        val a = FileOps.tempFileIn(dir)
+        val b = FileOps.tempFileIn(dir)
+        assertNotNull(a)
+        assertNotNull(b)
+        assertNotEquals(a!!.name, b!!.name)
+        assertEquals(dir, a.parentFile)
+        assertTrue(a.name.startsWith(".sysfile-tmp-"))
+        assertFalse(a.exists())
+    }
+
+    @Test
+    fun evictStaleCache_removesOldAndExcess() {
+        val dir = tmp.newFolder("cache")
+        val now = System.currentTimeMillis()
+        val old = File(dir, "old.txt").also { it.writeText("o"); it.setLastModified(now - 25L * 60L * 60L * 1000L) }
+        val fresh = File(dir, "fresh.txt").also { it.writeText("f"); it.setLastModified(now) }
+        FileOps.evictStaleCache(dir)
+        assertFalse(old.exists())
+        assertTrue(fresh.exists())
+        // 25 entri segar -> hanya 20 terbaru yang dipertahankan.
+        for (i in 0 until 25) {
+            File(dir, "n$i.txt").also { it.writeText("x"); it.setLastModified(now - i * 1000L) }
+        }
+        FileOps.evictStaleCache(dir)
+        val remaining = dir.listFiles()!!.map { it.name }
+        assertEquals(20, remaining.size)
+        assertTrue("fresh.txt" in remaining)
+        assertTrue("n0.txt" in remaining)
+        assertFalse("n24.txt" in remaining)
     }
     // r172: klasifikasi volume USB dari /proc/mounts + sysfs.
     private val usbMounts = "/dev/block/vold/public:8,1 /mnt/media_rw/1234-ABCD vfat rw,dirsync,nosuid,nodev,noexec,noatime 0 0\n" +

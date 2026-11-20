@@ -22,6 +22,21 @@ object SafPath {
         return second == "data" || second == "obb" || second == "sandbox"
     }
 
+    /** Benar bila pohon SAF yang dipilih ([pickedPath], jalur berkas
+     *  dari pathOfTree) melingkupi folder yang diminta ([requestedPath])
+     *  — sama persis, atau salah satunya leluhur dari yang lain.
+     *  Dipakai M14: pilihan di luar folder yang diminta tidak disimpan
+     *  sebagai grant untuk folder itu. Batas separator wajib supaya
+     *  "/Android/obb" tidak "melingkupi" "/Android/obb2". */
+    fun coversRequested(pickedPath: String, requestedPath: String): Boolean {
+        if (pickedPath.isEmpty() || requestedPath.isEmpty()) return false
+        if (pickedPath == requestedPath) return true
+        val base = if (pickedPath.endsWith("/")) pickedPath else "$pickedPath/"
+        if (requestedPath.startsWith(base)) return true
+        val baseReq = if (requestedPath.endsWith("/")) requestedPath else "$requestedPath/"
+        return pickedPath.startsWith(baseReq)
+    }
+
     /** docId untuk URI awal: akar volume bila rel terlarang, rel itu bila tidak. */
     fun initialDocId(vol: String, rel: String): String =
         if (rel.isEmpty() || isRestrictedRel(rel)) "$vol:" else "$vol:$rel"

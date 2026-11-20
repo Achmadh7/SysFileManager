@@ -1,5 +1,7 @@
 package id.sysfile.manager
 
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.zip.ZipFile
 import org.w3c.dom.Element
@@ -15,6 +17,12 @@ import org.w3c.dom.NodeList
  *  tetap dilempar ke aplikasi luar; extract() mengembalikan null untuk
  *  ekstensi yang tidak didukung atau berkas rusak. */
 object OfficeText {
+
+    /** M8: batas XML yang di-parse ke DOM. ZipEntry.size bisa -1
+     *  (streamed) dan bisa dipalsukan, jadi selain cek deklarasi,
+     *  baca dibatasi max+1 byte dan ditolak bila lebih — teks apa pun
+     *  tidak butuh XML lebih dari ini. */
+    const val MAX_XML_BYTES = 4 * 1024 * 1024L
 
     fun extract(file: File): String? {
         return try {
@@ -32,8 +40,38 @@ object OfficeText {
 
     private fun readEntry(zip: ZipFile, name: String): Element? {
         val entry = zip.getEntry(name) ?: return null
-        return zip.getInputStream(entry).use { stream ->
-            newSafeDocumentBuilder().parse(stream).documentElement
+        // M8: tolak bila ukuran deklarasi melebihi cap — lalu baca
+        // dibatasi juga (size bisa -1/palsu), supaya DOM tidak pernah
+        // dibangun dari XML raksasa (zip-bomb / entity expansion).
+        if (entry.size > MAX_XML_BYTES) return null
+        return try {
+            zip.getInputStream(entry).use { stream ->
+                val bytes = readCapped(stream, MAX_XML_BYTES) ?: return null
+                newSafeDocumentBuilder(allowDoctype = false)
+                    .parse(ByteArrayInputStream(bytes)).documentElement
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Baca stream sampai [max] + 1 byte; null bila lebih dari [max]
+     *  (byte kelebihannya membuktikan data melebihi cap) atau gagal. */
+    private fun readCapped(stream: java.io.InputStream, max: Long): ByteArray? {
+        return try {
+            val out = ByteArrayOutputStream()
+            val buf = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val n = stream.read(buf)
+                if (n <= 0) break
+                total += n
+                if (total > max) return null
+                out.write(buf, 0, n)
+            }
+            out.toByteArray()
+        } catch (_: Exception) {
+            null
         }
     }
 

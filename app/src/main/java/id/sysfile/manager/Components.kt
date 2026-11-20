@@ -131,7 +131,13 @@ fun entryColor(entry: FEntry): Color {
 }
 
 /** Cache ikon APK agar daftar tidak mengurai ulang berkas yang sama. */
-private val apkIconCache = android.util.LruCache<String, android.graphics.Bitmap>(64)
+// M9: cache dihitung per byte (max 8 MB) — dulu 64 entri tanpa batas
+// byte, jadi 64 ikon 512x512 (1 MB tiap) menahan 64 MB sekaligus.
+private val apkIconCache = object : android.util.LruCache<String, android.graphics.Bitmap>(8 * 1024) {
+    override fun sizeOf(key: String, value: android.graphics.Bitmap): Int {
+        return (value.byteCount / 1024).coerceAtLeast(1)
+    }
+}
 
 /** Ikon asli aplikasi dari berkas APK, dimuat di latar; null untuk non-APK atau gagal urai. */
 @Composable

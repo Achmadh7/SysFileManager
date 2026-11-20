@@ -90,10 +90,18 @@ object TrashOps {
         return true
     }
 
-    /** Semua isi Tempat Sampah, terbaru dulu; entri indeks yang berkasnya hilang dibersihkan. */
-    fun listTrash(): List<TrashItem> {
-        val dir = trashDir()
-        if (!dir.isDirectory) return emptyList()
+    /** Benar bila item sampah harus disembunyikan: jalur asalnya di
+     *  dalam folder terkunci yang belum dibuka pada sesi ini (M13).
+     *  Nama + jalur asal tidak boleh bocor lewat layar sampah. */
+    internal fun isHiddenLocked(item: TrashItem, locked: Set<String>, unlocked: Set<String>): Boolean {
+        if (item.originalPath.isBlank()) return false
+        return FileOps.isLockedPath(item.originalPath, locked) &&
+            !FileOps.isUnlockedPath(item.originalPath, unlocked)
+    }
+
+    /** Entri indeks yang berkasnya masih ada, terbaru dulu; entri yang
+     *  berkasnya hilang dibersihkan dari indeks. */
+    private fun indexedItems(dir: File): List<TrashItem> {
         val items = readIndex(dir)
         val result = mutableListOf<TrashItem>()
         var changed = false
@@ -115,6 +123,23 @@ object TrashOps {
             writeIndex(dir, items.filter { it.optString("t").isNotBlank() && File(dir, it.optString("t")).exists() })
         }
         return result.sortedByDescending { it.deletedAt }
+    }
+
+    /** Semua isi Tempat Sampah, terbaru dulu. M13: item yang jalur
+     *  asalnya di dalam folder terkunci yang belum dibuka sesi ini
+     *  disembunyikan (tetap tercatat di indeks, hanya tidak tampil). */
+    fun listTrash(locked: Set<String> = emptySet(), unlocked: Set<String> = emptySet()): List<TrashItem> {
+        val dir = trashDir()
+        if (!dir.isDirectory) return emptyList()
+        return indexedItems(dir).filterNot { isHiddenLocked(it, locked, unlocked) }
+    }
+
+    /** Jumlah item sampah yang disembunyikan karena folder terkunci
+     *  (M13). Hanya angka — tanpa nama/jalur — untuk catatan di layar. */
+    fun countHiddenLocked(locked: Set<String>, unlocked: Set<String>): Int {
+        val dir = trashDir()
+        if (!dir.isDirectory) return 0
+        return indexedItems(dir).count { isHiddenLocked(it, locked, unlocked) }
     }
 
     /** Kembalikan berkas ke jalur asalnya (nama dibuat unik bila sudah ada pengganti). */
@@ -145,15 +170,21 @@ object TrashOps {
         return ok
     }
 
-    /** Kosongkan seluruh Tempat Sampah secara permanen. */
-    fun emptyTrash(): Boolean {
+    /** Kosongkan seluruh Tempat Sampah secara permanen. M13: item dari
+     *  folder terkunci yang belum dibuka sesi ini TIDAK ikut terhapus
+     *  (dan tetap tercatat di indeks) — menghapusnya tanpa biometrik
+     *  sama saja melewati kunci. */
+    fun emptyTrash(locked: Set<String> = emptySet(), unlocked: Set<String> = emptySet()): Boolean {
         val dir = trashDir()
         if (!dir.isDirectory) return true
+        val keep = indexedItems(dir)
+            .filter { isHiddenLocked(it, locked, unlocked) }
+            .map { it.trashName }.toSet()
         var ok = true
         dir.listFiles()?.forEach { child ->
-            if (child.name != "index.json" && !FileOps.deleteRecursively(child)) ok = false
+            if (child.name != "index.json" && child.name !in keep && !FileOps.deleteRecursively(child)) ok = false
         }
-        writeIndex(dir, emptyList())
+        writeIndex(dir, readIndex(dir).filter { it.optString("t") in keep })
         return ok
     }
 

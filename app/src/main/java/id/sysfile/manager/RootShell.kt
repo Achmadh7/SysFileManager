@@ -172,7 +172,11 @@ object RootShell {
     fun stageToCache(file: File, cacheDir: File): File? {
         if (state != GRANTED) return null
         val dir = File(cacheDir, "rootstage").apply { mkdirs() }
-        val dest = File(dir, file.name)
+        // M15: nama unik per staging + evict basi — dulu nama polos
+        // (dua berkas beda folder saling menimpa) dan tidak pernah
+        // dibersihkan.
+        FileOps.evictStaleCache(dir)
+        val dest = File(dir, System.nanoTime().toString() + "-" + file.name)
         val cmd = "cp ${quote(file.absolutePath)} ${quote(dest.absolutePath)} && chmod 644 ${quote(dest.absolutePath)}"
         val ok = runSu(cmd, 30) != null
         return if (ok && dest.exists()) dest else null

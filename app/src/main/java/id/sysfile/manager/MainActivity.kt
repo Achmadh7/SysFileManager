@@ -254,6 +254,9 @@ fun SysFileApp() {
     var safTreeUri by remember { mutableStateOf<String?>(null) }
     var safRelPath by remember { mutableStateOf("") }
     var safBasePath by remember { mutableStateOf<String?>(null) }
+    // M14: folder yang diminta saat pemilih SAF dibuka — grant hanya
+    // disimpan bila pohon yang dipilih melingkupinya.
+    var safRequestedPath by remember { mutableStateOf<String?>(null) }
     var themeMode by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     // r137 TM1 Pudar Utuh: tangkapan layar tema lama + alfa memudarnya.
     // Saat tema diganti, layar lama (bitmap) memudar di atas layar baru
@@ -572,12 +575,36 @@ fun SysFileApp() {
     // Izin SAF tersimpan: entri "jalur<0x01>uriPohon" di set pref saf_grants.
     // r175 H3: kembalikan juga akar grant (jalur berkas pohon SAF) supaya
     // layar SAF bisa memetakan dokumen ke jalur berkas untuk gerbang kunci.
+    /** Benar bila URI masih ada di persistedUriPermissions sistem (M14). */
+    fun isSafUriPersisted(uriStr: String): Boolean {
+        return try {
+            context.contentResolver.persistedUriPermissions.any { it.uri.toString() == uriStr }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /** Hapus grant SAF basi dari prefs (dicabut di Pengaturan sistem)
+     *  supaya UI tidak mengklaim grant yang sudah tidak ada (M14). */
+    fun pruneStaleSafGrants() {
+        val set = prefs.getStringSet("saf_grants", emptySet()) ?: emptySet()
+        val kept = set.filter { e ->
+            val u = e.substringAfter('\u0001', "")
+            u.isNotEmpty() && isSafUriPersisted(u)
+        }.toSet()
+        if (kept.size != set.size) {
+            prefs.edit().putStringSet("saf_grants", kept).apply()
+        }
+    }
+
     fun safGrantFor(path: String): Triple<String, String, String>? {
         val set = prefs.getStringSet("saf_grants", emptySet()) ?: emptySet()
         for (e in set) {
             val p = e.substringBefore('\u0001')
             val u = e.substringAfter('\u0001', "")
-            if (u.isEmpty()) continue
+            // M14: grant prefs-only yang URI-nya sudah tidak persisten
+            // dilewati (dicabut di sistem / tidak pernah tersimpan).
+            if (u.isEmpty() || !isSafUriPersisted(u)) continue
             if (path == p) return Triple(u, "", p)
             if (path.startsWith("$p/")) return Triple(u, path.removePrefix("$p/"), p)
         }
@@ -588,22 +615,34 @@ fun SysFileApp() {
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri != null) {
+            // M14: grant HANYA disimpan bila takePersistableUriPermission
+            // berhasil — dulu gagal pun tetap ditulis ke saf_grants.
+            var persisted = false
             try {
                 context.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
+                persisted = true
             } catch (e: Exception) {
                 // Izin tidak persisten pun tetap bisa dipakai selama sesi ini.
             }
             val p = SafOps.pathOfTree(uri)
-            if (p.isNotEmpty()) {
+            // M14: pohon yang dipilih harus melingkupi folder yang
+            // diminta (atau sebaliknya — pemilih dibuka di akar volume,
+            // jadi memilih induknya sah); pilihan lain tidak disimpan.
+            val requested = safRequestedPath
+            val covers = requested == null || p.isEmpty() ||
+                SafPath.coversRequested(p, requested)
+            if (persisted && p.isNotEmpty() && covers) {
                 val old = prefs.getStringSet("saf_grants", emptySet()) ?: emptySet()
                 val kept = old.filter { it.substringBefore('\u0001') != p }
                 prefs.edit()
                     .putStringSet("saf_grants", (kept + "$p\u0001$uri").toSet())
                     .apply()
+            } else if (!covers) {
+                notify(t.safWrongFolder)
             }
             // Hitungan "0 item" yang telanjur tersimpan untuk folder ini
             // harus dihitung ulang lewat SAF saat layar induk dibuka lagi.
@@ -622,6 +661,7 @@ fun SysFileApp() {
             } else {
                 openPicked()
             }
+            safRequestedPath = null
         }
     }
 
@@ -645,6 +685,9 @@ fun SysFileApp() {
     }
 
     LaunchedEffect(Unit) { refreshRoots() }
+    // M14: bersihkan grant SAF basi (dicabut di Pengaturan sistem)
+    // supaya UI tidak mengklaim grant yang sudah tidak ada.
+    LaunchedEffect(Unit) { pruneStaleSafGrants() }
 
     // Dialog izin penyimpanan saat buka app (r6): muncul tiap buka app
     // selama izin belum diberikan; "Nanti" menutupnya dan dialog muncul
@@ -770,7 +813,12 @@ fun SysFileApp() {
                                 ) {
                                     RootShell.childCount(entry.file) ?: direct
                                 } else if (direct == 0 &&
-                                    FileOps.isRestrictedDir(entry.path)
+                                    FileOps.isRestrictedDir(entry.path) &&
+                                    // Carry-over: jangan hitung isi folder
+                                    // terkunci lewat SAF — angkanya sendiri
+                                    // metadata (jumlah isi) yang bocor.
+                                    (!FileOps.isLockedPath(entry.path, lockedFolders) ||
+                                        FileOps.isUnlockedPath(entry.path, unlockedSession))
                                 ) {
                                     safGrantFor(entry.path)?.let { (uri, rel, _) ->
                                         SafOps.countChildren(context, uri, rel)
@@ -1068,7 +1116,7 @@ fun SysFileApp() {
                             val (flag, report, clear) = beginLongWork(t.workStageUnsparse)
                             var unsparseCancelled = false
                             val opened: Pair<LpSession?, Ext4Session?> = withContext(Dispatchers.IO) {
-                                val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
+                                val dir = File(context.cacheDir, "lp-view").apply { FileOps.evictStaleCache(this); mkdirs() }
                                 val tmp = File(dir, "super-${System.nanoTime()}.img")
                                 try {
                                     when (ImgOps.unsparse(f, tmp, onProgress = report, cancelFlag = flag)) {
@@ -1251,7 +1299,13 @@ fun SysFileApp() {
                 notify = { notify(it) }
             )
         } else if (showTrash) {
-            TrashScreen(onBack = { showTrash = false }, notify = { notify(it) })
+            TrashScreen(
+                onBack = { showTrash = false },
+                notify = { notify(it) },
+                lockedPaths = lockedFolders,
+                unlockedPaths = unlockedSession,
+                onRequestUnlock = { path, grant -> requestUnlock(path, grant) }
+            )
         } else if (showApps) {
             AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
         } else if (showSpecs) {
@@ -1468,7 +1522,7 @@ fun SysFileApp() {
                                     overlay = Overlay.ArchiveText(itemName, text, archiveFile.path, canSave)
                                 } else {
                                     val out = withContext(Dispatchers.IO) {
-                                        val cache = File(context.cacheDir, "archive-view").apply { mkdirs() }
+                                        val cache = File(context.cacheDir, "archive-view").apply { FileOps.evictStaleCache(this); mkdirs() }
                                         ArchiveOps.extractSingle(archiveFile, itemName, cache)
                                     }
                                     working = false
@@ -1520,7 +1574,7 @@ fun SysFileApp() {
                                     overlay = Overlay.RamdiskText(itemName, text)
                                 } else {
                                     val out = withContext(Dispatchers.IO) {
-                                        val cache = File(context.cacheDir, "ramdisk-view").apply { mkdirs() }
+                                        val cache = File(context.cacheDir, "ramdisk-view").apply { FileOps.evictStaleCache(this); mkdirs() }
                                         ImgOps.extractRamdiskEntry(imgFile, itemName, cache)
                                     }
                                     working = false
@@ -1594,7 +1648,7 @@ fun SysFileApp() {
                                 } else {
                                     val out = if (session != null) {
                                         withContext(Dispatchers.IO) {
-                                            val cache = File(context.cacheDir, "ext4-view").apply { mkdirs() }
+                                            val cache = File(context.cacheDir, "ext4-view").apply { FileOps.evictStaleCache(this); mkdirs() }
                                             session.reader.extractEntry(item.inode, item.name, cache)
                                         }
                                     } else null
@@ -1669,7 +1723,7 @@ fun SysFileApp() {
                                 } else {
                                     val out = if (reader != null) {
                                         withContext(Dispatchers.IO) {
-                                            val cache = File(context.cacheDir, "fat-view").apply { mkdirs() }
+                                            val cache = File(context.cacheDir, "fat-view").apply { FileOps.evictStaleCache(this); mkdirs() }
                                             reader.extractEntry(itemPath, cache)
                                         }
                                     } else null
@@ -1717,7 +1771,7 @@ fun SysFileApp() {
                                     var cancelled = false
                                     val session = try {
                                         withContext(Dispatchers.IO) {
-                                            val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
+                                            val dir = File(context.cacheDir, "lp-view").apply { FileOps.evictStaleCache(this); mkdirs() }
                                             val tmp = File(dir, "part-${System.nanoTime()}.img")
                                             if (lp.reader.materialize(part, tmp, onProgress = report, cancelFlag = flag)) {
                                                 val reader = Ext4Reader.open(tmp)
@@ -2204,6 +2258,7 @@ fun SysFileApp() {
                                                     openSaf()
                                                 }
                                             } else {
+                                                safRequestedPath = animatedPath
                                                 safLauncher.launch(SafOps.initialUriFor(animatedPath))
                                             }
                                         },
@@ -2379,15 +2434,29 @@ fun SysFileApp() {
                 confirmButton = {
                     TextButton(onClick = {
                         dialog = null
-                        runOp(t.movedToTrash) {
-                            d.entries.all { TrashOps.moveToTrash(it.file) }
+                        // M13: memindahkan folder terkunci ke sampah
+                        // butuh biometrik dulu — bila beberapa folder
+                        // terkunci dipilih, minta satu per satu.
+                        fun doDelete() {
+                            val stillLocked = d.entries.firstOrNull {
+                                FileOps.isLockedFolder(it.path, lockedFolders) &&
+                                    !FileOps.isUnlockedPath(it.path, unlockedSession)
+                            }
+                            if (stillLocked != null) {
+                                requestUnlock(stillLocked.path, ::doDelete)
+                            } else {
+                                runOp(t.movedToTrash) {
+                                    d.entries.all { TrashOps.moveToTrash(it.file) }
+                                }
+                                val viewing = viewingPath
+                                if (viewing != null && d.entries.any { it.path == viewing }) {
+                                    overlay = null
+                                    overlayReturn = null
+                                    viewingPath = null
+                                }
+                            }
                         }
-                        val viewing = viewingPath
-                        if (viewing != null && d.entries.any { it.path == viewing }) {
-                            overlay = null
-                            overlayReturn = null
-                            viewingPath = null
-                        }
+                        doDelete()
                     }) { Text(t.delete) }
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }

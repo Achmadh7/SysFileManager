@@ -69,10 +69,12 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
     var showToc by remember { mutableStateOf(false) }
     var chapterHtml by remember { mutableStateOf<String?>(null) }
     var chapterFailed by remember { mutableStateOf(false) }
+    // M15: nama dir staging unik per buka (nanoTime) supaya dua
+    // buku yang sama namanya tidak saling menimpa staging.
     val bookDir = remember(path) {
         File(
             File(context.cacheDir, "epub"),
-            File(path).nameWithoutExtension + "-" + File(path).length()
+            File(path).nameWithoutExtension + "-" + System.nanoTime()
         )
     }
 
@@ -81,6 +83,8 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
         failed = false
         index = 0
         val opened = withContext(Dispatchers.IO) {
+            // M15: evict cache EPUB basi sebelum staging buku baru.
+            FileOps.evictStaleCache(bookDir.parentFile)
             try {
                 EpubOps.open(File(path), bookDir)
             } catch (e: Exception) {
@@ -99,7 +103,10 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
         val text = withContext(Dispatchers.IO) {
             try {
                 EpubOps.chapterFile(bookDir, b, ch)
-                    ?.takeIf { it.isFile }?.readText(Charsets.UTF_8)
+                    ?.takeIf { it.isFile }
+                    // M8: bab dicap 1 MB (sama seperti teks arsip) —
+                    // readText() tanpa cap memuat bab ratusan MB utuh.
+                    ?.let { FileOps.readTextCapped(it, 1_000_000) }
             } catch (e: Exception) {
                 null
             }

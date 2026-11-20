@@ -430,8 +430,8 @@ class LpReader private constructor(
     /** Materialisasi satu partisi ke [out] (streaming per sektor —
      *  partisi multi-GB tidak pernah dimuat ke memori). False bila
      *  partisi tidak tersedia, melebihi [maxBytes], atau gagal di
-     *  tengah jalan; berkas setengah ditulis dihapus (kecuali berkas
-     *  yang sudah ada sebelumnya, seperti pola unsparse r153).
+     *  tengah jalan; berkas setengah ditulis dihapus dan berkas yang
+     *  sudah ada diganti hanya bila sukses (tulis ke temp lalu rename, M4).
      *  Extent ZERO ditulis sebagai nol; extent LINEAR disalin dari
      *  sektor fisiknya. True hanya bila byte tertulis sama persis
      *  dengan ukuran partisi. LD3 r159: [onProgress] dipanggil per
@@ -447,17 +447,23 @@ class LpReader private constructor(
     ): Boolean {
         if (!partition.available) return false
         if (partition.sizeBytes < 0 || partition.sizeBytes > maxBytes) return false
-        val existed = out.exists()
+        // M4: tulis ke temp unik di dir yang sama lalu rename bila
+        // sukses — berkas <part>.img yang sudah ada tidak pernah
+        // terpotong/korup bila gagal atau dibatalkan; rename
+        // menggantikannya secara atomik hanya bila sukses.
+        val parent = out.parentFile ?: return false
+        val tmp = FileOps.tempFileIn(parent) ?: return false
         return try {
-            val ok = materializeRun(partition, out, maxBytes, onProgress, cancelFlag)
-            if (!ok && !existed) out.delete()
-            ok
+            val ok = materializeRun(partition, tmp, maxBytes, onProgress, cancelFlag)
+            if (!ok) return false
+            if (!tmp.renameTo(out)) return false
+            true
         } catch (e: ImgCancelledException) {
-            if (!existed) out.delete()
             throw e
         } catch (_: Exception) {
-            if (!existed) out.delete()
             false
+        } finally {
+            if (tmp.exists()) tmp.delete()
         }
     }
 

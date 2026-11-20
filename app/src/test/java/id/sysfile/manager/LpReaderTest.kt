@@ -117,6 +117,30 @@ class LpReaderTest {
     }
 
     @Test
+    fun materializeCancelBeforeStartKeepsPreExistingFile() {
+        val reader = LpReader.open(writeTmp(buildSuper()))!!
+        val system = reader.partitions.first { it.name == "system" }
+        val out = File(tmpDir, "system.img").also { it.writeText("ORIGINAL") }
+        val flag = AtomicBoolean(true)
+        assertThrows(ImgCancelledException::class.java) {
+            reader.materialize(system, out, cancelFlag = flag)
+        }
+        assertEquals("ORIGINAL", out.readText())
+        reader.close()
+    }
+
+    @Test
+    fun materializeSuccessReplacesPreExistingFile() {
+        val reader = LpReader.open(writeTmp(buildSuper()))!!
+        val system = reader.partitions.first { it.name == "system" }
+        val out = File(tmpDir, "system.img").also { it.writeText("ORIGINAL") }
+        assertTrue(reader.materialize(system, out))
+        assertEquals(6144L, out.length())
+        assertFalse(out.readBytes().contentEquals("ORIGINAL".toByteArray()))
+        reader.close()
+    }
+
+    @Test
     fun materializeCancelBeforeStartThrowsAndDeletesPartial() {
         val reader = LpReader.open(writeTmp(buildSuper()))!!
         val system = reader.partitions.first { it.name == "system" }
