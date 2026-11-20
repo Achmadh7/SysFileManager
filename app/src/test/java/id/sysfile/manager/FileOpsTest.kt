@@ -516,4 +516,41 @@ class FileOpsTest {
         assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Android"))
         assertFalse(FileOps.isRestrictedDir("/storage/emulated/0/Android/media"))
     }
+    // r172: klasifikasi volume USB dari /proc/mounts + sysfs.
+    private val usbMounts = "/dev/block/vold/public:8,1 /mnt/media_rw/1234-ABCD vfat rw,dirsync,nosuid,nodev,noexec,noatime 0 0\n" +
+        "/dev/fuse /storage/1234-ABCD fuse rw,nosuid,nodev,noexec,noatime 0 0\n" +
+        "/dev/block/vold/public:179,1 /mnt/media_rw/9C33-1A2B vfat rw,dirsync,nosuid,nodev,noexec,noatime 0 0\n"
+    private val usbSysPath: (Int, Int) -> String? = { major, minor ->
+        when (major to minor) {
+            8 to 1 -> "/sys/devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0/host0/target0:0:0/0:0:0:0/block/sda/sda1"
+            179 to 1 -> "/sys/devices/platform/soc/1c40000.mmc/mmc_host/mmc0/mmc0:0001/block/mmcblk0/mmcblk0p1"
+            else -> null
+        }
+    }
+
+    @Test
+    fun isUsbVolume_usbStick_returnsTrue() {
+        assertTrue(FileOps.isUsbVolume("/storage/1234-ABCD", usbMounts, usbSysPath))
+    }
+
+    @Test
+    fun isUsbVolume_sdCard_returnsFalse() {
+        assertFalse(FileOps.isUsbVolume("/storage/9C33-1A2B", usbMounts, usbSysPath))
+    }
+
+    @Test
+    fun isUsbVolume_noMediaRwLine_returnsFalse() {
+        assertFalse(FileOps.isUsbVolume("/storage/FFFF-0000", usbMounts, usbSysPath))
+    }
+
+    @Test
+    fun isUsbVolume_unresolvableSysPath_returnsFalse() {
+        assertFalse(FileOps.isUsbVolume("/storage/1234-ABCD", usbMounts) { _, _ -> null })
+    }
+
+    @Test
+    fun isUsbVolume_usbSubstringNotSegment_returnsFalse() {
+        assertFalse(FileOps.isUsbVolume("/storage/1234-ABCD", usbMounts) { _, _ -> "/sys/devices/platform/soc/usb-hub.0/block/sda/sda1" })
+    }
+
 }

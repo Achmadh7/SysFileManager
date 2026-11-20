@@ -222,6 +222,43 @@ object FileOps {
         }
     }
 
+    /** Jalur sysfs perangkat blok "major:minor" (mis. /sys/dev/block/8:1). */
+    private fun sysBlockPath(major: Int, minor: Int): String? =
+        try { File("/sys/dev/block/$major:$minor").canonicalPath } catch (e: Exception) { null }
+
+    /** True bila volume [volumePath] (mis. /storage/1234-ABCD) berada di
+     *  perangkat blok USB. Dibaca dari /proc/mounts: baris media_rw untuk
+     *  volume ini membawa sumber "/dev/block/vold/public:MAJOR,MINOR";
+     *  jalur sysfs perangkat itu mengandung segmen usbN (mis. usb1)
+     *  untuk stik USB (dan "mmc" untuk kartu SD). */
+    fun isUsbVolume(volumePath: String): Boolean {
+        val mounts = try { File("/proc/mounts").readText() } catch (e: Exception) { return false }
+        return isUsbVolume(volumePath, mounts, ::sysBlockPath)
+    }
+
+    /** Inti [isUsbVolume] yang bisa diuji: [mountsText] isi /proc/mounts,
+     *  [resolveSysBlockPath] memetakan "major:minor" ke jalur sysfs. */
+    internal fun isUsbVolume(
+        volumePath: String,
+        mountsText: String,
+        resolveSysBlockPath: (Int, Int) -> String?
+    ): Boolean {
+        val name = File(volumePath).name
+        if (name.isEmpty()) return false
+        for (line in mountsText.lines()) {
+            val parts = line.split(" ")
+            if (parts.size < 2) continue
+            val mountPoint = parts[1]
+            if (mountPoint != "/mnt/media_rw/$name" && mountPoint != volumePath) continue
+            val mm = Regex("""(\d+),(\d+)$""").find(parts[0]) ?: continue
+            val major = mm.groupValues[1].toIntOrNull() ?: continue
+            val minor = mm.groupValues[2].toIntOrNull() ?: continue
+            val sysPath = resolveSysBlockPath(major, minor) ?: return false
+            return sysPath.split("/").any { it.matches(Regex("""usb\d+""")) }
+        }
+        return false
+    }
+
     /** Semua volume penyimpanan yang bisa dijangkau aplikasi. */
     fun storageRoots(context: Context): List<RootInfo> {
         val roots = mutableListOf<RootInfo>()
@@ -249,6 +286,24 @@ object FileOps {
             }
         } catch (e: Exception) {
             // Volume eksternal tidak tersedia; internal tetap ditampilkan.
+        }
+        // r172: volume publik yang tak terlihat (mis. USB OTG) TIDAK
+        // muncul di getExternalFilesDirs() — Android sengaja tidak
+        // menandai volume transient sebagai VISIBLE_FOR_WRITE (KDoc
+        // VolumeInfo: isinya seharusnya diakses lewat SAF), jadi
+        // getExternalFilesDirs/getStorageVolumes sama-sama melewatkannya
+        // dan refreshRoots() tak pernah melihatnya walau sudah terpasang.
+        // Pindai /storage langsung: tiap subdir selain emulated/self
+        // adalah volume sekunder yang terpasang (dengan Akses Semua File,
+        // FUSE mengizinkan aplikasi membaca titik pasangnya).
+        try {
+            File("/storage").listFiles()?.forEach { dir ->
+                val name = dir.name
+                if (!dir.isDirectory || name == "emulated" || name == "self") return@forEach
+                addRoot(dir.absolutePath, if (isUsbVolume(dir.absolutePath)) "usb" else "sd")
+            }
+        } catch (e: Exception) {
+            // /storage tak terbaca; volume yang sudah dikenal tetap ada.
         }
         return roots
     }

@@ -417,7 +417,23 @@ fun SysFileApp() {
             addDataScheme("file")
         }
         val usbReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) { refreshRoots() }
+            override fun onReceive(context: Context, intent: Intent) {
+                refreshRoots()
+                // r172: USB_DEVICE_ATTACHED datang SEBELUM volume selesai
+                // dipasang — refresh seketika belum melihat apa-apa, dan
+                // siaran MEDIA_MOUNTED tidak sampai ke aplikasi untuk
+                // volume USB (tidak VISIBLE, lih. VolumeInfo). Refresh
+                // ulang tertunda supaya volume yang baru terpasang ikut
+                // terbaca tanpa restart aplikasi.
+                if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+                    scope.launch {
+                        delay(1500)
+                        refreshRoots()
+                        delay(2500)
+                        refreshRoots()
+                    }
+                }
+            }
         }
         val usbFilter = IntentFilter().apply {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
