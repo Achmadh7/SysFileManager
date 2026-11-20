@@ -40,7 +40,8 @@ class LpSession(
 
 /** Pembaca partisi logis (liblp) read-only untuk super.img mentah.
  *
- *  Dibaca lewat [RandomAccessFile] — citra multi-GB TIDAK PERNAH dimuat
+ *  Dibaca lewat [RandomSource] (berkas mentah, atau citra sparse
+ *  langsung sejak LD2 r158) — citra multi-GB TIDAK PERNAH dimuat
  *  utuh ke memori; yang dibaca hanya geometri, header + tabel metadata,
  *  dan sektor-sektor partisi yang sedang dimaterialisasi.
  *
@@ -75,11 +76,11 @@ class LpSession(
  *    metadata lain tetap terbaca.
  *  - Materialisasi partisi mengalir ke berkas temp (streaming, cap
  *    8 GiB seperti unsparse); berkas setengah ditulis dihapus.
- *  - Semua akses RandomAccessFile dikunci satu lock: layar dan
- *    MainActivity berbagi satu reader yang sama.
+ *  - Semua akses sumber dikunci satu lock: layar dan MainActivity
+ *    berbagi satu reader yang sama.
  */
 class LpReader private constructor(
-    private val raf: RandomAccessFile,
+    private val src: RandomSource,
     val slotNumber: Int,
     val partitions: List<LpPartition>,
     private val extents: List<LpExtent>
@@ -127,23 +128,42 @@ class LpReader private constructor(
          *  slot 1 bila ada. */
         fun open(file: File): LpReader? {
             if (!file.isFile) return null
-            val raf = try { RandomAccessFile(file, "r") } catch (_: Exception) { return null }
+            val src = try { FileSource(RandomAccessFile(file, "r")) } catch (_: Exception) { return null }
             return try {
-                val reader = openOn(raf)
+                val reader = openOn(src)
                 if (reader == null) {
-                    try { raf.close() } catch (_: Exception) { }
+                    try { src.close() } catch (_: Exception) { }
                     null
                 } else reader
             } catch (_: Exception) {
-                try { raf.close() } catch (_: Exception) { }
+                try { src.close() } catch (_: Exception) { }
                 null
             }
         }
 
-        private fun openOn(raf: RandomAccessFile): LpReader? {
-            val fileLen = try { raf.length() } catch (_: Exception) { return null }
-            val geometry = parseGeometry(raf, fileLen, RESERVED_BYTES)
-                ?: parseGeometry(raf, fileLen, RESERVED_BYTES + GEOMETRY_SIZE)
+        /** Buka super.img sparse langsung tanpa unsparse (LD2 r158):
+         *  geometri + metadata dibaca dari chunk sparse lewat
+         *  SparseSource — tidak ada temp multi-GB. Null bila bukan
+         *  sparse/super.img atau rusak. Materialisasi partisi tetap
+         *  mengalir ke berkas temp (itu isi partisi, bukan unsparse). */
+        fun openSparse(file: File): LpReader? {
+            val src = SparseSource.open(file) ?: return null
+            return try {
+                val reader = openOn(src)
+                if (reader == null) {
+                    try { src.close() } catch (_: Exception) { }
+                    null
+                } else reader
+            } catch (_: Exception) {
+                try { src.close() } catch (_: Exception) { }
+                null
+            }
+        }
+
+        private fun openOn(src: RandomSource): LpReader? {
+            val fileLen = try { src.length() } catch (_: Exception) { return null }
+            val geometry = parseGeometry(src, fileLen, RESERVED_BYTES)
+                ?: parseGeometry(src, fileLen, RESERVED_BYTES + GEOMETRY_SIZE)
                 ?: return null
             val slots = minOf(geometry.slotCount, 2)
             for (slot in 0 until slots) {
@@ -151,8 +171,8 @@ class LpReader private constructor(
                     primaryMetadataOffset(geometry, slot),
                     backupMetadataOffset(geometry, slot)
                 )) {
-                    val parsed = parseMetadata(raf, fileLen, geometry, off, slot) ?: continue
-                    return LpReader(raf, slot, parsed.partitions, parsed.extents)
+                    val parsed = parseMetadata(src, fileLen, geometry, off, slot) ?: continue
+                    return LpReader(src, slot, parsed.partitions, parsed.extents)
                 }
             }
             return null
@@ -171,9 +191,9 @@ class LpReader private constructor(
         /** Geometri di [offset] (primer @4096, cadangan @8192). Null
          *  bila magic / struct_size / checksum / field-nya tidak
          *  masuk akal — checksum SHA-256 diverifikasi seperti liblp. */
-        private fun parseGeometry(raf: RandomAccessFile, fileLen: Long, offset: Long): LpGeometry? {
+        private fun parseGeometry(src: RandomSource, fileLen: Long, offset: Long): LpGeometry? {
             if (offset < 0 || offset + GEOMETRY_STRUCT_SIZE > fileLen) return null
-            val g = readBytes(raf, offset, GEOMETRY_STRUCT_SIZE) ?: return null
+            val g = readBytes(src, offset, GEOMETRY_STRUCT_SIZE) ?: return null
             if (u32le(g, 0) != GEOMETRY_MAGIC) return null
             if (u32le(g, 4) != GEOMETRY_STRUCT_SIZE.toLong()) return null
             val check = g.copyOf()
@@ -193,14 +213,14 @@ class LpReader private constructor(
          *  header, checksum header + tabel, batas tabel, ukuran entri,
          *  atribut, indeks extent/grup, nama) diperiksa. */
         private fun parseMetadata(
-            raf: RandomAccessFile,
+            src: RandomSource,
             fileLen: Long,
             geometry: LpGeometry,
             slotOffset: Long,
             slotNumber: Int
         ): ParsedMetadata? {
             if (slotOffset < 0 || slotOffset + HEADER_V10_SIZE > fileLen) return null
-            val head128 = readBytes(raf, slotOffset, HEADER_V10_SIZE) ?: return null
+            val head128 = readBytes(src, slotOffset, HEADER_V10_SIZE) ?: return null
             if (u32le(head128, 0) != HEADER_MAGIC) return null
             val major = u16le(head128, 4)
             val minor = u16le(head128, 6)
@@ -208,7 +228,7 @@ class LpReader private constructor(
             val headerSize = if (minor < VERSION_FOR_EXPANDED_HEADER) HEADER_V10_SIZE else HEADER_V12_SIZE
             if (u32le(head128, 8) != headerSize.toLong()) return null
             if (slotOffset + headerSize > fileLen) return null
-            val header = readBytes(raf, slotOffset, headerSize) ?: return null
+            val header = readBytes(src, slotOffset, headerSize) ?: return null
             val headerCheck = header.copyOf()
             headerCheck.fill(0, 12, 44)
             if (!sha256(headerCheck).contentEquals(header.copyOfRange(12, 44))) return null
@@ -217,7 +237,7 @@ class LpReader private constructor(
             if (headerSize.toLong() + tablesSize > geometry.maxSize) return null
             if (slotOffset + headerSize + tablesSize > fileLen) return null
             if (tablesSize > Int.MAX_VALUE) return null
-            val tables = readBytes(raf, slotOffset + headerSize, tablesSize.toInt()) ?: return null
+            val tables = readBytes(src, slotOffset + headerSize, tablesSize.toInt()) ?: return null
             if (!sha256(tables).contentEquals(header.copyOfRange(48, 80))) return null
             val validAttrs = ATTR_MASK_V0 or
                 (if (minor >= VERSION_FOR_UPDATED_ATTR) ATTR_MASK_V1 else 0)
@@ -376,21 +396,11 @@ class LpReader private constructor(
             return MessageDigest.getInstance("SHA-256").digest(bytes)
         }
 
-        private fun readBytes(raf: RandomAccessFile, offset: Long, size: Int): ByteArray? {
+        private fun readBytes(src: RandomSource, offset: Long, size: Int): ByteArray? {
             if (offset < 0L || size < 0) return null
-            val len = try { raf.length() } catch (_: Exception) { return null }
+            val len = try { src.length() } catch (_: Exception) { return null }
             if (offset > len || size > len - offset) return null
-            return try {
-                val buf = ByteArray(size)
-                raf.seek(offset)
-                var read = 0
-                while (read < size) {
-                    val n = raf.read(buf, read, size - read)
-                    if (n < 0) return null
-                    read += n
-                }
-                buf
-            } catch (_: Exception) { null }
+            return try { src.readAt(offset, size) } catch (_: Exception) { null }
         }
 
         private fun u16le(b: ByteArray, off: Int): Int =
@@ -409,11 +419,11 @@ class LpReader private constructor(
     private val lock = Any()
 
     override fun close() {
-        try { raf.close() } catch (_: Exception) { }
+        try { src.close() } catch (_: Exception) { }
     }
 
     private fun readAt(offset: Long, size: Int): ByteArray? {
-        synchronized(lock) { return readBytes(raf, offset, size) }
+        synchronized(lock) { return readBytes(src, offset, size) }
     }
 
     /** Materialisasi satu partisi ke [out] (streaming per sektor —

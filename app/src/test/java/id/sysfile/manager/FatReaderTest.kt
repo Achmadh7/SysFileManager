@@ -1,5 +1,6 @@
 package id.sysfile.manager
 
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
 import org.junit.After
@@ -656,5 +657,179 @@ class FatReaderTest {
         val cut = File(tmp, "cut.img")
         cut.writeBytes(full.copyOf(600))
         assertNull(FatReader.open(cut))
+    }
+
+    @Test
+    fun fat12SparseDirectMatchesRaw() {
+        val rawFile = buildFat12Image()
+        val sparse = sparseFile(rawFile.readBytes(), "fat12-sparse.img")
+        assertEquals(ImgType.SPARSE, ImgOps.detectImgType(sparse))
+        FatReader.open(rawFile)!!.use { r ->
+            FatReader.openSparse(sparse)!!.use { s ->
+                assertEquals(r.type, s.type)
+                assertEquals(
+                    r.listDir("")!!.map { it.name },
+                    s.listDir("")!!.map { it.name }
+                )
+                assertEquals(r.readFileText("HELLO.TXT"), s.readFileText("HELLO.TXT"))
+                val rawBytes = r.readFileBytes(r.resolveEntry("LONGFILENAME.TXT")!!, 1_000_000L)
+                val sparseBytes = s.readFileBytes(s.resolveEntry("LONGFILENAME.TXT")!!, 1_000_000L)
+                assertArrayEquals(rawBytes, sparseBytes)
+                assertEquals(listOf("INNER.TXT"), s.listDir("SUB")!!.map { it.name })
+                assertEquals("inner", s.readFileText("SUB/INNER.TXT"))
+            }
+        }
+    }
+
+    @Test
+    fun fat16SparseDirectMatchesRaw() {
+        val rawFile = buildFat16Image()
+        val sparse = sparseFile(rawFile.readBytes(), "fat16-sparse.img")
+        assertEquals(ImgType.SPARSE, ImgOps.detectImgType(sparse))
+        FatReader.open(rawFile)!!.use { r ->
+            FatReader.openSparse(sparse)!!.use { s ->
+                assertEquals(r.type, s.type)
+                assertEquals(
+                    r.listDir("")!!.map { it.name },
+                    s.listDir("")!!.map { it.name }
+                )
+                val rawBytes = r.readFileBytes(r.resolveEntry("DATA.BIN")!!, 1_000_000L)
+                val sparseBytes = s.readFileBytes(s.resolveEntry("DATA.BIN")!!, 1_000_000L)
+                assertArrayEquals(rawBytes, sparseBytes)
+                assertEquals(r.listDir("DOCS")!!.map { it.name }, s.listDir("DOCS")!!.map { it.name })
+                assertEquals(r.readFileText("My Document.txt"), s.readFileText("My Document.txt"))
+                assertEquals(r.readFileText("DOCS/NOTE.TXT"), s.readFileText("DOCS/NOTE.TXT"))
+            }
+        }
+    }
+
+    @Test
+    fun fat32SparseDirectMatchesRaw() {
+        val rawFile = buildFat32Image()
+        val sparse = sparseFile(rawFile.readBytes(), "fat32-sparse.img")
+        assertEquals(ImgType.SPARSE, ImgOps.detectImgType(sparse))
+        FatReader.open(rawFile)!!.use { r ->
+            FatReader.openSparse(sparse)!!.use { s ->
+                assertEquals(r.type, s.type)
+                assertEquals(
+                    r.listDir("")!!.map { it.name },
+                    s.listDir("")!!.map { it.name }
+                )
+                val rawBytes = r.readFileBytes(r.resolveEntry("KERNEL.BIN")!!, 1_000_000L)
+                val sparseBytes = s.readFileBytes(s.resolveEntry("KERNEL.BIN")!!, 1_000_000L)
+                assertArrayEquals(rawBytes, sparseBytes)
+                assertEquals(r.listDir("SYSTEM")!!.map { it.name }, s.listDir("SYSTEM")!!.map { it.name })
+                assertEquals(r.readFileText("SYSTEM/BUILD.PROP"), s.readFileText("SYSTEM/BUILD.PROP"))
+                assertEquals(r.readFileText("Readme File.txt"), s.readFileText("Readme File.txt"))
+            }
+        }
+    }
+
+    @Test
+    fun fat16SparseMixedChunksMatchesRaw() {
+        val raw = buildFat16Image().readBytes()
+        // 32 blok pertama (128 KiB) mencakup boot + FAT + root +
+        // semua klaster terpakai; sisanya nol semua.
+        assertTrue(raw.copyOfRange(32 * 4096, raw.size).all { it == 0.toByte() })
+        val f = File(tmp, "fat16-mixed.img")
+        f.writeBytes(sparseWrapMixed(raw, 32))
+        FatReader.openSparse(f)!!.use { s ->
+            assertEquals(
+                listOf("DOCS", "DATA.BIN", "My Document.txt"),
+                s.listDir("")!!.map { it.name }
+            )
+            val data = s.resolveEntry("DATA.BIN")!!
+            val bytes = s.readFileBytes(data, 1_000_000L)!!
+            assertEquals(3000, bytes.size)
+            for (i in 0 until 3000) assertEquals((i % 251).toByte(), bytes[i])
+        }
+    }
+
+    @Test
+    fun fatSparseCorruptFailsCleanly() {
+        val raw = buildFat16Image().readBytes()
+        // Magic sparse rusak.
+        val badMagic = sparseWrap(raw)
+        badMagic[0] = 0
+        val f1 = File(tmp, "bad-magic.img")
+        f1.writeBytes(badMagic)
+        assertNull(FatReader.openSparse(f1))
+        // BPB rusak di dalam sparse yang valid.
+        val badBpb = raw.copyOf()
+        badBpb[510] = 0
+        badBpb[511] = 0
+        val f2 = File(tmp, "bad-bpb.img")
+        f2.writeBytes(sparseWrap(badBpb))
+        assertNull(FatReader.openSparse(f2))
+        // Sparse terpotong di tengah data chunk.
+        val f3 = File(tmp, "cut.img")
+        f3.writeBytes(sparseWrap(raw).copyOf(28 + 12 + 100))
+        assertNull(FatReader.openSparse(f3))
+    }
+
+    // ---------- sparse langsung (LD2 r158) ----------
+
+    /** Bungkus citra mentah dalam satu chunk RAW sparse (blk 4 KiB). */
+    private fun sparseWrap(raw: ByteArray, blkSz: Int = 4096): ByteArray {
+        val totalBlks = raw.size / blkSz
+        val out = ByteArrayOutputStream()
+        val hdr = ByteArray(28)
+        u32(hdr, 0, 0xED26FF3AL)
+        u16(hdr, 4, 1)
+        u16(hdr, 6, 0)
+        u16(hdr, 8, 28)
+        u16(hdr, 10, 12)
+        u32(hdr, 12, blkSz.toLong())
+        u32(hdr, 16, totalBlks.toLong())
+        u32(hdr, 20, 1L)
+        u32(hdr, 24, 0L)
+        out.write(hdr)
+        val chunk = ByteArray(12)
+        u16(chunk, 0, 0xCAC1)
+        u16(chunk, 2, 0)
+        u32(chunk, 4, totalBlks.toLong())
+        u32(chunk, 8, (12 + raw.size).toLong())
+        out.write(chunk)
+        out.write(raw)
+        return out.toByteArray()
+    }
+
+    /** Bungkus citra mentah: RAW untuk [rawBlocks] blok pertama,
+     *  DONT_CARE untuk sisanya (sisanya harus nol semua). */
+    private fun sparseWrapMixed(raw: ByteArray, rawBlocks: Int, blkSz: Int = 4096): ByteArray {
+        val totalBlks = raw.size / blkSz
+        val out = ByteArrayOutputStream()
+        val hdr = ByteArray(28)
+        u32(hdr, 0, 0xED26FF3AL)
+        u16(hdr, 4, 1)
+        u16(hdr, 6, 0)
+        u16(hdr, 8, 28)
+        u16(hdr, 10, 12)
+        u32(hdr, 12, blkSz.toLong())
+        u32(hdr, 16, totalBlks.toLong())
+        u32(hdr, 20, 2L)
+        u32(hdr, 24, 0L)
+        out.write(hdr)
+        val rawBytes = rawBlocks * blkSz
+        val rawHdr = ByteArray(12)
+        u16(rawHdr, 0, 0xCAC1)
+        u16(rawHdr, 2, 0)
+        u32(rawHdr, 4, rawBlocks.toLong())
+        u32(rawHdr, 8, (12 + rawBytes).toLong())
+        out.write(rawHdr)
+        out.write(raw, 0, rawBytes)
+        val dcHdr = ByteArray(12)
+        u16(dcHdr, 0, 0xCAC3)
+        u16(dcHdr, 2, 0)
+        u32(dcHdr, 4, (totalBlks - rawBlocks).toLong())
+        u32(dcHdr, 8, 12L)
+        out.write(dcHdr)
+        return out.toByteArray()
+    }
+
+    private fun sparseFile(raw: ByteArray, name: String): File {
+        val f = File(tmp, name)
+        f.writeBytes(sparseWrap(raw))
+        return f
     }
 }

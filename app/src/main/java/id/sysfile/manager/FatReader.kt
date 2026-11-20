@@ -22,7 +22,8 @@ data class FatEntry(
 /** Pembaca FAT12/16/32 read-only untuk citra .img mentah (citra kartu
  *  SD, partisi ESP, citra recovery).
  *
- *  Dibaca lewat [RandomAccessFile] — citra multi-GB TIDAK PERNAH dimuat
+ *  Dibaca lewat [RandomSource] (berkas mentah, atau citra sparse
+ *  langsung sejak LD2 r158) — citra multi-GB TIDAK PERNAH dimuat
  *  utuh ke memori; yang dibaca hanya sektor boot, entri FAT yang sedang
  *  dituju, dan klaster direktori/berkas yang sedang dibaca.
  *
@@ -40,9 +41,9 @@ data class FatEntry(
  *  klaster rusak: 0xFF7 / 0xFFF7 / 0x0FFFFFF7.
  *
  *  Batasan yang disengaja:
- *  - Citra sparse yang isinya FAT TIDAK didukung: deteksi (r151)
- *    membedakan SPARSE dari FAT lewat magic, dan SPARSE dirutekan ke
- *    pembaca ext4 (r154) — sparse Android praktis selalu ext4.
+ *  - Citra sparse yang isinya FAT dibaca langsung lewat SparseSource
+ *    (LD2 r158): dulu ditolak — deteksi (r151) membedakan SPARSE dari
+ *    FAT lewat magic, dan SPARSE dirutekan ke pembaca ext4 (r154).
  *  - Nama panjang (LFN) dipakai hanya bila seluruh slotnya valid
  *    (urutan 1..N berurutan, flag 0x40 di slot teratas, checksum
  *    cocok dengan nama pendek); bila tidak valid, jatuh kembali ke
@@ -53,11 +54,11 @@ data class FatEntry(
  *    bersih; cap langkah tetap ada sebagai pengaman kedua. Jadi FAT
  *    rusak tidak bisa membuat loop tak berujung atau mengembalikan
  *    byte klaster yang terulang diam-diam.
- *  - Semua akses RandomAccessFile dikunci satu lock: layar dan
- *    MainActivity berbagi satu reader yang sama.
+ *  - Semua akses sumber dikunci satu lock: layar dan MainActivity
+ *    berbagi satu reader yang sama.
  */
 class FatReader private constructor(
-    private val raf: RandomAccessFile,
+    private val src: RandomSource,
     val type: FatType,
     private val bytesPerSector: Int,
     private val sectorsPerCluster: Int,
@@ -83,28 +84,46 @@ class FatReader private constructor(
         /** Buka citra FAT mentah. Null bila bukan FAT / rusak / terpotong. */
         fun open(file: File): FatReader? {
             if (!file.isFile) return null
-            val raf = try { RandomAccessFile(file, "r") } catch (_: Exception) { return null }
+            val src = try { FileSource(RandomAccessFile(file, "r")) } catch (_: Exception) { return null }
             return try {
-                val reader = openOn(raf)
+                val reader = openOn(src)
                 if (reader == null) {
-                    try { raf.close() } catch (_: Exception) { }
+                    try { src.close() } catch (_: Exception) { }
                     null
                 } else reader
             } catch (_: Exception) {
-                try { raf.close() } catch (_: Exception) { }
+                try { src.close() } catch (_: Exception) { }
                 null
             }
         }
 
-        private fun openOn(raf: RandomAccessFile): FatReader? {
-            val len = raf.length()
+        /** Buka citra sparse yang isinya FAT, langsung tanpa unsparse
+         *  (LD2 r158): sektor boot, FAT, dan klaster dibaca dari chunk
+         *  sparse lewat SparseSource — tidak ada temp multi-GB. Null
+         *  bila bukan sparse/FAT atau rusak. */
+        fun openSparse(file: File): FatReader? {
+            val src = SparseSource.open(file) ?: return null
+            return try {
+                val reader = openOn(src)
+                if (reader == null) {
+                    try { src.close() } catch (_: Exception) { }
+                    null
+                } else reader
+            } catch (_: Exception) {
+                try { src.close() } catch (_: Exception) { }
+                null
+            }
+        }
+
+        private fun openOn(src: RandomSource): FatReader? {
+            val len = src.length()
             if (len < 512L) return null
-            var boot = readBytes(raf, 0L, 512) ?: return null
+            var boot = readBytes(src, 0L, 512) ?: return null
             val bytesPerSector = u16le(boot, 11)
             if (bytesPerSector < 512 || bytesPerSector > 4096) return null
             if (bytesPerSector and (bytesPerSector - 1) != 0) return null
             if (bytesPerSector > 512) {
-                boot = readBytes(raf, 0L, bytesPerSector) ?: return null
+                boot = readBytes(src, 0L, bytesPerSector) ?: return null
             }
             if (boot[bytesPerSector - 2] != 0x55.toByte() ||
                 boot[bytesPerSector - 1] != 0xAA.toByte()
@@ -164,28 +183,18 @@ class FatReader private constructor(
                 rootDirStart + rootDirBytes > len
             ) return null
             return FatReader(
-                raf, type, bytesPerSector, sectorsPerCluster, clusterBytes,
+                src, type, bytesPerSector, sectorsPerCluster, clusterBytes,
                 reservedSectors, numFats, fatSizeSectors, fatStart,
                 firstDataSector, totalClusters, rootDirStart, rootDirBytes,
                 rootCluster
             )
         }
 
-        private fun readBytes(raf: RandomAccessFile, offset: Long, size: Int): ByteArray? {
+        private fun readBytes(src: RandomSource, offset: Long, size: Int): ByteArray? {
             if (offset < 0L || size < 0) return null
-            val len = try { raf.length() } catch (_: Exception) { return null }
+            val len = try { src.length() } catch (_: Exception) { return null }
             if (offset > len || size > len - offset) return null
-            return try {
-                val buf = ByteArray(size)
-                raf.seek(offset)
-                var read = 0
-                while (read < size) {
-                    val n = raf.read(buf, read, size - read)
-                    if (n < 0) return null
-                    read += n
-                }
-                buf
-            } catch (_: Exception) { null }
+            return try { src.readAt(offset, size) } catch (_: Exception) { null }
         }
 
         private fun u16le(b: ByteArray, off: Int): Int =
@@ -207,11 +216,11 @@ class FatReader private constructor(
     )
 
     override fun close() {
-        try { raf.close() } catch (_: Exception) { }
+        try { src.close() } catch (_: Exception) { }
     }
 
     private fun readAt(offset: Long, size: Int): ByteArray? {
-        synchronized(lock) { return readBytes(raf, offset, size) }
+        synchronized(lock) { return readBytes(src, offset, size) }
     }
 
     private fun readCluster(n: Long): ByteArray? {

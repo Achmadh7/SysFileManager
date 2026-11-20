@@ -830,6 +830,7 @@ fun SysFileApp() {
             // layar isi FAT; r156: super.img (mentah/sparse) dibuka
             // di daftar partisi logis, partisi dibuka di layar isi
             // ext4; jenis lain tetap tampil di Properti (r151).
+            // r158: sparse FAT dan sparse super.img dibaca langsung tanpa unsparse (LD2).
             // openEntry bukan suspend, jadi deteksi berjalan di
             // scope.launch — withContext langsung di sini tidak compile.
             working = true
@@ -863,15 +864,36 @@ fun SysFileApp() {
                         }
                     }
                     ImgType.SPARSE -> {
-                        // LD2 r157: sparse ext4 dibuka langsung tanpa
-                        // unsparse; gagal -> jalur lama (unsparse sekali
-                        // ke temp, dicoba sebagai super.img dulu baru
-                        // ext4 — r156).
-                        val direct = withContext(Dispatchers.IO) { Ext4Reader.openSession(f) }
-                        if (direct != null) {
+                        // LD2 r157+r158: sparse dibaca langsung tanpa
+                        // unsparse — dicoba berurutan: ext4, FAT, lalu
+                        // super.img. Gagal semua -> jalur lama (unsparse
+                        // sekali ke temp, dicoba sebagai super.img dulu
+                        // baru ext4 — r156).
+                        val direct: Triple<Ext4Session?, FatReader?, LpReader?> =
+                            withContext(Dispatchers.IO) {
+                                var ext: Ext4Session? = null
+                                var fat: FatReader? = null
+                                var lp: LpReader? = null
+                                ext = Ext4Reader.openSession(f)
+                                if (ext == null) fat = FatReader.openSparse(f)
+                                if (ext == null && fat == null) lp = LpReader.openSparse(f)
+                                Triple(ext, fat, lp)
+                            }
+                        val ext = direct.first
+                        val fat = direct.second
+                        val lp = direct.third
+                        if (ext != null) {
                             working = false
-                            ext4Session = direct
+                            ext4Session = ext
                             overlay = Overlay.Ext4View(entry.path)
+                        } else if (fat != null) {
+                            working = false
+                            fatReader = fat
+                            overlay = Overlay.FatView(entry.path)
+                        } else if (lp != null) {
+                            working = false
+                            lpSession = LpSession(f, null, lp)
+                            overlay = Overlay.LpView(entry.path)
                         } else {
                             val opened: Pair<LpSession?, Ext4Session?> = withContext(Dispatchers.IO) {
                                 val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
@@ -900,13 +922,13 @@ fun SysFileApp() {
                                 }
                             }
                             working = false
-                            val lp = opened.first
-                            val ext = opened.second
-                            if (lp != null) {
-                                lpSession = lp
+                            val lp2 = opened.first
+                            val ext2 = opened.second
+                            if (lp2 != null) {
+                                lpSession = lp2
                                 overlay = Overlay.LpView(entry.path)
-                            } else if (ext != null) {
-                                ext4Session = ext
+                            } else if (ext2 != null) {
+                                ext4Session = ext2
                                 overlay = Overlay.Ext4View(entry.path)
                             } else {
                                 notify(t.opFailed)

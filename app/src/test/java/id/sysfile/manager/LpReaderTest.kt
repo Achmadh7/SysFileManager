@@ -257,6 +257,65 @@ class LpReaderTest {
         reader.close()
     }
 
+    // --- sparse langsung (LD2 r158) ---
+
+    @Test
+    fun sparseSuperDirectOpens() {
+        val raw = buildSuper()
+        val sparseFile = writeTmp(sparseWrap(raw), "super-sparse.img")
+        assertEquals(ImgType.SPARSE, ImgOps.detectImgType(sparseFile))
+        val reader = LpReader.openSparse(sparseFile)
+        assertNotNull(reader)
+        reader!!.use {
+            assertEquals(0, it.slotNumber)
+            assertEquals(
+                listOf("system", "vendor", "product_a", "odm", "misc"),
+                it.partitions.map { p -> p.name }
+            )
+            assertEquals(
+                listOf(true, true, true, false, false),
+                it.partitions.map { p -> p.available }
+            )
+        }
+    }
+
+    @Test
+    fun sparseSuperMaterializeMatchesRaw() {
+        val raw = buildSuper()
+        val sparseFile = writeTmp(sparseWrap(raw), "super-sparse.img")
+        // Jalur lama: unsparse dulu, buka mentah.
+        val tmp = File(tmpDir, "unsparsed.img")
+        assertTrue(ImgOps.unsparse(sparseFile, tmp) is UnsparseResult.Ok)
+        val rawReader = LpReader.open(tmp)!!
+        val system = rawReader.partitions.first { it.name == "system" }
+        val outRaw = File(tmpDir, "system-raw.img")
+        assertTrue(rawReader.materialize(system, outRaw))
+        rawReader.close()
+        // Jalur baru: baca langsung dari sparse.
+        val sparseReader = LpReader.openSparse(sparseFile)!!
+        val outSparse = File(tmpDir, "system-sparse.img")
+        assertTrue(sparseReader.materialize(system, outSparse))
+        sparseReader.close()
+        assertArrayEquals(outRaw.readBytes(), outSparse.readBytes())
+    }
+
+    @Test
+    fun sparseSuperCorruptFailsCleanly() {
+        val raw = buildSuper()
+        // Magic sparse rusak.
+        val badMagic = sparseWrap(raw)
+        badMagic[0] = 0
+        assertNull(LpReader.openSparse(writeTmp(badMagic, "bad-magic.img")))
+        // Geometri primer + cadangan rusak (magic dicek keduanya).
+        val badGeo = raw.copyOf()
+        badGeo[4096] = (badGeo[4096].toInt() xor 0xFF).toByte()
+        badGeo[8192] = (badGeo[8192].toInt() xor 0xFF).toByte()
+        assertNull(LpReader.openSparse(writeTmp(sparseWrap(badGeo), "bad-geo.img")))
+        // Sparse terpotong di tengah data chunk.
+        val cut = sparseWrap(raw).copyOf(28 + 12 + 100)
+        assertNull(LpReader.openSparse(writeTmp(cut, "cut.img")))
+    }
+
     // --- fixture ---
 
     private data class FixPart(
