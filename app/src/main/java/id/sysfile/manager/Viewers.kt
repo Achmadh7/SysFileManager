@@ -97,6 +97,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.size.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -125,6 +126,8 @@ fun ImageViewerScreen(
     var offsetY by remember { mutableFloatStateOf(0f) }
     var chrome by remember { mutableStateOf(true) }
     var zooming by remember { mutableStateOf(false) }
+    // Satu loader Coil dipakai ulang penampil + prefetch tetangga (r84).
+    val imageLoader = rememberThumbLoader()
     // Ganti halaman: zoom direset + laporkan berkas yang sedang tampil
     // (untuk Bagikan/Properti/Detail EXIF/Hapus + penanda hapus di MainActivity).
     LaunchedEffect(pagerState.currentPage) {
@@ -132,6 +135,28 @@ fun ImageViewerScreen(
         offsetX = 0f
         offsetY = 0f
         onPathChange(paths[pagerState.currentPage])
+        // r174: prefetch tetangga (halaman +-1) dengan ukuran asli ke
+        // memory cache loader yang sama, supaya bitmap sudah siap saat
+        // halaman digeser — bukan decode di tengah geser. Efek ini juga
+        // jalan saat penampil dibuka (currentPage awal = startIndex).
+        // Kenapa ORIGINAL, bukan seukuran layar: kunci cache Coil 2.7.0
+        // (MemoryCacheService) tidak memuat ukuran; yang dicek adalah
+        // validitas ukuran bitmap tersimpan (isSizeValid). Bitmap
+        // full-res yang belum di-sample memenuhi request berukuran apa
+        // pun karena AsyncImagePainter memaksa Precision.INEXACT —
+        // sedangkan prefetch seukuran layar rapuh: ukuran layout berubah
+        // saat chrome tampil/sembunyi. Biaya: dua bitmap full-res di
+        // memory cache selama penampil dibuka.
+        for (neighbor in listOf(pagerState.currentPage - 1, pagerState.currentPage + 1)) {
+            if (neighbor in paths.indices) {
+                imageLoader.enqueue(
+                    ImageRequest.Builder(context)
+                        .data(File(paths[neighbor]))
+                        .size(Size.ORIGINAL)
+                        .build()
+                )
+            }
+        }
     }
     Scaffold(
         topBar = {
@@ -160,12 +185,14 @@ fun ImageViewerScreen(
             HorizontalPager(
                 state = pagerState,
                 // Halaman tetangga dikompos + Coil mulai decode SEBELUM
-                // geser (r162): tanpa ini decode foto baru mulai saat
-                // halaman masuk viewport di tengah geser, halaman hitam
-                // sampai decode selesai lalu foto pop. Video tidak kena
-                // karena VideoView + MediaPlayer menyiapkan frame pertama
-                // jauh lebih cepat (~1 frame). Default 0 di foundation 1.9.3.
-                beyondViewportPageCount = 1,
+                // geser (r162, r174: 2 tetangga tiap sisi + prefetch
+                // ORIGINAL di LaunchedEffect): tanpa ini decode foto baru
+                // mulai saat halaman masuk viewport di tengah geser,
+                // halaman hitam sampai decode selesai lalu foto pop.
+                // Video tidak kena karena VideoView + MediaPlayer
+                // menyiapkan frame pertama jauh lebih cepat (~1 frame).
+                // Default 0 di foundation 1.9.3.
+                beyondViewportPageCount = 2,
                 // Saat diperbesar atau sedang dicubit dua jari, geser halaman
                 // dimatikan supaya cubit/pan milik gambar; saat skala 1 dan
                 // satu jari, geser milik pager.
@@ -182,12 +209,15 @@ fun ImageViewerScreen(
                 ) {
                     AsyncImage(
                         model = remember(pagePath) {
+                            // Tanpa crossfade (r174): bitmap yang telat
+                            // lalu fade-in di atas latar hitam terbaca
+                            // sebagai bayangan ganda; tanpa crossfade foto
+                            // muncul seketika begitu siap.
                             ImageRequest.Builder(context)
                                 .data(File(pagePath))
-                                .crossfade(true)
                                 .build()
                         },
-                        imageLoader = rememberThumbLoader(),
+                        imageLoader = imageLoader,
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize().graphicsLayer {
