@@ -15,9 +15,10 @@ import java.util.zip.GZIPInputStream
 /** Jenis citra disk (.img), dikenali dari isi berkas — bukan dari namanya.
  *  BOOT = boot image Android ("ANDROID!"); SPARSE = citra sparse Android;
  *  EXT4 = sistem berkas ext2/3/4 mentah; FAT = sektor boot FAT12/16/32;
+ *  SUPER = super.img partisi logis (liblp);
  *  RAW = berkas tak kosong yang tidak cocok dengan magic mana pun;
  *  UNKNOWN = kosong atau tidak bisa dibaca. */
-enum class ImgType { BOOT, SPARSE, EXT4, FAT, RAW, UNKNOWN }
+enum class ImgType { BOOT, SPARSE, EXT4, FAT, SUPER, RAW, UNKNOWN }
 
 /** Satu entri ramdisk (arsip cpio newc). */
 data class RamdiskEntry(
@@ -77,8 +78,8 @@ data class Ext4Info(
 
 /**
  * Pembaca citra disk (.img), read-only — menulis kembali / repack di
- * luar cakupan (IM3 fase 1–3: deteksi + info + boot.img + sparse +
- * ext4).
+ * luar cakupan (IM3: deteksi + info + boot.img + sparse + ext4 +
+ * FAT + partisi logis super.img).
  *
  * Format yang diverifikasi dari sumbernya, bukan dari ingatan:
  * - Boot image: bootimg.h AOSP (system/tools/mkbootimg) — magic
@@ -99,6 +100,11 @@ data class Ext4Info(
  *   offset 1024, magic 0xEF53 di 0x38, ukuran blok
  *   2^(10+s_log_block_size), jumlah blok 64-bit bila
  *   INCOMPAT_64BIT, label 16 byte di 0x78.
+ * - Super.img: metadata_format.h + reader.cpp liblp AOSP —
+ *   geometri @4096 (magic 0x616c4467), slot metadata @12288 +
+ *   max_size*slot (cadangan setelah max_size*slot_count),
+ *   partisi 52 byte, extent 24 byte (LINEAR/ZERO), checksum
+ *   SHA-256 geometri/header/tabel.
  */
 object ImgOps {
     /** Batas ramdisk hasil dekompresi (bom-dekompresi): 256 MiB. */
@@ -147,6 +153,27 @@ object ImgOps {
                     val fat32 = ascii(boot, 82, 8) == "FAT32   "
                     val fat1216 = ascii(boot, 54, 8).startsWith("FAT")
                     if (hasSig && (fat32 || fat1216)) return ImgType.FAT
+                }
+                // r156: super.img partisi logis — geometri liblp
+                // di offset 4096 (magic 0x616c4467, struct 52
+                // byte). Dicek terakhir: 4096 byte pertama citra
+                // lain sudah ditangkap di atas (ext4/FAT butuh
+                // magic di area itu), jadi tidak ada tabrakan.
+                if (len >= LpReader.GEOMETRY_OFFSET + LpReader.GEOMETRY_STRUCT_SIZE) {
+                    val geo = readAt(raf, LpReader.GEOMETRY_OFFSET, LpReader.GEOMETRY_STRUCT_SIZE)
+                    if (geo != null && u32le(geo, 0) == LpReader.GEOMETRY_MAGIC &&
+                        u32le(geo, 4) == LpReader.GEOMETRY_STRUCT_SIZE.toLong()
+                    ) {
+                        val maxSize = u32le(geo, 40)
+                        val slots = u32le(geo, 44)
+                        val lbs = u32le(geo, 48)
+                        if (maxSize > 0 && maxSize % 512L == 0L &&
+                            slots >= 1 && slots <= 8 &&
+                            lbs % 512L == 0L && lbs in 512L..1048576L
+                        ) {
+                            return ImgType.SUPER
+                        }
+                    }
                 }
                 ImgType.RAW
             }

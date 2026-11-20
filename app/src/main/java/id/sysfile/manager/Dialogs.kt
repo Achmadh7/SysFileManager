@@ -199,6 +199,7 @@ private fun imgTypeName(type: ImgType, t: Txt): String {
         ImgType.SPARSE -> t.imgTypeSparse
         ImgType.EXT4 -> t.imgTypeExt4
         ImgType.FAT -> t.imgTypeFat
+        ImgType.SUPER -> t.imgTypeSuper
         ImgType.RAW -> t.imgTypeRaw
         ImgType.UNKNOWN -> t.imgTypeUnknown
     }

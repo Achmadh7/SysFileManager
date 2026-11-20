@@ -1216,6 +1216,73 @@ fun FatBrowseScreen(
     }
 }
 
+/** r156: layar daftar partisi logis super.img (liblp). Daftar
+ *  datar (tanpa folder): nama + ukuran tiap partisi; partisi yang
+ *  tidak tersedia (dinonaktifkan / extent di perangkat lain / di
+ *  luar berkas) ditandai dan tombol unduhnya disembunyikan. Ketuk
+ *  partisi membukanya di layar isi ext4 (MainActivity); tombol
+ *  unduh mengekstrak partisi mentah sebagai berkas .img di sebelah
+ *  super.img. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun LpBrowseScreen(
+    path: String,
+    session: LpSession?,
+    onBack: () -> Unit,
+    onError: () -> Unit,
+    onOpenPartition: (LpPartition) -> Unit,
+    onExtractPartition: (LpPartition) -> Unit
+) {
+    val t = txt()
+    val imgFile = remember(path) { File(path) }
+    val partitions = session?.reader?.partitions
+    LaunchedEffect(session) {
+        if (partitions == null) onError()
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            val list = partitions
+            when {
+                list == null -> Box(Modifier.fillMaxSize()) {
+                    Column(
+                        Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        LoadingIndicator()
+                        Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+                list.isEmpty() -> Box(Modifier.fillMaxSize()) {
+                    Text(
+                        t.imgLpEmpty,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else -> LazyColumn(Modifier.fillMaxSize()) {
+                    items(list, key = { it.name }) { part ->
+                        ArchiveItemRow(
+                            item = ArchiveItem(part.name, false, part.sizeBytes),
+                            count = null,
+                            extra = if (part.available) null else t.imgLpUnavailable,
+                            onExtract = if (part.available) { { onExtractPartition(part) } } else null,
+                            onClick = { onOpenPartition(part) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SearchScreen(

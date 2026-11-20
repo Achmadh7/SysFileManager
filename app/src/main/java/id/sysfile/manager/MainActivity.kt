@@ -177,10 +177,11 @@ private sealed interface Overlay {
     data class TextView(val path: String) : Overlay
     data class ArchiveText(val name: String, val content: String, val archivePath: String, val canSave: Boolean) : Overlay
     data class RamdiskText(val name: String, val content: String) : Overlay
-    data class Ext4View(val path: String) : Overlay
+    data class Ext4View(val path: String, val lpPath: String? = null) : Overlay
     data class Ext4Text(val name: String, val content: String) : Overlay
     data class FatView(val path: String) : Overlay
     data class FatText(val name: String, val content: String) : Overlay
+    data class LpView(val path: String) : Overlay
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
     data class OfficeView(val path: String) : Overlay
@@ -328,6 +329,18 @@ fun SysFileApp() {
         fatReader = null
         fatPrefix = ""
         fatPrefixPath = null
+    }
+    // r156: sesi baca super.img (reader + temp unsparse bila sparse) —
+    // dibuat saat membuka .img super, ditutup saat layar LpView
+    // ditutup (onBack/onError) atau saat pengguna meninggalkan alur
+    // lewat Ekstrak Semua dari partisi. Bertahan saat overlay
+    // berganti ke Ext4View partisi supaya kembali mendarat di daftar
+    // partisi tanpa unsparse ulang (pola r108/r154).
+    var lpSession by remember { mutableStateOf<LpSession?>(null) }
+
+    fun closeLpSession() {
+        lpSession?.close()
+        lpSession = null
     }
 
     // AU2 (r74): pemutar audio mini — hidup di SysFileApp (bukan di
@@ -813,11 +826,12 @@ fun SysFileApp() {
         }
         if (FileOps.extOf(entry.name) == "img") {
             // r152: boot.img dibuka di layar isi ramdisk; r154: ext4
-            // (mentah/sparse) dibuka di layar isi ext4; r155: FAT
-            // dibuka di layar isi FAT; jenis lain tetap tampil di
-            // Properti (r151). openEntry bukan
-            // suspend, jadi deteksi berjalan di scope.launch —
-            // withContext langsung di sini tidak compile.
+            // mentah dibuka di layar isi ext4; r155: FAT dibuka di
+            // layar isi FAT; r156: super.img (mentah/sparse) dibuka
+            // di daftar partisi logis, partisi dibuka di layar isi
+            // ext4; jenis lain tetap tampil di Properti (r151).
+            // openEntry bukan suspend, jadi deteksi berjalan di
+            // scope.launch — withContext langsung di sini tidak compile.
             working = true
             scope.launch {
                 val detected = withContext(Dispatchers.IO) { ImgOps.detectImgType(f) }
@@ -826,13 +840,67 @@ fun SysFileApp() {
                         working = false
                         overlay = Overlay.ImgView(entry.path)
                     }
-                    ImgType.EXT4, ImgType.SPARSE -> {
+                    ImgType.SUPER -> {
+                        val reader = withContext(Dispatchers.IO) { LpReader.open(f) }
+                        working = false
+                        if (reader != null) {
+                            lpSession = LpSession(f, null, reader)
+                            overlay = Overlay.LpView(entry.path)
+                        } else {
+                            notify(t.opFailed)
+                        }
+                    }
+                    ImgType.EXT4 -> {
                         // Unsparse multi-GB bisa makan waktu — working
                         // tetap menyala sampai sesi siap.
                         val session = withContext(Dispatchers.IO) { Ext4Reader.openSession(f, context.cacheDir) }
                         working = false
                         if (session != null) {
                             ext4Session = session
+                            overlay = Overlay.Ext4View(entry.path)
+                        } else {
+                            notify(t.opFailed)
+                        }
+                    }
+                    ImgType.SPARSE -> {
+                        // Unsparse SEKALI ke temp, lalu temp itu dicoba
+                        // sebagai super.img dulu (LpReader), baru ext4
+                        // (Ext4Reader) — supaya sparse ext4 tidak
+                        // di-unsparse dua kali (r156).
+                        val opened: Pair<LpSession?, Ext4Session?> = withContext(Dispatchers.IO) {
+                            val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
+                            val tmp = File(dir, "super-${System.nanoTime()}.img")
+                            try {
+                                when (ImgOps.unsparse(f, tmp)) {
+                                    is UnsparseResult.Ok -> {
+                                        val lpReader = LpReader.open(tmp)
+                                        if (lpReader != null) {
+                                            LpSession(tmp, tmp, lpReader) to null
+                                        } else {
+                                            val extReader = Ext4Reader.open(tmp)
+                                            if (extReader != null) {
+                                                null to Ext4Session(tmp, tmp, extReader)
+                                            } else {
+                                                tmp.delete()
+                                                null to null
+                                            }
+                                        }
+                                    }
+                                    else -> null to null
+                                }
+                            } catch (_: Exception) {
+                                tmp.delete()
+                                null to null
+                            }
+                        }
+                        working = false
+                        val lp = opened.first
+                        val ext = opened.second
+                        if (lp != null) {
+                            lpSession = lp
+                            overlay = Overlay.LpView(entry.path)
+                        } else if (ext != null) {
+                            ext4Session = ext
                             overlay = Overlay.Ext4View(entry.path)
                         } else {
                             notify(t.opFailed)
@@ -1059,6 +1127,7 @@ fun SysFileApp() {
                         initialState is Overlay.ImgView || targetState is Overlay.ImgView ||
                         initialState is Overlay.Ext4View || targetState is Overlay.Ext4View ||
                         initialState is Overlay.FatView || targetState is Overlay.FatView ||
+                        initialState is Overlay.LpView || targetState is Overlay.LpView ||
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
                             fadeOut(animationSpec = fadeSpec)
@@ -1272,6 +1341,10 @@ fun SysFileApp() {
                             overlayReturn = null
                             ext4Prefix = ""; ext4PrefixPath = null
                             ext4Session = null
+                            // Bila layar ini dibuka dari daftar partisi
+                            // super.img, sesi LP ikut ditutup — pengguna
+                            // meninggalkan alur super.img sepenuhnya.
+                            closeLpSession()
                             if (session == null) {
                                 notify(t.opFailed)
                             } else {
@@ -1391,6 +1464,52 @@ fun SysFileApp() {
                             } else {
                                 runOp(t.extractDone) {
                                     reader.extractEntry(itemPath, imgFile.parentFile ?: imgFile) != null
+                                }
+                            }
+                        }
+                    )
+                    is Overlay.LpView -> LpBrowseScreen(
+                        path = ov.path,
+                        session = lpSession,
+                        onBack = { overlay = overlayReturn; overlayReturn = null; closeLpSession() },
+                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed); closeLpSession() },
+                        onOpenPartition = { part ->
+                            val lp = lpSession
+                            // Prefix ext4 direset supaya partisi yang
+                            // dibuka berikutnya mulai dari root, bukan
+                            // dari subfolder partisi sebelumnya (judul
+                            // layar tetap nama super.img).
+                            ext4Prefix = ""; ext4PrefixPath = null
+                            working = true
+                            scope.launch {
+                                val session = if (lp != null) {
+                                    withContext(Dispatchers.IO) {
+                                        val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
+                                        val tmp = File(dir, "part-${System.nanoTime()}.img")
+                                        if (lp.reader.materialize(part, tmp)) {
+                                            val reader = Ext4Reader.open(tmp)
+                                            if (reader != null) Ext4Session(tmp, tmp, reader) else { tmp.delete(); null }
+                                        } else null
+                                    }
+                                } else null
+                                working = false
+                                if (session != null) {
+                                    ext4Session = session
+                                    overlayReturn = Overlay.LpView(ov.path)
+                                    overlay = Overlay.Ext4View(ov.path, lpPath = ov.path)
+                                } else {
+                                    notify(t.opFailed)
+                                }
+                            }
+                        },
+                        onExtractPartition = { part ->
+                            val imgFile = File(ov.path)
+                            val lp = lpSession
+                            if (lp == null) {
+                                notify(t.opFailed)
+                            } else {
+                                runOp(t.extractDone) {
+                                    lp.reader.materialize(part, File(imgFile.parentFile ?: imgFile, part.name + ".img"))
                                 }
                             }
                         }
