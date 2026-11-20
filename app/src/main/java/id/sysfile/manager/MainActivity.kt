@@ -177,6 +177,8 @@ private sealed interface Overlay {
     data class TextView(val path: String) : Overlay
     data class ArchiveText(val name: String, val content: String, val archivePath: String, val canSave: Boolean) : Overlay
     data class RamdiskText(val name: String, val content: String) : Overlay
+    data class Ext4View(val path: String) : Overlay
+    data class Ext4Text(val name: String, val content: String) : Overlay
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
     data class OfficeView(val path: String) : Overlay
@@ -297,6 +299,20 @@ fun SysFileApp() {
     // ramdisk mendarat di subfolder yang sama.
     var imgPrefix by remember { mutableStateOf("") }
     var imgPrefixPath by remember { mutableStateOf<String?>(null) }
+    // r154: sesi baca ext4 (reader + temp unsparse bila sparse) —
+    // dibuat saat membuka .img ext4/sparse, ditutup saat layar
+    // Ext4View ditutup (onBack/onError). Bertahan saat overlay
+    // berganti ke Ext4Text supaya kembali mendarat di folder yang sama.
+    var ext4Session by remember { mutableStateOf<Ext4Session?>(null) }
+    var ext4Prefix by remember { mutableStateOf("") }
+    var ext4PrefixPath by remember { mutableStateOf<String?>(null) }
+
+    fun closeExt4Session() {
+        ext4Session?.close()
+        ext4Session = null
+        ext4Prefix = ""
+        ext4PrefixPath = null
+    }
 
     // AU2 (r74): pemutar audio mini — hidup di SysFileApp (bukan di
     // overlay) supaya tetap berbunyi saat pengguna pindah folder/tab.
@@ -780,18 +796,39 @@ fun SysFileApp() {
             return
         }
         if (FileOps.extOf(entry.name) == "img") {
-            // r152: boot.img dibuka di layar isi ramdisk; jenis lain
+            // r152: boot.img dibuka di layar isi ramdisk; r154: ext4
+            // (mentah/sparse) dibuka di layar isi ext4; jenis lain
             // tetap tampil di Properti (r151). openEntry bukan
             // suspend, jadi deteksi berjalan di scope.launch —
             // withContext langsung di sini tidak compile.
             working = true
             scope.launch {
                 val detected = withContext(Dispatchers.IO) { ImgOps.detectImgType(f) }
-                working = false
                 when (detected) {
-                    ImgType.BOOT -> overlay = Overlay.ImgView(entry.path)
-                    ImgType.UNKNOWN -> notify(t.opFailed)
-                    else -> dialog = DialogKind.Properties(entry)
+                    ImgType.BOOT -> {
+                        working = false
+                        overlay = Overlay.ImgView(entry.path)
+                    }
+                    ImgType.EXT4, ImgType.SPARSE -> {
+                        // Unsparse multi-GB bisa makan waktu — working
+                        // tetap menyala sampai sesi siap.
+                        val session = withContext(Dispatchers.IO) { Ext4Reader.openSession(f, context.cacheDir) }
+                        working = false
+                        if (session != null) {
+                            ext4Session = session
+                            overlay = Overlay.Ext4View(entry.path)
+                        } else {
+                            notify(t.opFailed)
+                        }
+                    }
+                    ImgType.UNKNOWN -> {
+                        working = false
+                        notify(t.opFailed)
+                    }
+                    else -> {
+                        working = false
+                        dialog = DialogKind.Properties(entry)
+                    }
                 }
             }
             return
@@ -993,6 +1030,7 @@ fun SysFileApp() {
                     if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
                         initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView ||
                         initialState is Overlay.ImgView || targetState is Overlay.ImgView ||
+                        initialState is Overlay.Ext4View || targetState is Overlay.Ext4View ||
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
                             fadeOut(animationSpec = fadeSpec)
@@ -1024,6 +1062,12 @@ fun SysFileApp() {
                         onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) }
                     )
                     is Overlay.RamdiskText -> TextViewerScreen(
+                        ov.name,
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        notify = { notify(it) },
+                        extractedText = ov.content
+                    )
+                    is Overlay.Ext4Text -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
@@ -1177,6 +1221,75 @@ fun SysFileApp() {
                             val imgFile = File(ov.path)
                             runOp(t.extractDone) {
                                 ImgOps.extractRamdiskEntry(imgFile, itemName, imgFile.parentFile ?: imgFile) != null
+                            }
+                        }
+                    )
+                    is Overlay.Ext4View -> Ext4BrowseScreen(
+                        path = ov.path,
+                        session = ext4Session,
+                        initialPrefix = if (ext4PrefixPath == ov.path) ext4Prefix else "",
+                        onPrefixChange = { ext4PrefixPath = ov.path; ext4Prefix = it },
+                        onBack = { overlay = overlayReturn; overlayReturn = null; closeExt4Session() },
+                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed); closeExt4Session() },
+                        onExtractAll = {
+                            val imgFile = File(ov.path)
+                            val session = ext4Session
+                            overlay = null
+                            overlayReturn = null
+                            ext4Prefix = ""; ext4PrefixPath = null
+                            ext4Session = null
+                            if (session == null) {
+                                notify(t.opFailed)
+                            } else {
+                                // Sesi harus tetap hidup selama ekstrak
+                                // berjalan — ditutup di finally blok runOp.
+                                runOp(t.extractDone) {
+                                    try {
+                                        session.reader.extractAll(imgFile.parentFile ?: imgFile)
+                                    } finally {
+                                        session.close()
+                                    }
+                                }
+                            }
+                        },
+                        onOpenFile = { item ->
+                            val imgFile = File(ov.path)
+                            val session = ext4Session
+                            working = true
+                            scope.launch {
+                                val text = if (session != null) {
+                                    withContext(Dispatchers.IO) { session.reader.readFileText(item.inode) }
+                                } else null
+                                if (text != null) {
+                                    working = false
+                                    overlayReturn = ov
+                                    overlay = Overlay.Ext4Text(item.name, text)
+                                } else {
+                                    val out = if (session != null) {
+                                        withContext(Dispatchers.IO) {
+                                            val cache = File(context.cacheDir, "ext4-view").apply { mkdirs() }
+                                            session.reader.extractEntry(item.inode, item.name, cache)
+                                        }
+                                    } else null
+                                    working = false
+                                    if (out != null) {
+                                        overlayReturn = ov
+                                        openEntry(FileOps.entryOf(out))
+                                    } else {
+                                        notify(t.opFailed)
+                                    }
+                                }
+                            }
+                        },
+                        onExtractOne = { item ->
+                            val imgFile = File(ov.path)
+                            val session = ext4Session
+                            if (session == null) {
+                                notify(t.opFailed)
+                            } else {
+                                runOp(t.extractDone) {
+                                    session.reader.extractEntry(item.inode, item.name, imgFile.parentFile ?: imgFile) != null
+                                }
                             }
                         }
                     )

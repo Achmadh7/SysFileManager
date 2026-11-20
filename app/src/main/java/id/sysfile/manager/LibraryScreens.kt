@@ -967,6 +967,142 @@ fun ImgBrowseScreen(
     }
 }
 
+/** r154: layar isi citra ext4 (system.img / super.img; sparse sudah
+ *  di-unsparse ke temp saat sesi dibuka). Navigasi folder, ekstrak
+ *  per-berkas + Ekstrak Semua, teks dibuka read-only di penampil teks.
+ *  Pola sama seperti ImgBrowseScreen (r152): prefix di-hoist ke
+ *  SysFileApp (r108) supaya kembali dari berkas mendarat di
+ *  subfolder yang sama. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun Ext4BrowseScreen(
+    path: String,
+    session: Ext4Session?,
+    initialPrefix: String = "",
+    onPrefixChange: (String) -> Unit = {},
+    onBack: () -> Unit,
+    onError: () -> Unit,
+    onExtractAll: () -> Unit,
+    onOpenFile: (Ext4Entry) -> Unit,
+    onExtractOne: (Ext4Entry) -> Unit
+) {
+    val t = txt()
+    val imgFile = remember(path) { File(path) }
+    val scope = rememberCoroutineScope()
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    var entries by remember(path) { mutableStateOf<List<Ext4Entry>?>(null) }
+    var prefix by remember(path) { mutableStateOf(initialPrefix) }
+    LaunchedEffect(path, prefix) {
+        entries = null
+        val reader = session?.reader
+        if (reader == null) { onError(); return@LaunchedEffect }
+        val loaded = withContext(Dispatchers.IO) {
+            val ino = reader.resolvePath(prefix) ?: return@withContext null
+            reader.listDir(ino)
+        }
+        if (loaded == null) onError() else entries = loaded
+    }
+    BackHandler(enabled = prefix.isNotEmpty()) {
+        val parent = prefix.removeSuffix("/").substringBeforeLast('/', "")
+        val next = if (parent.isEmpty()) "" else "$parent/"
+        prefix = next
+        onPrefixChange(next)
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
+                actions = {
+                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (prefix.isNotEmpty()) {
+                Text(
+                    "/" + prefix.removeSuffix("/"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+            val loaded = entries
+            val contentState = when {
+                loaded == null -> 0
+                loaded.isEmpty() -> 1
+                else -> 2
+            }
+            AnimatedContent(
+                targetState = (contentState to prefix),
+                transitionSpec = {
+                    fadeIn(animationSpec = fadeSpec) togetherWith
+                        fadeOut(animationSpec = fadeSpec)
+                },
+                modifier = Modifier.fillMaxSize(),
+                label = "ext4ContentFade"
+            ) { (state, shownPrefix) ->
+                when (state) {
+                    0 -> Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            LoadingIndicator()
+                            Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
+                    }
+                    1 -> Box(Modifier.fillMaxSize()) {
+                        Text(
+                            t.imgExt4Empty,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    else -> {
+                        val items = loaded!!
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(items, key = { it.name }) { item ->
+                                ArchiveItemRow(
+                                    item = ArchiveItem(item.name, item.isDir, item.size),
+                                    count = null,
+                                    extra = if (item.isSymlink) "→ ${item.symlinkTarget ?: ""}" else null,
+                                    onExtract = if (item.isDir || item.isSymlink) null else { { onExtractOne(item) } },
+                                    onClick = {
+                                        if (item.isDir) {
+                                            prefix = shownPrefix + item.name + "/"
+                                            onPrefixChange(prefix)
+                                        } else if (item.isSymlink) {
+                                            scope.launch {
+                                                val reader = session?.reader ?: return@launch
+                                                val target = item.symlinkTarget ?: return@launch
+                                                val targetPath = if (target.startsWith("/")) target.removePrefix("/")
+                                                else shownPrefix + target
+                                                val resolved = withContext(Dispatchers.IO) { reader.resolveEntry(targetPath) }
+                                                if (resolved == null) {
+                                                    onOpenFile(item)
+                                                } else if (resolved.isDir) {
+                                                    val next = Ext4Reader.normalizePath(targetPath) + "/"
+                                                    prefix = next
+                                                    onPrefixChange(next)
+                                                } else {
+                                                    onOpenFile(resolved)
+                                                }
+                                            }
+                                        } else onOpenFile(item)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SearchScreen(
