@@ -87,6 +87,15 @@ object RootShell {
         state == GRANTED
     }
 
+    /** r204: kembalikan status root ke UNKNOWN agar percobaan berikutnya
+     *  (mis. sakelar dihidupkan lagi) benar-benar mencoba ulang su —
+     *  DENIED yang menempel tidak boleh mengunci root seumur proses. */
+    fun resetRootState() = synchronized(rootLock) {
+        state = UNKNOWN
+        mountMaster = false
+        mountMasterProbed = false
+    }
+
     /** Shell root dipakai untuk jalur di luar penyimpanan bersama. */
     fun shouldUseShell(path: String): Boolean =
         state == GRANTED && path != "/storage" && !path.startsWith("/storage/") && !path.startsWith("/sdcard")

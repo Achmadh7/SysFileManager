@@ -432,10 +432,12 @@ fun SysFileApp() {
                 RootShell.state == RootShell.UNKNOWN
             ) {
                 withContext(Dispatchers.IO) { RootShell.ensureRoot() }
-                prefs.edit().putBoolean(
-                    "root_granted_before",
-                    RootShell.state == RootShell.GRANTED
-                ).apply()
+                // r204: hanya ingat keberhasilan — kegagalan sementara
+                // (su sempat gagal) tidak boleh menghapus ingatan bahwa
+                // root pernah diberikan.
+                if (RootShell.state == RootShell.GRANTED) {
+                    prefs.edit().putBoolean("root_granted_before", true).apply()
+                }
             }
             if (RootShell.state == RootShell.GRANTED &&
                 !prefs.getBoolean("root_granted_before", false)
@@ -1560,15 +1562,18 @@ fun SysFileApp() {
                     showRootEntry = v
                     prefs.edit().putBoolean("root_entry", v).apply()
                     // L17: satu-satunya pemicu prompt root — hanya saat
-                    // sakelar dihidupkan dan akses root belum diketahui.
-                    // Bila ditolak, sakelar kembali mati.
-                    if (v && RootShell.state == RootShell.UNKNOWN) {
+                    // sakelar dihidupkan. Bila ditolak, sakelar kembali mati.
+                    if (v) {
                         scope.launch {
+                            // r204: tiap kali dihidupkan, coba dari nol —
+                            // DENIED dari percobaan sebelumnya (su sempat
+                            // gagal) tidak boleh mengunci root seumur proses.
+                            RootShell.resetRootState()
                             val ok = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
-                            // r201: ingat hasil root — dipakai refreshRoots
-                            // untuk memulihkan GRANTED saat startup tanpa
-                            // prompt baru (Magisk sudah mengingat izinnya).
-                            prefs.edit().putBoolean("root_granted_before", ok).apply()
+                            // r204: hanya ingat keberhasilan — kegagalan
+                            // sementara tidak boleh menghapus ingatan bahwa
+                            // root pernah diberikan.
+                            if (ok) prefs.edit().putBoolean("root_granted_before", true).apply()
                             if (!ok) {
                                 showRootEntry = false
                                 prefs.edit().putBoolean("root_entry", false).apply()
