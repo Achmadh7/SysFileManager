@@ -28,7 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - Settings is now a grouped list (Display / Files / Apps) instead of 2×2 quick tiles; all settings keep their behaviour.
 - Theme and language now toggle with a single tap (no picker dialog); the "Follow System" theme option is gone.
-- Bottom tab (HS1): a 48dp surfaceContainer capsule with a primary pill (#9ACBFA) that hugs the active tab's icon and label; inactive tabs show an outlined icon only.
+- Bottom tab (HS1): a 60dp floating surfaceContainer capsule with 48dp side margins; its primary pill (#9ACBFA, 44dp tall) slides and resizes to hug the active tab's icon and label; inactive tabs show an outlined icon only.
 - Target SDK 34 → 35 (Android 15): edge-to-edge enabled (enableEdgeToEdge); the floating bottom bar now respects the system navigation-bar inset.
 - Photo and video viewers now swipe between same-type media in the folder, with an "N / M" counter; swipe is disabled while a photo is zoomed.
 - Root/SD/USB volume rows show the free-space label as "tersisa" instead of "kosong" (Indonesian; English "free" unchanged).
@@ -44,13 +44,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The welcome screen is now a single screen (the two-page pager is gone).
 - Category lists load faster: the file walk stops at the cap, recent scans are cached for 60 seconds, roots are scanned in parallel, and media (photos, videos, audio) loads from MediaStore.
 - App Manager dialog redesigned as a compact list: smaller header icon and package text, tighter chips, and compact action rows separated by dividers.
-- Welcome screen redesigned (WS7): the logo, title, and pitch sit centered inside one big card; the All Files Access card is slightly bigger (larger padding and folder icon).
+- Welcome screen redesigned (WS12): the logo, title, and pitch sit directly on the background (the hero card is gone) with no small permission rationale text; the All Files Access card is slightly bigger (larger padding and folder icon).
+- Switching between dark and light themes now fades smoothly over 300 ms (a snapshot of the old theme fades out over the new one) instead of changing instantly; repeated taps during the fade no longer compound the effect.
+- About, App Manager, and App Specs now slide in from the right with a fade when opened, matching the Supported Formats screen.
 
 ### Removed
 - Glass/aurora interface and Material You dynamic colour (replaced by the fixed Biru Senja theme and solid cards).
 - Tarball formats (.tar.gz / .tgz, .tar.bz2 / .tbz2, .tar.xz / .txz) are no longer recognised, extracted, created, or listed.
 - Single-stream formats (.gz, .bz2, .xz) are no longer recognised or decompressed.
-- The "Supported Formats" settings screen.
 - "Follow System" theme option and the theme/language picker dialogs.
 - The "USB not showing? Open via SAF" hint on the home screen (live USB detection still works).
 - The "Manage archives & documents" feature card on the welcome screen.
@@ -67,6 +68,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Pressing Back from a file opened inside a ZIP subfolder now returns to that same subfolder instead of the archive root.
 - Fixed a crash when the selection bar's exit animation ran after the selection was cleared.
 - Swiping between videos now works — the tap detector no longer swallows the swipe gesture.
+- Dialogs (Properties, the working indicator, and the storage-access dialog) now follow the app theme instead of showing the default light (purple) Material scheme in dark mode.
+- The search bar on the browse screen no longer sits far below the header.
+- Media categories (Audio, Images, Video) no longer show empty when files are not in the MediaStore index (for example audio in `.nomedia` folders such as WhatsApp): an empty MediaStore result now falls back to a direct filesystem scan.
 
 ## [1.2.0]
 
