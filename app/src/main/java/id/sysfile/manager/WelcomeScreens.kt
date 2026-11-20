@@ -49,8 +49,11 @@ fun WelcomeScreen(
     onFinish: () -> Unit
 ) {
     val t = txt()
+    // r164: latar dari skema — tanpa ini, mode terang berlatar
+    // #101418 (windowBackground di themes.xml) di layar sambutan.
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 24.dp),
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Column(

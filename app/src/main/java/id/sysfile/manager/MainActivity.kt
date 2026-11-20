@@ -1701,7 +1701,11 @@ fun SysFileApp() {
                     )
                     null -> {
                         Scaffold(
-                            containerColor = Color.Transparent,
+                            // r164: latar dari skema, bukan Transparent —
+                            // windowBackground di themes.xml adalah #101418
+                            // (gelap); dengan Transparent, mode terang pun
+                            // berlatar gelap di Beranda + Jelajah.
+                            containerColor = MaterialTheme.colorScheme.background,
                             snackbarHost = { SnackbarHost(snackbar) },
                             topBar = {
                                 Column {

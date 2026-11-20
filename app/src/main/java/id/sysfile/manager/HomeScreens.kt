@@ -133,6 +133,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -411,7 +412,11 @@ fun HomeScreen(
  *  pill baru muncul di tempatnya (~250 ms) — tidak ada geser.
  *  r138: TANPA AnimatedContent — r136 membuat pill melebar
  *  selebar bar (308dp di screenshot, harusnya ~109dp).
- *  Menggantikan HS1 rapat (r94). */
+ *  Menggantikan HS1 rapat (r94).
+ *  r164: bar/pill/on-pill kini dari peran skema (surfaceContainer /
+ *  primary / onPrimary) — sama persis di mode gelap, mengikuti tema
+ *  di mode terang; ikon tak aktif putih di gelap, onSurfaceVariant
+ *  di terang (sebelumnya keempatnya literal gelap). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
@@ -453,9 +458,18 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     // label tab baru muncul saat pill tiba (selected = homeTab
     // langsung — selama geser, label tujuan gelap-di-atas-bar
     // gelap sampai pill menutupinya).
-    val barColor = Color(0xFF1C2024)
-    val pillColor = Color(0xFF9ACBFA)
-    val onPillColor = Color(0xFF003352)
+    // r164: warna bar/pill dari peran skema, bukan literal gelap —
+    // bar #1C2024 = surfaceContainer, pill #9ACBFA = primary,
+    // on-pill #003352 = onPrimary; ketiganya sama persis di mode
+    // gelap dan mengikuti tema di mode terang.
+    val barColor = MaterialTheme.colorScheme.surfaceContainer
+    val pillColor = MaterialTheme.colorScheme.primary
+    val onPillColor = MaterialTheme.colorScheme.onPrimary
+    // Ikon tab tak aktif: tidak ada peran skema yang putih di mode
+    // gelap DAN gelap di mode terang — bedakan dari kecerahan latar
+    // (gelap #101418 ~0,01; terang #F7F9FF ~0,93).
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val inactiveColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         Modifier.fillMaxWidth()
             .padding(start = 48.dp, end = 48.dp, bottom = 16.dp)
@@ -491,7 +505,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                     val selected = homeTab == index
                     val fg by animateColorAsState(
                         targetValue = if (selected) onPillColor
-                        else Color.White,
+                        else inactiveColor,
                         animationSpec = motion.defaultSpatialSpec(),
                         label = "tabFg"
                     )
