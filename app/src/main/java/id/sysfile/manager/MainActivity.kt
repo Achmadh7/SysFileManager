@@ -179,6 +179,8 @@ private sealed interface Overlay {
     data class RamdiskText(val name: String, val content: String) : Overlay
     data class Ext4View(val path: String) : Overlay
     data class Ext4Text(val name: String, val content: String) : Overlay
+    data class FatView(val path: String) : Overlay
+    data class FatText(val name: String, val content: String) : Overlay
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
     data class OfficeView(val path: String) : Overlay
@@ -312,6 +314,20 @@ fun SysFileApp() {
         ext4Session = null
         ext4Prefix = ""
         ext4PrefixPath = null
+    }
+    // r155: pembaca FAT (.img FAT12/16/32) — dibuka saat membuka
+    // .img FAT, ditutup saat layar FatView ditutup (onBack/onError).
+    // Bertahan saat overlay berganti ke FatText supaya kembali
+    // mendarat di folder yang sama (pola r108/r154).
+    var fatReader by remember { mutableStateOf<FatReader?>(null) }
+    var fatPrefix by remember { mutableStateOf("") }
+    var fatPrefixPath by remember { mutableStateOf<String?>(null) }
+
+    fun closeFatReader() {
+        fatReader?.close()
+        fatReader = null
+        fatPrefix = ""
+        fatPrefixPath = null
     }
 
     // AU2 (r74): pemutar audio mini — hidup di SysFileApp (bukan di
@@ -797,8 +813,9 @@ fun SysFileApp() {
         }
         if (FileOps.extOf(entry.name) == "img") {
             // r152: boot.img dibuka di layar isi ramdisk; r154: ext4
-            // (mentah/sparse) dibuka di layar isi ext4; jenis lain
-            // tetap tampil di Properti (r151). openEntry bukan
+            // (mentah/sparse) dibuka di layar isi ext4; r155: FAT
+            // dibuka di layar isi FAT; jenis lain tetap tampil di
+            // Properti (r151). openEntry bukan
             // suspend, jadi deteksi berjalan di scope.launch —
             // withContext langsung di sini tidak compile.
             working = true
@@ -817,6 +834,16 @@ fun SysFileApp() {
                         if (session != null) {
                             ext4Session = session
                             overlay = Overlay.Ext4View(entry.path)
+                        } else {
+                            notify(t.opFailed)
+                        }
+                    }
+                    ImgType.FAT -> {
+                        val reader = withContext(Dispatchers.IO) { FatReader.open(f) }
+                        working = false
+                        if (reader != null) {
+                            fatReader = reader
+                            overlay = Overlay.FatView(entry.path)
                         } else {
                             notify(t.opFailed)
                         }
@@ -1031,6 +1058,7 @@ fun SysFileApp() {
                         initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView ||
                         initialState is Overlay.ImgView || targetState is Overlay.ImgView ||
                         initialState is Overlay.Ext4View || targetState is Overlay.Ext4View ||
+                        initialState is Overlay.FatView || targetState is Overlay.FatView ||
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
                             fadeOut(animationSpec = fadeSpec)
@@ -1068,6 +1096,12 @@ fun SysFileApp() {
                         extractedText = ov.content
                     )
                     is Overlay.Ext4Text -> TextViewerScreen(
+                        ov.name,
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        notify = { notify(it) },
+                        extractedText = ov.content
+                    )
+                    is Overlay.FatText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
@@ -1289,6 +1323,74 @@ fun SysFileApp() {
                             } else {
                                 runOp(t.extractDone) {
                                     session.reader.extractEntry(item.inode, item.name, imgFile.parentFile ?: imgFile) != null
+                                }
+                            }
+                        }
+                    )
+                    is Overlay.FatView -> FatBrowseScreen(
+                        path = ov.path,
+                        reader = fatReader,
+                        initialPrefix = if (fatPrefixPath == ov.path) fatPrefix else "",
+                        onPrefixChange = { fatPrefixPath = ov.path; fatPrefix = it },
+                        onBack = { overlay = overlayReturn; overlayReturn = null; closeFatReader() },
+                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed); closeFatReader() },
+                        onExtractAll = {
+                            val imgFile = File(ov.path)
+                            val reader = fatReader
+                            overlay = null
+                            overlayReturn = null
+                            fatPrefix = ""; fatPrefixPath = null
+                            fatReader = null
+                            if (reader == null) {
+                                notify(t.opFailed)
+                            } else {
+                                // Pembaca harus tetap hidup selama ekstrak
+                                // berjalan — ditutup di finally blok runOp.
+                                runOp(t.extractDone) {
+                                    try {
+                                        reader.extractAll(imgFile.parentFile ?: imgFile)
+                                    } finally {
+                                        reader.close()
+                                    }
+                                }
+                            }
+                        },
+                        onOpenFile = { itemPath ->
+                            val reader = fatReader
+                            working = true
+                            scope.launch {
+                                val text = if (reader != null) {
+                                    withContext(Dispatchers.IO) { reader.readFileText(itemPath) }
+                                } else null
+                                if (text != null) {
+                                    working = false
+                                    overlayReturn = ov
+                                    overlay = Overlay.FatText(itemPath.substringAfterLast('/'), text)
+                                } else {
+                                    val out = if (reader != null) {
+                                        withContext(Dispatchers.IO) {
+                                            val cache = File(context.cacheDir, "fat-view").apply { mkdirs() }
+                                            reader.extractEntry(itemPath, cache)
+                                        }
+                                    } else null
+                                    working = false
+                                    if (out != null) {
+                                        overlayReturn = ov
+                                        openEntry(FileOps.entryOf(out))
+                                    } else {
+                                        notify(t.opFailed)
+                                    }
+                                }
+                            }
+                        },
+                        onExtractOne = { itemPath ->
+                            val imgFile = File(ov.path)
+                            val reader = fatReader
+                            if (reader == null) {
+                                notify(t.opFailed)
+                            } else {
+                                runOp(t.extractDone) {
+                                    reader.extractEntry(itemPath, imgFile.parentFile ?: imgFile) != null
                                 }
                             }
                         }

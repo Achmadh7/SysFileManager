@@ -1103,6 +1103,119 @@ fun Ext4BrowseScreen(
     }
 }
 
+/** r155: layar isi citra FAT12/16/32 (citra kartu SD, partisi ESP,
+ *  citra recovery). Navigasi folder, ekstrak per-berkas + Ekstrak
+ *  Semua, teks dibuka read-only di penampil teks. Pola sama seperti
+ *  Ext4BrowseScreen (r154): prefix di-hoist ke SysFileApp (r108)
+ *  supaya kembali dari berkas mendarat di subfolder yang sama. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun FatBrowseScreen(
+    path: String,
+    reader: FatReader?,
+    initialPrefix: String = "",
+    onPrefixChange: (String) -> Unit = {},
+    onBack: () -> Unit,
+    onError: () -> Unit,
+    onExtractAll: () -> Unit,
+    onOpenFile: (String) -> Unit,
+    onExtractOne: (String) -> Unit
+) {
+    val t = txt()
+    val imgFile = remember(path) { File(path) }
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    var entries by remember(path) { mutableStateOf<List<FatEntry>?>(null) }
+    var prefix by remember(path) { mutableStateOf(initialPrefix) }
+    LaunchedEffect(path, prefix) {
+        entries = null
+        val r = reader
+        if (r == null) { onError(); return@LaunchedEffect }
+        val loaded = withContext(Dispatchers.IO) { r.listDir(prefix) }
+        if (loaded == null) onError() else entries = loaded
+    }
+    BackHandler(enabled = prefix.isNotEmpty()) {
+        val parent = prefix.removeSuffix("/").substringBeforeLast('/', "")
+        val next = if (parent.isEmpty()) "" else "$parent/"
+        prefix = next
+        onPrefixChange(next)
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
+                actions = {
+                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (prefix.isNotEmpty()) {
+                Text(
+                    "/" + prefix.removeSuffix("/"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+            val loaded = entries
+            val contentState = when {
+                loaded == null -> 0
+                loaded.isEmpty() -> 1
+                else -> 2
+            }
+            AnimatedContent(
+                targetState = (contentState to prefix),
+                transitionSpec = {
+                    fadeIn(animationSpec = fadeSpec) togetherWith
+                        fadeOut(animationSpec = fadeSpec)
+                },
+                modifier = Modifier.fillMaxSize(),
+                label = "fatContentFade"
+            ) { (state, shownPrefix) ->
+                when (state) {
+                    0 -> Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            LoadingIndicator()
+                            Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
+                    }
+                    1 -> Box(Modifier.fillMaxSize()) {
+                        Text(
+                            t.imgFatEmpty,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    else -> {
+                        val items = loaded!!
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(items, key = { it.name }) { item ->
+                                ArchiveItemRow(
+                                    item = ArchiveItem(item.name, item.isDir, item.size),
+                                    count = null,
+                                    onExtract = if (item.isDir) null else { { onExtractOne(shownPrefix + item.name) } },
+                                    onClick = {
+                                        if (item.isDir) {
+                                            prefix = shownPrefix + item.name + "/"
+                                            onPrefixChange(prefix)
+                                        } else onOpenFile(shownPrefix + item.name)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SearchScreen(
