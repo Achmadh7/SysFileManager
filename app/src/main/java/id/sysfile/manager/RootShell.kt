@@ -243,6 +243,34 @@ object RootShell {
         return lines.firstOrNull()?.trim()?.toIntOrNull()
     }
 
+    /** r207: ukuran volume lewat `df` root — total + tersedia (kolom
+     *  1K-blocks; Available = StatFs.availableBytes yang dipakai
+     *  storageRoots). StatFs/File.totalSpace tak bisa membaca
+     *  /mnt/media_rw: hanya root yang masuk namespace mount-nya (r203).
+     *  Null bila root tak aktif / df gagal / tak terurai — pemanggil
+     *  memakai 0L/0L (volume tetap jadi baris kecil). */
+    fun volumeSize(path: String): Pair<Long, Long>? {
+        if (state != GRANTED) return null
+        val lines = runSu("df " + quote(path), 10) ?: return null
+        return parseDfOutput(lines)
+    }
+
+    /** Urai keluaran `df <path>` (toybox, satuan 1K-blocks):
+     *  baris data pertama yang terurai jadi (total, tersedia) dalam
+     *  byte; null bila tak ada baris data yang valid. Murni agar bisa
+     *  diuji unit tanpa su. */
+    internal fun parseDfOutput(lines: List<String>): Pair<Long, Long>? {
+        for (line in lines) {
+            val parts = line.trim().split(Regex("\\s+"))
+            if (parts.size < 4) continue
+            val total = parts[1].toLongOrNull() ?: continue
+            val free = parts[3].toLongOrNull() ?: continue
+            if (total <= 0 || free < 0 || free > total) continue
+            return total * 1024L to free * 1024L
+        }
+        return null
+    }
+
     /** Salin berkas yang tak terbaca langsung ke cache aplikasi lewat root; null bila gagal. */
     fun stageToCache(file: File, cacheDir: File): File? {
         if (state != GRANTED) return null

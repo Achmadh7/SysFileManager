@@ -82,4 +82,24 @@ class RootShellTest {
         )
         assertEquals(listOf("F|10|1700000000|/storage/a"), RootShell.groupStatLines(lines))
     }
+
+    @Test
+    fun parseDfOutput_validDf() {
+        // toybox df: Filesystem 1K-blocks Used Available Use% Mounted on.
+        val lines = listOf(
+            "Filesystem           1K-blocks      Used Available Use% Mounted on",
+            "/dev/block/vold/public:179,65  30408704  12345678  18063026  41% /mnt/media_rw/BED9-9EEF"
+        )
+        assertEquals(Pair(31138512896L, 18496538624L), RootShell.parseDfOutput(lines))
+    }
+
+    @Test
+    fun parseDfOutput_noDataLineIsNull() {
+        assertEquals(null, RootShell.parseDfOutput(emptyList()))
+        assertEquals(
+            null,
+            RootShell.parseDfOutput(listOf("Filesystem 1K-blocks Used Available Use% Mounted on"))
+        )
+        assertEquals(null, RootShell.parseDfOutput(listOf("sampah tanpa angka")))
+    }
 }

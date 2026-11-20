@@ -455,9 +455,16 @@ fun SysFileApp() {
                 val raw = withContext(Dispatchers.IO) {
                     RootShell.listDir(File("/mnt/media_rw"), false, SortKey.NAME, true)
                 }
-                raw?.filter { it.isDir }?.forEach { e ->
+                // r207: isi ukuran volume via df root — tanpa total,
+                // heroRoots menyaring USB keluar dari pager (hanya jadi
+                // baris kecil di bawahnya).
+                for (e in raw?.filter { it.isDir } ?: emptyList()) {
                     val p = "/mnt/media_rw/" + e.name
-                    if (fresh.none { it.path == p }) fresh += RootInfo(p, "usb", 0L, 0L)
+                    if (fresh.none { it.path == p }) {
+                        val size = withContext(Dispatchers.IO) { RootShell.volumeSize(p) }
+                        fresh += if (size != null) RootInfo(p, "usb", size.first, size.second)
+                        else RootInfo(p, "usb", 0L, 0L)
+                    }
                 }
             }
             roots = fresh
