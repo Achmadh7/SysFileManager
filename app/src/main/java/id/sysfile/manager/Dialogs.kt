@@ -193,11 +193,23 @@ fun NameDialog(
 }
 
 @Composable
+private fun imgTypeName(type: ImgType, t: Txt): String {
+    return when (type) {
+        ImgType.BOOT -> t.imgTypeBoot
+        ImgType.SPARSE -> t.imgTypeSparse
+        ImgType.EXT4 -> t.imgTypeExt4
+        ImgType.FAT -> t.imgTypeFat
+        ImgType.RAW -> t.imgTypeRaw
+        ImgType.UNKNOWN -> t.imgTypeUnknown
+    }
+}
+
 fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) -> Unit) {
     val t = txt()
     val clipboard = LocalClipboardManager.current
     var stats by remember { mutableStateOf<FileOps.FolderStats?>(null) }
     var stat by remember(entry.path) { mutableStateOf<FileOps.StatInfo?>(null) }
+    var imgType by remember(entry.path) { mutableStateOf<ImgType?>(null) }
     var expanded by remember(entry.path) { mutableStateOf(false) }
     var showSums by remember(entry.path) { mutableStateOf(false) }
     var showPerms by remember(entry.path) { mutableStateOf(false) }
@@ -209,6 +221,9 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
             stats = withContext(Dispatchers.IO) { FileOps.folderStats(entry.file) }
         }
         stat = withContext(Dispatchers.IO) { FileOps.statInfo(entry.path) }
+        if (FileOps.extOf(entry.name) == "img") {
+            imgType = withContext(Dispatchers.IO) { ImgOps.detectImgType(entry.file) }
+        }
     }
     LaunchedEffect(showSums) {
         if (showSums && sums == null && !computing) {
@@ -306,6 +321,10 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                             )
                             PropGroupDivider()
                             PropGridRow(t.propType, if (entry.isDir) t.propFolder else t.propFile)
+                            if (imgType != null) {
+                                PropGroupDivider()
+                                PropGridRow(t.imgTypeLabel, imgTypeName(imgType!!, t))
+                            }
                             PropGroupDivider()
                             PropGridRow(
                                 t.propSize,

@@ -772,6 +772,18 @@ fun SysFileApp() {
             }
             return
         }
+        if (FileOps.extOf(entry.name) == "img") {
+            // Citra disk: kenali jenisnya dari isi, lalu tampilkan di
+            // Properti (r151). Layar isi ramdisk boot.img menyusul r152;
+            // jangan jatuh ke "open with" tanpa memberi tahu pengguna.
+            val detected = withContext(Dispatchers.IO) { ImgOps.detectImgType(f) }
+            if (detected == ImgType.UNKNOWN) {
+                notify(t.opFailed)
+            } else {
+                dialog = DialogKind.Properties(entry)
+            }
+            return
+        }
         if (entry.category == Category.APP) {
             val ext = FileOps.extOf(f.name)
             if (ext == "apk" || ext == "apks" || ext == "xapk" || ext == "aab") {
