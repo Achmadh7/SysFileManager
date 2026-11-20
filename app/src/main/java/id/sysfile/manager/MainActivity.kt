@@ -1545,7 +1545,10 @@ fun SysFileApp() {
                 contentScale = ContentScale.FillBounds
             )
         }
-    }
+        // r142: penutup SysFileTheme DIPINDAH ke akhir dialog
+        // (dulu di sini) — host dialog di bawah ini harus di
+        // DALAM tema, kalau tidak dialog memakai skema default
+        // M3 terang (ungu) walau aplikasi mode gelap.
 
         if (working) {
             AlertDialog(
@@ -1832,6 +1835,7 @@ fun SysFileApp() {
             )
             null -> {}
         }
+    } // r142: penutup SysFileTheme (dipindah dari atas)
     }
 }
 
