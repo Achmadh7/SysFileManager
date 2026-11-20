@@ -1121,11 +1121,12 @@ fun SysFileApp() {
     /** r197: jalankan satu operasi dengan kartu progres di TENGAH layar
      *  (kartu yang sama dengan ekstrak r182 — state extractCard* dipakai
      *  bersama; jangan ganti nama tanpa mengubah semua call site ekstrak).
-     *  Dipakai hapus (pindah ke Sampah): bar TAK TENTU karena moveToTrash
-     *  tidak melaporkan progres, tanpa tombol Batal (tidak bisa dibatalkan
+     *  Dipakai hapus (pindah ke Sampah) dan tempel (salin/pindah):
+     *  bar TAK TENTU karena moveToTrash/copyInto tidak melaporkan progres,
+     *  tanpa tombol Batal (tidak bisa dibatalkan
      *  di tengah jalan dengan aman). Selesai: sukses -> successMsg, gagal
      *  -> opFailed (pill r193). Dialog modal `working` TIDAK dipakai di
-     *  sini — saat hapus hanya kartu progres yang tampil. Bila ekstrak
+     *  sini — saat hapus/tempel hanya kartu progres yang tampil. Bila ekstrak
      *  sedang berjalan, kartu ini menimpa kartu ekstrak (sama seperti
      *  ekstrak kedua menimpa yang pertama, r182). */
     fun runCardOp(
@@ -2146,7 +2147,10 @@ fun SysFileApp() {
                                                                 menuOpen = false
                                                                 val (paths, mode) = clipboard ?: return@DropdownMenuItem
                                                                 val destDir = File(currentPath)
-                                                                runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
+                                                                runCardOp(
+                                                                    name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
+                                                                    successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone
+                                                                ) {
                                                                     val files = paths.map { File(it) }
                                                                     if (mode == ClipMode.COPY) {
                                                                         FileOps.copyInto(files, destDir) > 0
@@ -2343,7 +2347,10 @@ fun SysFileApp() {
                                                 onPaste = {
                                                     val (paths, mode) = clip
                                                     val destDir = File(currentPath)
-                                                    runOp(if (mode == ClipMode.COPY) t.copiedDone else t.movedDone) {
+                                                    runCardOp(
+                                                        name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
+                                                        successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone
+                                                    ) {
                                                         val files = paths.map { File(it) }
                                                         if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
                                                         else FileOps.moveInto(files, destDir) > 0
