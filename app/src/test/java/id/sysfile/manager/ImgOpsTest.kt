@@ -391,4 +391,74 @@ class ImgOpsTest {
         assertFalse(File(tmp.root, "evil.txt").exists())
         assertFalse(File(dest, "ok.txt").exists()) // dibersihkan saat gagal
     }
+
+    // --- ramdiskChildren + looksLikeText (r152) ---
+
+    @Test
+    fun ramdiskChildren_groupsFoldersAndFiles() {
+        val entries = listOf(
+            RamdiskEntry("sbin", true, false, 0L),
+            RamdiskEntry("init.rc", false, false, 8L),
+            RamdiskEntry("sbin/adbd", false, false, 16L),
+            RamdiskEntry("sbin/link", false, true, 4L),
+            RamdiskEntry("usr/bin/tool", false, false, 32L)
+        )
+        val root = ImgOps.ramdiskChildren(entries, "")
+        // Folder dulu (dengan jumlah isi), lalu berkas.
+        assertEquals(listOf("sbin/", "usr/", "init.rc"), root.map { it.first.name })
+        assertEquals(listOf(2, 1, null), root.map { it.second })
+        assertEquals(listOf(true, true, false), root.map { it.first.isDir })
+        val sbin = ImgOps.ramdiskChildren(entries, "sbin/")
+        assertEquals(listOf("sbin/adbd", "sbin/link"), sbin.map { it.first.name })
+        val usr = ImgOps.ramdiskChildren(entries, "usr/")
+        assertEquals(listOf("usr/bin/"), usr.map { it.first.name })
+        assertEquals(listOf(1), usr.map { it.second })
+        val bin = ImgOps.ramdiskChildren(entries, "usr/bin/")
+        assertEquals(listOf("usr/bin/tool"), bin.map { it.first.name })
+    }
+
+    @Test
+    fun ramdiskChildren_dotSlashPrefix() {
+        val entries = listOf(
+            RamdiskEntry("./init.rc", false, false, 8L),
+            RamdiskEntry("./sbin/adbd", false, false, 16L)
+        )
+        val root = ImgOps.ramdiskChildren(entries, "")
+        assertEquals(listOf("sbin/", "init.rc"), root.map { it.first.name })
+        // Nama yang dinormalisasi tetap bisa dibuka/diekstrak.
+        val cpio = makeCpio(
+            Triple("./init.rc", modeFile, "on boot\n".toByteArray(Charsets.UTF_8))
+        )
+        val f = makeBootV0(2048, 100, gzip(cpio))
+        assertEquals("on boot\n", ImgOps.readRamdiskEntryText(f, "init.rc"))
+    }
+
+    @Test
+    fun looksLikeText() {
+        assertTrue(ImgOps.looksLikeText("on boot\n".toByteArray(Charsets.UTF_8)))
+        assertTrue(ImgOps.looksLikeText("café\n".toByteArray(Charsets.UTF_8)))
+        assertTrue(ImgOps.looksLikeText(ByteArray(0)))
+        assertFalse(ImgOps.looksLikeText(byteArrayOf(0, 1, 2, 3)))
+        assertFalse(ImgOps.looksLikeText(ByteArray(16) { it.toByte() }))
+        // NUL di luar sampel 8 KiB tidak dihitung.
+        val big = ByteArray(9000) { 'a'.code.toByte() }
+        big[8500] = 0
+        assertTrue(ImgOps.looksLikeText(big))
+    }
+
+    @Test
+    fun readRamdiskEntryText_binaryReturnsNull() {
+        val f = makeBootV0(2048, 100, gzip(sampleCpio()))
+        assertNull(ImgOps.readRamdiskEntryText(f, "sbin/adbd")) // byte 0..15, ada NUL
+        assertEquals("on boot\n", ImgOps.readRamdiskEntryText(f, "init.rc"))
+    }
+
+    @Test
+    fun readRamdiskEntryText_utf8Text() {
+        val cpio = makeCpio(
+            Triple("ueventd.rc", modeFile, "café — ünïcode\n".toByteArray(Charsets.UTF_8))
+        )
+        val f = makeBootV0(2048, 100, gzip(cpio))
+        assertEquals("café — ünïcode\n", ImgOps.readRamdiskEntryText(f, "ueventd.rc"))
+    }
 }

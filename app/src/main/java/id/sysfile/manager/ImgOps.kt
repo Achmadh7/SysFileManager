@@ -178,10 +178,26 @@ object ImgOps {
         return data.copyOfRange(target.dataStart, target.dataEnd)
     }
 
-    /** Isi satu entri ramdisk sebagai teks UTF-8; null bila tak ada. */
+    /** Isi satu entri ramdisk sebagai teks UTF-8; null bila tak ada,
+     *  direktori/symlink, terlalu besar, atau isinya biner. Ramdisk
+     *  tidak punya ekstensi teks (init.rc, *.prop) — kenali teks
+     *  dari isinya lewat [looksLikeText], bukan dari nama. */
     fun readRamdiskEntryText(file: File, entryName: String, maxBytes: Int = 1_000_000): String? {
         val bytes = readRamdiskEntry(file, entryName, maxBytes) ?: return null
+        if (!looksLikeText(bytes)) return null
         return String(bytes, Charsets.UTF_8)
+    }
+
+    /** Heuristik teks: tanpa byte NUL di sampel awal (8 KiB). Berkas
+     *  biner (ELF, kernel, arsip terkompresi) hampir selalu mengandung
+     *  NUL di awal; berkas teks ramdisk (init.rc, *.prop, skrip)
+     *  tidak pernah. */
+    fun looksLikeText(bytes: ByteArray): Boolean {
+        val sample = minOf(bytes.size, 8192)
+        for (i in 0 until sample) {
+            if (bytes[i] == 0.toByte()) return false
+        }
+        return true
     }
 
     /** Ekstrak satu entri ramdisk biasa ke [destDir]; null bila gagal / ditolak. */
@@ -234,6 +250,40 @@ object ImgOps {
         }
         if (!ok) written.forEach { it.delete() }
         return ok
+    }
+
+    /** Anak-anak langsung dari [prefix] di dalam ramdisk — cerminan
+     *  archiveChildren untuk arsip: folder (dengan jumlah isi) dulu,
+     *  lalu berkas. Folder disintesis dari segmen path, jadi entri
+     *  "usr/bin/tool" memunculkan folder "usr/" walau tanpa entri
+     *  direktori eksplisit. Nama dinormalisasi seperti di
+     *  [readRamdiskEntries] (awalan "./" dibuang). */
+    fun ramdiskChildren(entries: List<RamdiskEntry>, prefix: String): List<Pair<RamdiskEntry, Int?>> {
+        val folderPaths = linkedSetOf<String>()
+        val files = mutableListOf<RamdiskEntry>()
+        for (entry in entries) {
+            val name = entry.name.removePrefix("./")
+            if (!name.startsWith(prefix)) continue
+            val rest = name.removePrefix(prefix)
+            if (rest.isBlank()) continue
+            val slash = rest.indexOf('/')
+            if (slash >= 0) {
+                folderPaths += prefix + rest.substring(0, slash + 1)
+            } else if (entry.isDir) {
+                folderPaths += if (name.endsWith("/")) name else name + "/"
+            } else {
+                files += entry.copy(name = name)
+            }
+        }
+        val folders = folderPaths.map { path ->
+            val count = entries.count {
+                val n = it.name.removePrefix("./")
+                n.length > path.length && n.startsWith(path)
+            }
+            RamdiskEntry(path, true, false, 0L) to count
+        }
+        return folders.sortedBy { it.first.name.lowercase() } +
+            files.sortedBy { it.name.lowercase() }.map { it to null }
     }
 
     // --- internal ---
@@ -307,14 +357,17 @@ object ImgOps {
         return RamdiskBytes.UnsupportedCompression(kind)
     }
 
-    /** Baca ramdisk + parse cpio; null bila boot image / ramdisk rusak. */
+    /** Baca ramdisk + parse cpio; null bila boot image / ramdisk rusak.
+     *  Nama dinormalisasi (awalan "./" dibuang — arsip cpio dari
+     *  `find .` memakai "./init.rc") supaya layar isi dan pencarian
+     *  entri memakai nama yang sama. */
     private fun readRamdiskEntries(file: File): Pair<ByteArray, List<CpioEntry>>? {
         val data = when (val r = readAndDecompressRamdisk(file)) {
             is RamdiskBytes.Data -> r.bytes
             else -> return null
         }
         val entries = parseCpio(data) ?: return null
-        return data to entries
+        return data to entries.map { it.copy(name = it.name.removePrefix("./")) }
     }
 
     /** Parse arsip cpio newc (man cpio(5)); null bila rusak / tanpa trailer. */

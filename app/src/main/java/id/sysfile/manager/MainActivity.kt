@@ -176,12 +176,14 @@ private sealed interface Overlay {
     data class VideoView(val paths: List<String>, val startIndex: Int) : Overlay
     data class TextView(val path: String) : Overlay
     data class ArchiveText(val name: String, val content: String, val archivePath: String, val canSave: Boolean) : Overlay
+    data class RamdiskText(val name: String, val content: String) : Overlay
     data class PdfView(val path: String) : Overlay
     data class EpubView(val path: String) : Overlay
     data class OfficeView(val path: String) : Overlay
     data class FontView(val path: String) : Overlay
     data class CategoryView(val category: Category) : Overlay
     data class ArchiveView(val path: String, val reload: Int = 0) : Overlay
+    data class ImgView(val path: String) : Overlay
     data class PayloadView(val path: String) : Overlay
 }
 
@@ -290,6 +292,11 @@ fun SysFileApp() {
     // berganti ke penampil berkas).
     var archivePrefix by remember { mutableStateOf("") }
     var archivePrefixPath by remember { mutableStateOf<String?>(null) }
+    // r152: sama seperti archivePrefix (r108) — subfolder ramdisk
+    // yang sedang dibuka, supaya kembali dari berkas di dalam
+    // ramdisk mendarat di subfolder yang sama.
+    var imgPrefix by remember { mutableStateOf("") }
+    var imgPrefixPath by remember { mutableStateOf<String?>(null) }
 
     // AU2 (r74): pemutar audio mini — hidup di SysFileApp (bukan di
     // overlay) supaya tetap berbunyi saat pengguna pindah folder/tab.
@@ -773,14 +780,19 @@ fun SysFileApp() {
             return
         }
         if (FileOps.extOf(entry.name) == "img") {
-            // Citra disk: kenali jenisnya dari isi, lalu tampilkan di
-            // Properti (r151). Layar isi ramdisk boot.img menyusul r152;
-            // jangan jatuh ke "open with" tanpa memberi tahu pengguna.
-            val detected = withContext(Dispatchers.IO) { ImgOps.detectImgType(f) }
-            if (detected == ImgType.UNKNOWN) {
-                notify(t.opFailed)
-            } else {
-                dialog = DialogKind.Properties(entry)
+            // r152: boot.img dibuka di layar isi ramdisk; jenis lain
+            // tetap tampil di Properti (r151). openEntry bukan
+            // suspend, jadi deteksi berjalan di scope.launch —
+            // withContext langsung di sini tidak compile.
+            working = true
+            scope.launch {
+                val detected = withContext(Dispatchers.IO) { ImgOps.detectImgType(f) }
+                working = false
+                when (detected) {
+                    ImgType.BOOT -> overlay = Overlay.ImgView(entry.path)
+                    ImgType.UNKNOWN -> notify(t.opFailed)
+                    else -> dialog = DialogKind.Properties(entry)
+                }
             }
             return
         }
@@ -980,6 +992,7 @@ fun SysFileApp() {
                 transitionSpec = {
                     if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
                         initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView ||
+                        initialState is Overlay.ImgView || targetState is Overlay.ImgView ||
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
                             fadeOut(animationSpec = fadeSpec)
@@ -1009,6 +1022,12 @@ fun SysFileApp() {
                         extractedText = ov.content,
                         onSaveArchiveText = if (ov.canSave) { { newText -> ArchiveOps.replaceZipEntry(File(ov.archivePath), ov.name, newText) } } else null,
                         onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) }
+                    )
+                    is Overlay.RamdiskText -> TextViewerScreen(
+                        ov.name,
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        notify = { notify(it) },
+                        extractedText = ov.content
                     )
                     is Overlay.PdfView -> PdfViewerScreen(
                         path = ov.path,
@@ -1109,6 +1128,55 @@ fun SysFileApp() {
                                         notify(t.opFailed)
                                     }
                                 }
+                            }
+                        }
+                    )
+                    is Overlay.ImgView -> ImgBrowseScreen(
+                        path = ov.path,
+                        initialPrefix = if (imgPrefixPath == ov.path) imgPrefix else "",
+                        onPrefixChange = { imgPrefixPath = ov.path; imgPrefix = it },
+                        onBack = { overlay = overlayReturn; overlayReturn = null; imgPrefix = ""; imgPrefixPath = null },
+                        onError = { overlay = overlayReturn; overlayReturn = null; notify(t.opFailed); imgPrefix = ""; imgPrefixPath = null },
+                        onExtractAll = {
+                            val imgFile = File(ov.path)
+                            overlay = null
+                            overlayReturn = null
+                            imgPrefix = ""; imgPrefixPath = null
+                            runOp(t.extractDone) { ImgOps.extractRamdiskAll(imgFile, imgFile.parentFile ?: imgFile) }
+                        },
+                        onOpenFile = { itemName ->
+                            val imgFile = File(ov.path)
+                            working = true
+                            scope.launch {
+                                // Teks ramdisk (init.rc, *.prop) tidak punya
+                                // ekstensi teks — kenali dari isi (byte NUL
+                                // = biner), jangan lebarkan isTextFile.
+                                // Bukan teks -> ekstrak ke cache lalu buka
+                                // seperti berkas biasa.
+                                val text = withContext(Dispatchers.IO) { ImgOps.readRamdiskEntryText(imgFile, itemName) }
+                                if (text != null) {
+                                    working = false
+                                    overlayReturn = ov
+                                    overlay = Overlay.RamdiskText(itemName, text)
+                                } else {
+                                    val out = withContext(Dispatchers.IO) {
+                                        val cache = File(context.cacheDir, "ramdisk-view").apply { mkdirs() }
+                                        ImgOps.extractRamdiskEntry(imgFile, itemName, cache)
+                                    }
+                                    working = false
+                                    if (out != null) {
+                                        overlayReturn = ov
+                                        openEntry(FileOps.entryOf(out))
+                                    } else {
+                                        notify(t.opFailed)
+                                    }
+                                }
+                            }
+                        },
+                        onExtractOne = { itemName ->
+                            val imgFile = File(ov.path)
+                            runOp(t.extractDone) {
+                                ImgOps.extractRamdiskEntry(imgFile, itemName, imgFile.parentFile ?: imgFile) != null
                             }
                         }
                     )

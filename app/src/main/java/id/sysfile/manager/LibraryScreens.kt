@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.RestoreFromTrash
@@ -427,7 +428,7 @@ private fun archiveChildren(items: List<ArchiveItem>, prefix: String): List<Pair
 }
 
 @Composable
-private fun ArchiveItemRow(item: ArchiveItem, count: Int?, extra: String? = null, onClick: () -> Unit) {
+private fun ArchiveItemRow(item: ArchiveItem, count: Int?, extra: String? = null, onExtract: (() -> Unit)? = null, onClick: () -> Unit) {
     val displayName = item.name.removeSuffix("/").substringAfterLast('/')
     val category = if (item.isDir) Category.OTHER else FileOps.categoryOf(displayName)
     val color = entryColor(FEntry(item.name, displayName, item.isDir, item.size, 0L, category))
@@ -457,6 +458,9 @@ private fun ArchiveItemRow(item: ArchiveItem, count: Int?, extra: String? = null
             if (!extra.isNullOrEmpty()) {
                 Text(extra, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+        if (onExtract != null) {
+            IconButton(onClick = onExtract) { Icon(Icons.Default.Download, null) }
         }
     }
 }
@@ -834,6 +838,126 @@ fun ArchiveScreen(
                                 ArchiveItemRow(item = item, count = count, onClick = {
                                     if (item.isDir) { prefix = item.name; onPrefixChange(item.name) } else onOpenFile(item.name)
                                 })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Layar Isi Ramdisk boot.img (r152, IM3 fase 2): mengetuk boot.img
+ * membuka layar ini — daftar isi ramdisk seperti arsip. Folder di
+ * dalam ramdisk bisa dimasuki; mengetuk berkas teks membukanya di
+ * penampil teks, berkas lain diekstrak ke cache lalu dibuka; tombol
+ * unduh di tiap baris mengekstrak satu entri, tombol Ekstrak Semua
+ * mengekstrak seluruh isi ke folder boot.img.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ImgBrowseScreen(
+    path: String,
+    initialPrefix: String = "",
+    onPrefixChange: (String) -> Unit = {},
+    onBack: () -> Unit,
+    onError: () -> Unit,
+    onExtractAll: () -> Unit,
+    onOpenFile: (String) -> Unit,
+    onExtractOne: (String) -> Unit
+) {
+    val t = txt()
+    val imgFile = remember(path) { File(path) }
+    val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    var result by remember(path) { mutableStateOf<RamdiskResult?>(null) }
+    var prefix by remember(path) { mutableStateOf(initialPrefix) }
+    LaunchedEffect(path) {
+        val loaded = withContext(Dispatchers.IO) { ImgOps.listRamdisk(imgFile) }
+        if (loaded is RamdiskResult.Invalid) onError() else result = loaded
+    }
+    BackHandler(enabled = prefix.isNotEmpty()) {
+        val parent = prefix.removeSuffix("/").substringBeforeLast('/', "")
+        val next = if (parent.isEmpty()) "" else "$parent/"
+        prefix = next
+        onPrefixChange(next)
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
+                actions = {
+                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (prefix.isNotEmpty()) {
+                Text(
+                    "/" + prefix.removeSuffix("/"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+            val loaded = result
+            val unsupportedKind = (loaded as? RamdiskResult.UnsupportedCompression)?.kind
+            val entries = (loaded as? RamdiskResult.Ok)?.entries.orEmpty()
+            val contentState = when {
+                loaded == null -> 0
+                unsupportedKind != null -> 3
+                entries.isEmpty() -> 1
+                else -> 2
+            }
+            AnimatedContent(
+                targetState = (contentState to prefix),
+                transitionSpec = {
+                    fadeIn(animationSpec = fadeSpec) togetherWith
+                        fadeOut(animationSpec = fadeSpec)
+                },
+                modifier = Modifier.fillMaxSize(),
+                label = "imgContentFade"
+            ) { (state, shownPrefix) ->
+                when (state) {
+                    0 -> Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            LoadingIndicator()
+                            Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                        }
+                    }
+                    1 -> Box(Modifier.fillMaxSize()) {
+                        Text(
+                            t.imgRamdiskEmpty,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    3 -> Box(Modifier.fillMaxSize()) {
+                        Text(
+                            t.imgRamdiskUnsupported(unsupportedKind ?: ""),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.Center).padding(horizontal = 24.dp)
+                        )
+                    }
+                    else -> {
+                        val children = ImgOps.ramdiskChildren(entries, shownPrefix)
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(children, key = { it.first.name }) { (item, count) ->
+                                ArchiveItemRow(
+                                    item = ArchiveItem(item.name, item.isDir, item.size),
+                                    count = count,
+                                    onExtract = if (item.isDir) null else { { onExtractOne(item.name) } },
+                                    onClick = {
+                                        if (item.isDir) { prefix = item.name; onPrefixChange(item.name) } else onOpenFile(item.name)
+                                    }
+                                )
                             }
                         }
                     }
