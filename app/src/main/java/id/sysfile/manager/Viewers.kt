@@ -844,10 +844,14 @@ fun TextViewerScreen(
                         ) {
                             Text(
                                 text = highlightSyntax(
-                                    content ?: "",
-                                    fileExt,
-                                    MaterialTheme.colorScheme,
-                                    searchQuery
+                                    code = content ?: "",
+                                    ext = fileExt,
+                                    primaryColor = MaterialTheme.colorScheme.primary,
+                                    secondaryColor = MaterialTheme.colorScheme.secondary,
+                                    tertiaryColor = MaterialTheme.colorScheme.tertiary,
+                                    outlineColor = MaterialTheme.colorScheme.outline,
+                                    errorColor = MaterialTheme.colorScheme.error,
+                                    searchQuery = searchQuery
                                 ),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,
@@ -1399,7 +1403,11 @@ private fun FontInfoRow(label: String, value: String) {
 private fun highlightSyntax(
     code: String,
     ext: String,
-    colorScheme: ColorScheme,
+    primaryColor: Color,
+    secondaryColor: Color,
+    tertiaryColor: Color,
+    outlineColor: Color,
+    errorColor: Color,
     searchQuery: String = ""
 ): AnnotatedString {
     return buildAnnotatedString {
@@ -1410,11 +1418,11 @@ private fun highlightSyntax(
                 lowerExt in setOf("xml", "html", "htm") -> {
                     // Tag
                     Regex("<[^>]+>").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.primary), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = primaryColor), m.range.first, m.range.last + 1)
                         val tagText = code.substring(m.range.first, m.range.last + 1)
                         Regex("\"[^\"]*\"|'[^']*'").findAll(tagText).forEach { sm ->
                             addStyle(
-                                SpanStyle(color = colorScheme.tertiary),
+                                SpanStyle(color = tertiaryColor),
                                 m.range.first + sm.range.first,
                                 m.range.first + sm.range.last + 1
                             )
@@ -1422,53 +1430,53 @@ private fun highlightSyntax(
                     }
                     // Komentar XML/HTML
                     Regex("<!--[\\s\\S]*?-->").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.outline, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = outlineColor, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
                     }
                 }
                 lowerExt in setOf("prop", "conf", "config", "ini", "cfg", "properties", "env", "toml") -> {
                     // Header bagian [section]
                     Regex("(?m)^\\s*\\[[^\\]]+\\]").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.tertiary, fontWeight = FontWeight.Bold), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = tertiaryColor, fontWeight = FontWeight.Bold), m.range.first, m.range.last + 1)
                     }
                     // Kunci = nilai
                     Regex("(?m)^\\s*([a-zA-Z0-9_.-]+)\\s*=").findAll(code).forEach { m ->
                         val keyGroup = m.groups[1]
                         if (keyGroup != null) {
-                            addStyle(SpanStyle(color = colorScheme.primary), keyGroup.range.first, keyGroup.range.last + 1)
+                            addStyle(SpanStyle(color = primaryColor), keyGroup.range.first, keyGroup.range.last + 1)
                         }
                     }
                     // Komentar (# atau ;)
                     Regex("(?m)^\\s*[#;].*$").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.outline, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = outlineColor, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
                     }
                     // Teks string berpetik
                     Regex("\"[^\"]*\"|'[^']*'").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.secondary), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = secondaryColor), m.range.first, m.range.last + 1)
                     }
                 }
                 lowerExt in setOf("json", "jsonl", "jsonc") -> {
                     // Kunci JSON
                     Regex("\"([^\"]+)\"\\s*:").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.primary), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = primaryColor), m.range.first, m.range.last + 1)
                     }
                     // String JSON
                     Regex(":\\s*(\"[^\"]*\")").findAll(code).forEach { m ->
                         val g = m.groups[1]
                         if (g != null) {
-                            addStyle(SpanStyle(color = colorScheme.tertiary), g.range.first, g.range.last + 1)
+                            addStyle(SpanStyle(color = tertiaryColor), g.range.first, g.range.last + 1)
                         }
                     }
                     // Literal boolean / null
                     Regex("\\b(true|false|null)\\b").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.error, fontWeight = FontWeight.SemiBold), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = errorColor, fontWeight = FontWeight.SemiBold), m.range.first, m.range.last + 1)
                     }
                 }
                 lowerExt in setOf("sh", "bash", "zsh") -> {
                     Regex("(?m)^\\s*#.*$").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.outline, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = outlineColor, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
                     }
                     Regex("\"[^\"]*\"|'[^']*'").findAll(code).forEach { m ->
-                        addStyle(SpanStyle(color = colorScheme.tertiary), m.range.first, m.range.last + 1)
+                        addStyle(SpanStyle(color = tertiaryColor), m.range.first, m.range.last + 1)
                     }
                 }
             }
@@ -1481,8 +1489,7 @@ private fun highlightSyntax(
                     if (idx == -1) break
                     addStyle(
                         SpanStyle(
-                            background = colorScheme.primaryContainer,
-                            color = colorScheme.onPrimaryContainer,
+                            background = primaryColor.copy(alpha = 0.35f),
                             fontWeight = FontWeight.Bold
                         ),
                         idx,
