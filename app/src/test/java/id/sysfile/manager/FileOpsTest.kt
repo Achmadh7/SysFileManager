@@ -1,5 +1,6 @@
 package id.sysfile.manager
 
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -15,6 +16,7 @@ import java.io.FileOutputStream
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
@@ -990,5 +992,91 @@ class FileOpsTest {
             ArchiveOps.extractEncryptedZip(enc, dest, "sandi123", cancelFlag = flag)
         }
         assertTrue(dest.listFiles().orEmpty().isEmpty())
+    }
+
+    // --- r183: kecepatan ekstrak + buat zip ---
+
+    @Test
+    fun isIncompressibleEntry_matchesKnownExtensions() {
+        assertTrue(FileOps.isIncompressibleEntry("foto.JPG"))
+        assertTrue(FileOps.isIncompressibleEntry("video.mp4"))
+        assertTrue(FileOps.isIncompressibleEntry("arsip.zip"))
+        assertTrue(FileOps.isIncompressibleEntry("app.apk"))
+        assertTrue(FileOps.isIncompressibleEntry("lagu.flac"))
+        assertFalse(FileOps.isIncompressibleEntry("dokumen.txt"))
+        assertFalse(FileOps.isIncompressibleEntry("laporan.pdf"))
+        assertFalse(FileOps.isIncompressibleEntry("tanpa-ekstensi"))
+        assertFalse(FileOps.isIncompressibleEntry(".gitignore"))
+    }
+
+    @Test
+    fun archiveBufferConstants_useMeasuredSizes() {
+        assertEquals(256 * 1024, ArchiveOps.ARCHIVE_COPY_BUFFER_SIZE)
+        assertEquals(64 * 1024, ArchiveOps.SEVENZ_READ_BUFFER_SIZE)
+    }
+
+    @Test
+    fun zipFiles_storedEntriesRoundTrip() {
+        // r183: jpg (STORED) + txt (DEFLATED, level 1) harus kembali
+        // utuh lewat unzip; metode entri jpg harus STORED.
+        val src = tmp.newFolder("zsrc")
+        File(src, "a.txt").writeText("hello world\n".repeat(200))
+        val jpgBytes = ByteArray(50_000) { (it * 31 % 251).toByte() }
+        File(src, "b.jpg").writeBytes(jpgBytes)
+        File(src, "empty.jpg").writeBytes(ByteArray(0))
+        val zip = checkNotNull(FileOps.zipFiles(listOf(src), tmp.root, "campur"))
+        ZipFile(zip).use { zf ->
+            assertEquals(ZipEntry.STORED, zf.getEntry("zsrc/b.jpg").method)
+            assertEquals(ZipEntry.DEFLATED, zf.getEntry("zsrc/a.txt").method)
+            assertEquals(ZipEntry.STORED, zf.getEntry("zsrc/empty.jpg").method)
+        }
+        val dest = tmp.newFolder("zdest")
+        assertTrue(FileOps.unzip(zip, dest))
+        assertEquals("hello world\n".repeat(200), File(dest, "zsrc/a.txt").readText())
+        assertArrayEquals(jpgBytes, File(dest, "zsrc/b.jpg").readBytes())
+        assertEquals(0L, File(dest, "zsrc/empty.jpg").length())
+    }
+
+    @Test
+    fun createEncryptedZip_storedEntriesRoundTrip() {
+        // r183: zip terenkripsi dengan folder bersarang + folder kosong:
+        // struktur utuh, isi byte-identik, folder kosong tetap ada.
+        val src = tmp.newFolder("encsrc")
+        File(src, "doc.txt").writeText("rahasia\n".repeat(100))
+        val sub = File(src, "sub").apply { mkdirs() }
+        val jpgBytes = ByteArray(30_000) { (it * 17 % 251).toByte() }
+        File(sub, "foto.jpg").writeBytes(jpgBytes)
+        File(src, "kosong").mkdirs()
+        val enc = checkNotNull(ArchiveOps.create(listOf(src), tmp.root, "rahasia", "zip", "sandi123"))
+        val zf = net.lingala.zip4j.ZipFile(enc, "sandi123".toCharArray())
+        val names = zf.fileHeaders.map { it.fileName }.toSet()
+        assertTrue(names.contains("encsrc/"))
+        assertTrue(names.contains("encsrc/sub/"))
+        assertTrue(names.contains("encsrc/kosong/"))
+        assertTrue(names.contains("encsrc/doc.txt"))
+        assertTrue(names.contains("encsrc/sub/foto.jpg"))
+        val dest = tmp.newFolder("encdest")
+        assertTrue(ArchiveOps.extractEncryptedZip(enc, dest, "sandi123"))
+        assertEquals("rahasia\n".repeat(100), File(dest, "encsrc/doc.txt").readText())
+        assertArrayEquals(jpgBytes, File(dest, "encsrc/sub/foto.jpg").readBytes())
+        assertTrue(File(dest, "encsrc/kosong").isDirectory)
+    }
+
+    @Test
+    fun extract7z_largeEntryUsesBiggerBuffer() {
+        // r183: entri 200 KB (> 3x buffer 64 KiB) diekstrak utuh lewat
+        // buffer baru — regresi bila buffer salah ukuran.
+        val archive = File(tmp.root, "big.7z")
+        val content = "x".repeat(200 * 1024).toByteArray()
+        org.apache.commons.compress.archivers.sevenz.SevenZOutputFile(archive).use { seven ->
+            val entry = org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry()
+            entry.name = "big.txt"
+            seven.putArchiveEntry(entry)
+            seven.write(content, 0, content.size)
+            seven.closeArchiveEntry()
+        }
+        val dest = tmp.newFolder("big7zout")
+        assertTrue(ArchiveOps.extract(archive, dest))
+        assertArrayEquals(content, File(dest, "big.txt").readBytes())
     }
 }

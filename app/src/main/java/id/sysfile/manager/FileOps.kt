@@ -15,6 +15,7 @@ import java.nio.file.Files
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.CRC32
+import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
@@ -114,10 +115,22 @@ object FileOps {
     private val APP_EXT = setOf("apk", "xapk", "apks", "aab")
     private val ARCHIVE_EXT = setOf("zip", "rar", "7z", "tar", "obb", "jar")
 
+    /** r183: ekstensi yang isinya sudah terkompresi — DEFLATE ulang
+     *  hanya membuang CPU tanpa mengecilkan ukuran. Dipakai zipFiles
+     *  dan createEncryptedZip untuk menulis entri STORED. */
+    private val INCOMPRESSIBLE_EXTENSIONS = setOf(
+        "jpg", "jpeg", "png", "webp", "gif", "mp4", "mkv", "mov", "avi", "webm",
+        "mp3", "aac", "flac", "zip", "gz", "bz2", "xz", "7z", "rar", "apk", "obb"
+    )
+
     fun extOf(name: String): String {
         val dot = name.lastIndexOf('.')
         return if (dot > 0 && dot < name.length - 1) name.substring(dot + 1).lowercase() else ""
     }
+
+    /** r183: true bila nama berkas berakhiran ekstensi yang sudah
+     *  terkompresi (lihat INCOMPRESSIBLE_EXTENSIONS). Murni, diuji unit. */
+    fun isIncompressibleEntry(name: String): Boolean = extOf(name) in INCOMPRESSIBLE_EXTENSIONS
 
     fun categoryOf(name: String): Category {
         return when (extOf(name)) {
@@ -928,6 +941,11 @@ object FileOps {
         val outFile = File(destDir, uniqueName(destDir, "$clean.zip"))
         return try {
             ZipOutputStream(BufferedOutputStream(FileOutputStream(outFile))).use { zos ->
+                // r183: BEST_SPEED (level 1) — diukur 2,1x lebih cepat
+                // untuk teks (3439 -> 1613 ms / 500 MB) dengan penalti
+                // ukuran ~19% pada teks realistis; STORED (di addToZip)
+                // menutupi sisanya untuk foto/video.
+                zos.setLevel(Deflater.BEST_SPEED)
                 for (src in sources) {
                     addToZip(zos, src, src.name)
                 }
@@ -942,6 +960,31 @@ object FileOps {
     private fun addToZip(zos: ZipOutputStream, file: File, entryName: String) {
         if (file.isDirectory) {
             file.listFiles()?.forEach { addToZip(zos, it, "$entryName/${it.name}") }
+            return
+        }
+        if (isIncompressibleEntry(file.name)) {
+            // r183: STORED — CRC + ukuran wajib diisi SEBELUM
+            // putNextEntry (aturan yang sama seperti replaceZipEntry);
+            // menghemat CPU tanpa membesarkan ukuran (diukur: zip
+            // campuran 200 MB 5560 -> 442 ms).
+            val crc = CRC32()
+            val crcBuf = ByteArray(256 * 1024)
+            BufferedInputStream(FileInputStream(file)).use { input ->
+                var n = input.read(crcBuf)
+                while (n >= 0) {
+                    crc.update(crcBuf, 0, n)
+                    n = input.read(crcBuf)
+                }
+            }
+            val stored = ZipEntry(entryName)
+            stored.time = file.lastModified()
+            stored.method = ZipEntry.STORED
+            stored.size = file.length()
+            stored.compressedSize = file.length()
+            stored.crc = crc.value
+            zos.putNextEntry(stored)
+            BufferedInputStream(FileInputStream(file)).use { input -> input.copyTo(zos, 64 * 1024) }
+            zos.closeEntry()
             return
         }
         val entry = ZipEntry(entryName)
@@ -1136,6 +1179,15 @@ internal class CountingOutputStream(out: java.io.OutputStream, private val limit
 /** Mesin arsip tambahan: TAR (Commons Compress), 7Z ekstrak, ZIP terenkripsi (zip4j). */
 object ArchiveOps {
 
+    /** r183: buffer copy untuk ekstrak tar / buat tar / ekstrak zip
+     *  terenkripsi — diukur vs 8 KiB: tar ekstrak 875 -> 584 ms,
+     *  tar buat 736 -> 558 ms; zip biasa tidak berubah (inflate-bound). */
+    internal const val ARCHIVE_COPY_BUFFER_SIZE = 256 * 1024
+
+    /** r183: buffer baca 7z — diukur 945 -> 495 ms vs 8 KiB; 256 KiB
+     *  tidak lebih cepat dari 64 KiB. */
+    internal const val SEVENZ_READ_BUFFER_SIZE = 64 * 1024
+
     /** Jenis arsip dari nama berkas, mis. "tar"; null bila bukan yang didukung. */
     fun kindOf(name: String): String? {
         val n = name.lowercase()
@@ -1237,7 +1289,7 @@ object ArchiveOps {
         } else {
             val entry = org.apache.commons.compress.archivers.tar.TarArchiveEntry(file, entryName)
             tos.putArchiveEntry(entry)
-            FileInputStream(file).use { it.copyTo(tos) }
+            FileInputStream(file).use { it.copyTo(tos, ARCHIVE_COPY_BUFFER_SIZE) }
             tos.closeArchiveEntry()
         }
     }
@@ -1292,7 +1344,7 @@ object ArchiveOps {
                         if (entry.size >= 0L && entry.size > budget.remaining()) { ok = false; break }
                         if (!existed) written += out
                         val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
-                        counting.use { tis.copyTo(it) }
+                        counting.use { tis.copyTo(it, ARCHIVE_COPY_BUFFER_SIZE) }
                         if (!budget.addBytes(counting.count)) { ok = false; break }
                     }
                     onEntry()
@@ -1356,7 +1408,7 @@ object ArchiveOps {
                         if (!existed) written += out
                         val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
                         counting.use { cos ->
-                            val buffer = ByteArray(8192)
+                            val buffer = ByteArray(SEVENZ_READ_BUFFER_SIZE)
                             var remaining = entry.size
                             while (remaining > 0) {
                                 if (cancelFlag?.get() == true) throw ImgCancelledException()
@@ -1765,7 +1817,7 @@ object ArchiveOps {
                 if (e.size >= 0L && e.size > maxBytes) return false
                 val counting = CountingOutputStream(FileOutputStream(out), maxBytes)
                 counting.use { cos ->
-                    val buffer = ByteArray(8192)
+                    val buffer = ByteArray(SEVENZ_READ_BUFFER_SIZE)
                     var remaining = e.size
                     while (remaining > 0) {
                         val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
@@ -1822,13 +1874,30 @@ object ArchiveOps {
         // L4: hapus output sebagian bila gagal (dulu tertinggal).
         return try {
             val zipFile = net.lingala.zip4j.ZipFile(dest, password.toCharArray())
-            val params = net.lingala.zip4j.model.ZipParameters().apply {
+            // r183: params dibuat per berkas (zip4j tidak punya clone())
+            // — DEFLATE level FASTEST, STORED untuk ekstensi tak
+            // terkompresi (diukur: zip terenkripsi campuran 200 MB
+            // 5864 -> 1106 ms). Struktur folder dipertahankan lewat
+            // fileNameInZip + entri direktori eksplisit (diuji).
+            fun paramsFor(store: Boolean) = net.lingala.zip4j.model.ZipParameters().apply {
                 isEncryptFiles = true
                 encryptionMethod = net.lingala.zip4j.model.enums.EncryptionMethod.AES
+                compressionMethod = if (store) net.lingala.zip4j.model.enums.CompressionMethod.STORE
+                    else net.lingala.zip4j.model.enums.CompressionMethod.DEFLATE
+                compressionLevel = net.lingala.zip4j.model.enums.CompressionLevel.FASTEST
             }
-            for (src in sources) {
-                if (src.isDirectory) zipFile.addFolder(src, params) else zipFile.addFile(src, params)
+            fun addEncrypted(src: File, zipName: String) {
+                if (src.isDirectory) {
+                    val dirParams = paramsFor(true).apply { fileNameInZip = "$zipName/" }
+                    zipFile.addStream(java.io.ByteArrayInputStream(ByteArray(0)), dirParams)
+                    src.listFiles()?.forEach { addEncrypted(it, "$zipName/${it.name}") }
+                } else {
+                    val p = paramsFor(FileOps.isIncompressibleEntry(src.name))
+                    p.fileNameInZip = zipName
+                    zipFile.addFile(src, p)
+                }
             }
+            for (src in sources) addEncrypted(src, src.name)
             dest
         } catch (e: Exception) {
             dest.delete()
@@ -1967,7 +2036,7 @@ object ArchiveOps {
                     if (!existed) written += out
                     val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
                     zipFile.getInputStream(header).use { input ->
-                        counting.use { cos -> input.copyTo(cos) }
+                        counting.use { cos -> input.copyTo(cos, ARCHIVE_COPY_BUFFER_SIZE) }
                     }
                     if (!budget.addBytes(counting.count)) { ok = false; break }
                 }
