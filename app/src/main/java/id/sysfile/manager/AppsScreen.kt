@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.os.Process
 import android.os.storage.StorageManager
 import android.provider.Settings
@@ -37,8 +38,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -85,7 +86,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 // Pengelola Aplikasi: daftar aplikasi terpasang beserta ukurannya, dengan aksi
-// buka, ekstrak APK, bagikan APK, dan info aplikasi bawaan Android.
+// buka, salin APK, bagikan APK, dan info aplikasi bawaan Android.
 
 data class AppEntry(
     val name: String,
@@ -155,15 +156,24 @@ object AppOps {
             }
         }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
     }
+
+    /** Salin berkas APK aplikasi ke folder tujuan dengan nama aplikasi yang aman. */
+    fun copyApk(app: AppEntry, destDir: File): Boolean {
+        return try {
+            val clean = app.name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
+                .ifEmpty { app.packageName }
+            val dest = File(destDir, FileOps.uniqueName(destDir, "$clean.apk"))
+            File(app.apkPath).copyTo(dest, overwrite = false)
+            dest.length() > 0
+        } catch (e: Exception) {
+            false
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun AppsScreen(
-    notify: (String) -> Unit,
-    onBack: () -> Unit,
-    onExtractApk: (AppEntry) -> Unit
-) {
+fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
     val t = txt()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -172,6 +182,7 @@ fun AppsScreen(
     var sortBySize by remember { mutableStateOf(true) }
     var usageAccess by remember { mutableStateOf(AppOps.hasUsageAccess(context)) }
     var actionApp by remember { mutableStateOf<AppEntry?>(null) }
+    var copyTarget by remember { mutableStateOf<AppEntry?>(null) }
 
     fun reload() {
         scope.launch {
@@ -412,13 +423,13 @@ fun AppsScreen(
                                 }
                             )
                             AppActionTile(
-                                icon = Icons.Default.Archive,
-                                label = t.appExtractApk,
-                                desc = t.appExtractDesc,
+                                icon = Icons.Default.ContentCopy,
+                                label = t.appCopyApk,
+                                desc = t.appCopyDesc,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                                 onClick = {
                                     actionApp = null
-                                    onExtractApk(app)
+                                    copyTarget = app
                                 }
                             )
                         }
@@ -492,6 +503,20 @@ fun AppsScreen(
         )
     }
 
+    copyTarget?.let { app ->
+        FolderPickerDialog(
+            startPath = Environment.getExternalStorageDirectory().absolutePath,
+            title = t.appChooseFolder,
+            onPick = { picked ->
+                copyTarget = null
+                scope.launch {
+                    val ok = withContext(Dispatchers.IO) { AppOps.copyApk(app, File(picked)) }
+                    notify(if (ok) t.appCopiedDone else t.opFailed)
+                }
+            },
+            onCancel = { copyTarget = null }
+        )
+    }
 }
 
 /** Satu ubin aksi di dialog aplikasi (AD3): ikon + label + keterangan singkat. */

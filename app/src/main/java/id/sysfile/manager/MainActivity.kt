@@ -211,7 +211,6 @@ private sealed interface DialogKind {
     data class ApkActions(val entry: FEntry) : DialogKind
     data class ArchiveActions(val entry: FEntry) : DialogKind
     data class PickExtractFolder(val entry: FEntry) : DialogKind
-    data class PickAppExtractFolder(val app: AppEntry) : DialogKind
     data class ArchiveContents(val entry: FEntry, val items: List<Pair<String, Long>>) : DialogKind
     data class PayloadExtract(val path: String, val partition: String?) : DialogKind
     data object Sort : DialogKind
@@ -1435,11 +1434,7 @@ fun SysFileApp() {
                 onRequestUnlock = { path, grant -> requestUnlock(path, grant) }
             )
         } else if (showApps) {
-            AppsScreen(
-                notify = { notify(it) },
-                onBack = { showApps = false },
-                onExtractApk = { app -> dialog = DialogKind.PickAppExtractFolder(app) }
-            )
+            AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
         } else if (showSpecs) {
             SpecScreen(onBack = { showSpecs = false })
         } else if (showFormats) {
@@ -2885,27 +2880,6 @@ fun SysFileApp() {
                         format = { done, total -> t.extractProgress(done, total) }
                     ) { flag, onProgress ->
                         ArchiveOps.extractToFolder(f, File(picked), onProgress = onProgress, cancelFlag = flag)
-                    }
-                },
-                onCancel = { dialog = null }
-            )
-            is DialogKind.PickAppExtractFolder -> FolderPickerDialog(
-                startPath = Environment.getExternalStorageDirectory().absolutePath,
-                title = t.appChooseFolder,
-                onPick = { picked ->
-                    dialog = null
-                    val app = d.app
-                    val f = File(app.apkPath)
-                    val clean = app.name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
-                        .ifEmpty { app.packageName }
-                    runExtractOp(
-                        name = app.name,
-                        format = { done, total -> t.extractProgress(done, total) }
-                    ) { flag, onProgress ->
-                        ArchiveOps.extractToFolder(
-                            f, File(picked), folderName = clean,
-                            onProgress = onProgress, cancelFlag = flag
-                        )
                     }
                 },
                 onCancel = { dialog = null }

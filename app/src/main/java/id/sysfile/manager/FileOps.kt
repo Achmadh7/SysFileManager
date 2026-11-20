@@ -1779,11 +1779,10 @@ object ArchiveOps {
     fun extractToFolder(
         file: File,
         destParent: File,
-        folderName: String? = null,
         onProgress: (Long, Long) -> Unit = { _, _ -> },
         cancelFlag: AtomicBoolean? = null
     ): Boolean {
-        val dir = File(destParent, FileOps.uniqueName(destParent, folderName ?: archiveBaseName(file.name)))
+        val dir = File(destParent, FileOps.uniqueName(destParent, archiveBaseName(file.name)))
         if (!dir.mkdirs() && !dir.isDirectory) return false
         return extract(file, dir, onProgress, cancelFlag)
     }
