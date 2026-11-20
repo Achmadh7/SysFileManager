@@ -52,6 +52,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -2452,56 +2453,56 @@ fun SysFileApp() {
                         }
                     }
                 }
-                // r193 NP2: pill notifikasi umum (r180 EP2 diperluas
-                // ke semua pesan) — di atas nav bar (76dp), atau di atas
-                // mini-player bila audio sedang tampil (140dp).
-                // Menempel di Box akar, jadi tampil di layar browse
-                // maupun overlay.
-                val pillBottom = if (audioPath != null && audioOrigin == currentScreenId()) 140.dp else 76.dp
+                // r194 PP3: pill pindah ke bawah header (di bawah
+                // TopAppBar 64dp + jarak 8dp) + dibuat lebih compact.
+                // Posisi atas tetap terlihat saat keyboard terbuka
+                // (pill bawah lama bisa tertutup keyboard). Menempel
+                // di Box akar, jadi tampil di layar browse maupun overlay.
                 Box(
                     Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = pillBottom)
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 72.dp)
                 ) {
                     AnimatedVisibility(
                         visible = pillVisible,
                         enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
-                            expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
+                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                            expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Top),
                         exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
-                            shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Bottom)
+                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                            shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(28.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             tonalElevation = 3.dp,
                             shadowElevation = 6.dp,
-                            modifier = Modifier.widthIn(max = 340.dp).clip(RoundedCornerShape(28.dp)).clickable { pillVisible = false }
+                            modifier = Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(20.dp)).clickable { pillVisible = false }
                         ) {
                             Row(
-                                Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                                Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
                                     Modifier
-                                        .size(28.dp)
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .size(22.dp)
+                                        .clip(RoundedCornerShape(11.dp))
                                         .background(if (pillOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (pillOk) {
-                                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
                                     } else {
-                                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(14.dp))
                                     }
                                 }
-                                Spacer(Modifier.width(10.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     pillMsg,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
