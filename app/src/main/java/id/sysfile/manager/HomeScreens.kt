@@ -361,55 +361,59 @@ fun HomeScreen(
                     ) {
                         rowCats.forEach { (cat, label) ->
                             val color = MaterialTheme.colorScheme.primary
-                            Row(
-                                Modifier.weight(1f).height(72.dp)
+                            Column(
+                                Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(color.copy(alpha = 0.16f))
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Box(
-                                    Modifier.size(36.dp).clip(CircleShape).background(color),
+                                    Modifier.size(32.dp).clip(CircleShape).background(color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                                 }
-                                Spacer(Modifier.width(12.dp))
+                                Spacer(Modifier.height(6.dp))
                                 Text(
                                     label,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
                         if (rowCats.size == 1) {
                             val trashColor = Color(0xFFEF5350)
-                            Row(
-                                Modifier.weight(1f).height(72.dp)
+                            Column(
+                                Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(trashColor.copy(alpha = 0.16f))
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Box(
-                                    Modifier.size(36.dp).clip(CircleShape).background(trashColor),
+                                    Modifier.size(32.dp).clip(CircleShape).background(trashColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(18.dp))
                                 }
-                                Spacer(Modifier.width(12.dp))
+                                Spacer(Modifier.height(6.dp))
                                 Text(
                                     t.trash,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         } else {
