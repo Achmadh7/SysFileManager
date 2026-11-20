@@ -106,7 +106,7 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
                     ?.takeIf { it.isFile }
                     // M8: bab dicap 1 MB (sama seperti teks arsip) —
                     // readText() tanpa cap memuat bab ratusan MB utuh.
-                    ?.let { FileOps.readTextCapped(it, 1_000_000) }
+                    ?.let { ArchiveOps.readTextCapped(it, 1_000_000) }
             } catch (e: Exception) {
                 null
             }

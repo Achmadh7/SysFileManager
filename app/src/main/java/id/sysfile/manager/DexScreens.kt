@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,7 +59,7 @@ import java.io.File
  * Navigasi internal: daftar kelas -> detail kelas -> smali metode.
  * Semua parse berat (buka berkas, class_data, smali) berjalan di IO.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DexBrowseScreen(path: String, onBack: () -> Unit) {
     val t = txt()
@@ -281,6 +282,7 @@ private fun DexStat(label: String, value: Int) {
 }
 
 /** DX2: detail satu kelas — superclass, interface, field, metode. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DexClassDetailView(
     dex: DexFile,
@@ -404,6 +406,7 @@ private fun DexMemberRow(title: String, subtitle: String?, onClick: (() -> Unit)
 }
 
 /** DX3: smali satu metode — hanya baca, monospace, geser dua arah. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DexSmaliView(dex: DexFile, method: DexMethodInfo) {
     val t = txt()
