@@ -254,11 +254,16 @@ fun SysFileApp() {
     // (themeShot == null) — lihat onTheme.
     val rootView = LocalView.current
     var themeShot by remember { mutableStateOf<Bitmap?>(null) }
-    val themeShotAlpha = remember { Animatable(1f) }
+    // r143: Animatable dikunci ke themeShot — tiap tangkapan baru
+    // dapat Animatable BARU yang mulai dari 1f. Sebelumnya
+    // Animatable dibuat sekali (remember tanpa kunci): setelah
+    // fade pertama nilainya 0, jadi frame pertama ganti tema
+    // berikut merender overlay di alfa 0 (tema baru berkedip
+    // 1 frame) sebelum LaunchedEffect sempat snapTo(1f).
+    val themeShotAlpha = remember(themeShot) { Animatable(1f) }
     LaunchedEffect(themeShot) {
         val shot = themeShot
         if (shot != null) {
-            themeShotAlpha.snapTo(1f)
             themeShotAlpha.animateTo(0f, animationSpec = tween(300))
             themeShot = null
         }
