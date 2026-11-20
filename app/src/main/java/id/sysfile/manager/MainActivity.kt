@@ -2497,6 +2497,7 @@ fun SysFileApp() {
                                                     accessGranted = accessGranted,
                                                     roots = if (showRootEntry) allRoots else roots,
                                                     rootActive = rootActive,
+                                                    trashEnabled = trashEnabled,
                                                     onRequestAccess = { requestAccess() },
                                                     onOpenRoot = { browseStack = listOf(it) },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },

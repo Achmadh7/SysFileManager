@@ -208,6 +208,7 @@ fun HomeScreen(
     accessGranted: Boolean,
     roots: List<RootInfo>,
     rootActive: Boolean,
+    trashEnabled: Boolean,
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
@@ -388,7 +389,7 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        if (rowCats.size == 1) {
+                        if (rowCats.size == 1 && trashEnabled) {
                             val trashColor = Color(0xFFEF5350)
                             Column(
                                 Modifier.weight(1f).height(80.dp)
@@ -416,6 +417,8 @@ fun HomeScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
+                        } else if (rowCats.size == 1) {
+                            Spacer(Modifier.weight(1f))
                         } else {
                             repeat(2 - rowCats.size) { Spacer(Modifier.weight(1f)) }
                         }
