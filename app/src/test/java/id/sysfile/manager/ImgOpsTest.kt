@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.CRC32
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.GZIPOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -719,6 +720,54 @@ class ImgOpsTest {
         assertTrue(r is UnsparseResult.Ok)
         assertEquals(0L, (r as UnsparseResult.Ok).totalBytes)
         assertEquals(0, out.readBytes().size)
+    }
+
+    @Test
+    fun unsparse_progressReportsMonotonicToTotal() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { (it % 251).toByte() }
+        val chunks = listOf(rawChunk(raw, blkSz), fillChunk(0x11223344L, 1), dontCareChunk(1))
+        val f = makeSparse(blkSz, 3, chunks)
+        val out = File(tmp.root, "out.img")
+        val reports = mutableListOf<Pair<Long, Long>>()
+        val r = ImgOps.unsparse(f, out, onProgress = { done, total -> reports += done to total })
+        assertTrue(r is UnsparseResult.Ok)
+        assertTrue(reports.isNotEmpty())
+        assertTrue(reports.all { it.second == 12288L })
+        val dones = reports.map { it.first }
+        assertEquals(dones.sorted(), dones)
+        assertEquals(12288L, dones.last())
+    }
+
+    @Test
+    fun unsparse_cancelBeforeStartReturnsCancelled() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { 0x42 }
+        val f = makeSparse(blkSz, 3, listOf(rawChunk(raw, blkSz), fillChunk(1L, 1), dontCareChunk(1)))
+        val out = File(tmp.root, "out.img")
+        val flag = AtomicBoolean(true)
+        val r = ImgOps.unsparse(f, out, cancelFlag = flag)
+        assertTrue(r is UnsparseResult.Cancelled)
+        assertFalse(out.exists())
+    }
+
+    @Test
+    fun unsparse_cancelMidwayDeletesPartial() {
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { 0x42 }
+        val f = makeSparse(blkSz, 3, listOf(rawChunk(raw, blkSz), fillChunk(1L, 1), dontCareChunk(1)))
+        val out = File(tmp.root, "out.img")
+        val flag = AtomicBoolean(false)
+        val reports = mutableListOf<Pair<Long, Long>>()
+        val r = ImgOps.unsparse(f, out,
+            onProgress = { done, total ->
+                reports += done to total
+                if (done >= 4096L) flag.set(true)
+            },
+            cancelFlag = flag)
+        assertTrue(r is UnsparseResult.Cancelled)
+        assertFalse(out.exists())
+        assertTrue(reports.isNotEmpty())
     }
 
     // --- superblock ext4 (r153) ---

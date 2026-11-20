@@ -4,12 +4,14 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -96,6 +98,54 @@ class LpReaderTest {
         val out = File(tmpDir, "system.img")
         assertFalse(reader.materialize(system, out, maxBytes = 1024))
         assertFalse(out.exists())
+        reader.close()
+    }
+
+    @Test
+    fun materializeProgressReportsMonotonicToTotal() {
+        val reader = LpReader.open(writeTmp(buildSuper()))!!
+        val system = reader.partitions.first { it.name == "system" }
+        val out = File(tmpDir, "system.img")
+        val reports = mutableListOf<Pair<Long, Long>>()
+        assertTrue(reader.materialize(system, out, onProgress = { done, total -> reports += done to total }))
+        assertTrue(reports.isNotEmpty())
+        assertTrue(reports.all { it.second == 6144L })
+        val dones = reports.map { it.first }
+        assertEquals(dones.sorted(), dones)
+        assertEquals(6144L, dones.last())
+        reader.close()
+    }
+
+    @Test
+    fun materializeCancelBeforeStartThrowsAndDeletesPartial() {
+        val reader = LpReader.open(writeTmp(buildSuper()))!!
+        val system = reader.partitions.first { it.name == "system" }
+        val out = File(tmpDir, "system.img")
+        val flag = AtomicBoolean(true)
+        assertThrows(ImgCancelledException::class.java) {
+            reader.materialize(system, out, cancelFlag = flag)
+        }
+        assertFalse(out.exists())
+        reader.close()
+    }
+
+    @Test
+    fun materializeCancelMidwayThrowsAndDeletesPartial() {
+        val reader = LpReader.open(writeTmp(buildSuper()))!!
+        val system = reader.partitions.first { it.name == "system" }
+        val out = File(tmpDir, "system.img")
+        val flag = AtomicBoolean(false)
+        val reports = mutableListOf<Pair<Long, Long>>()
+        assertThrows(ImgCancelledException::class.java) {
+            reader.materialize(system, out,
+                onProgress = { done, total ->
+                    reports += done to total
+                    if (done >= 4096L) flag.set(true)
+                },
+                cancelFlag = flag)
+        }
+        assertFalse(out.exists())
+        assertTrue(reports.isNotEmpty())
         reader.close()
     }
 

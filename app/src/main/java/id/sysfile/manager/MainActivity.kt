@@ -437,6 +437,8 @@ fun SysFileApp() {
     var working by remember { mutableStateOf(false) }
     var workProgress by remember { mutableStateOf<Float?>(null) }
     var workCancelFlag by remember { mutableStateOf<AtomicBoolean?>(null) }
+    var workStage by remember { mutableStateOf<String?>(null) }
+    var workProgressText by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var lockedFolders by remember {
@@ -895,11 +897,16 @@ fun SysFileApp() {
                             lpSession = LpSession(f, null, lp)
                             overlay = Overlay.LpView(entry.path)
                         } else {
+                            // LD3 r159: fallback unsparse (jarang — hanya
+                            // bila direct ext4/FAT/LP gagal) ikut berprogres
+                            // + bisa dibatalkan; clear() menutup dialog.
+                            val (flag, report, clear) = beginLongWork(t.workStageUnsparse)
+                            var unsparseCancelled = false
                             val opened: Pair<LpSession?, Ext4Session?> = withContext(Dispatchers.IO) {
                                 val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
                                 val tmp = File(dir, "super-${System.nanoTime()}.img")
                                 try {
-                                    when (ImgOps.unsparse(f, tmp)) {
+                                    when (ImgOps.unsparse(f, tmp, onProgress = report, cancelFlag = flag)) {
                                         is UnsparseResult.Ok -> {
                                             val lpReader = LpReader.open(tmp)
                                             if (lpReader != null) {
@@ -914,6 +921,10 @@ fun SysFileApp() {
                                                 }
                                             }
                                         }
+                                        is UnsparseResult.Cancelled -> {
+                                            unsparseCancelled = true
+                                            null to null
+                                        }
                                         else -> null to null
                                     }
                                 } catch (_: Exception) {
@@ -921,7 +932,7 @@ fun SysFileApp() {
                                     null to null
                                 }
                             }
-                            working = false
+                            clear()
                             val lp2 = opened.first
                             val ext2 = opened.second
                             if (lp2 != null) {
@@ -930,6 +941,8 @@ fun SysFileApp() {
                             } else if (ext2 != null) {
                                 ext4Session = ext2
                                 overlay = Overlay.Ext4View(entry.path)
+                            } else if (unsparseCancelled) {
+                                notify(t.workCancelled)
                             } else {
                                 notify(t.opFailed)
                             }
@@ -1030,6 +1043,79 @@ fun SysFileApp() {
                 selected = emptySet()
             } else {
                 notify(t.opFailed)
+            }
+        }
+    }
+
+    /** LD3 r159: siapkan dialog kerja berprogres untuk satu operasi
+     *  panjang .img (pola yang sama seperti PayloadExtract: onProgress
+     *  per 64 KiB + AtomicBoolean). Kembalikan (flag, reporter, clear)
+     *  — pemanggil WAJIB memanggil clear() di finally supaya state
+     *  dialog tidak tertinggal. [format] mengubah (done, total) menjadi
+     *  teks di bawah bar; default-nya "1,2 GB / 4,0 GB • 30%". */
+    fun beginLongWork(
+        stage: String,
+        format: ((Long, Long) -> String)? = null
+    ): Triple<AtomicBoolean, (Long, Long) -> Unit, () -> Unit> {
+        val flag = AtomicBoolean(false)
+        workCancelFlag = flag
+        workStage = stage
+        workProgress = 0f
+        workProgressText = null
+        working = true
+        val fmt = format ?: { done: Long, total: Long ->
+            "${FileOps.formatSize(done)} / ${FileOps.formatSize(total)} • ${(done * 100 / total).toInt()}%"
+        }
+        val report: (Long, Long) -> Unit = { done, total ->
+            if (total > 0L) {
+                workProgress = (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                workProgressText = fmt(done, total)
+            } else {
+                workProgress = null
+                workProgressText = null
+            }
+        }
+        val clear: () -> Unit = {
+            working = false
+            workProgress = null
+            workProgressText = null
+            workCancelFlag = null
+            workStage = null
+        }
+        return Triple(flag, report, clear)
+    }
+
+    /** LD3 r159: jalankan satu operasi panjang .img dengan dialog
+     *  berprogres + tombol Batal — [block] menerima flag + reporter
+     *  dan mengembalikan true bila berhasil; batal dilempar sebagai
+     *  ImgCancelledException. Selesai: sukses -> successMsg, batal ->
+     *  workCancelled, gagal -> opFailed. */
+    fun runLongOp(
+        stage: String,
+        successMsg: String,
+        format: ((Long, Long) -> String)? = null,
+        block: suspend (flag: AtomicBoolean, onProgress: (Long, Long) -> Unit) -> Boolean
+    ) {
+        val (flag, report, clear) = beginLongWork(stage, format)
+        scope.launch {
+            val outcome = try {
+                val ok = withContext(Dispatchers.IO) { block(flag, report) }
+                if (ok) 0 else 1
+            } catch (_: ImgCancelledException) {
+                2
+            } catch (_: Exception) {
+                1
+            } finally {
+                clear()
+            }
+            when (outcome) {
+                0 -> {
+                    notify(successMsg)
+                    reloadKey++
+                    selected = emptySet()
+                }
+                2 -> notify(t.workCancelled)
+                else -> notify(t.opFailed)
             }
         }
     }
@@ -1509,25 +1595,38 @@ fun SysFileApp() {
                             // dari subfolder partisi sebelumnya (judul
                             // layar tetap nama super.img).
                             ext4Prefix = ""; ext4PrefixPath = null
-                            working = true
-                            scope.launch {
-                                val session = if (lp != null) {
-                                    withContext(Dispatchers.IO) {
-                                        val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
-                                        val tmp = File(dir, "part-${System.nanoTime()}.img")
-                                        if (lp.reader.materialize(part, tmp)) {
-                                            val reader = Ext4Reader.open(tmp)
-                                            if (reader != null) Ext4Session(tmp, tmp, reader) else { tmp.delete(); null }
-                                        } else null
+                            if (lp == null) {
+                                notify(t.opFailed)
+                            } else {
+                                // LD3 r159: materialize partisi (bisa
+                                // multi-GB) berprogres + bisa dibatalkan.
+                                val (flag, report, clear) = beginLongWork(t.workStageMaterialize)
+                                scope.launch {
+                                    var cancelled = false
+                                    val session = try {
+                                        withContext(Dispatchers.IO) {
+                                            val dir = File(context.cacheDir, "lp-view").apply { mkdirs() }
+                                            val tmp = File(dir, "part-${System.nanoTime()}.img")
+                                            if (lp.reader.materialize(part, tmp, onProgress = report, cancelFlag = flag)) {
+                                                val reader = Ext4Reader.open(tmp)
+                                                if (reader != null) Ext4Session(tmp, tmp, reader) else { tmp.delete(); null }
+                                            } else null
+                                        }
+                                    } catch (_: ImgCancelledException) {
+                                        cancelled = true
+                                        null
+                                    } finally {
+                                        clear()
                                     }
-                                } else null
-                                working = false
-                                if (session != null) {
-                                    ext4Session = session
-                                    overlayReturn = Overlay.LpView(ov.path)
-                                    overlay = Overlay.Ext4View(ov.path, lpPath = ov.path)
-                                } else {
-                                    notify(t.opFailed)
+                                    if (session != null) {
+                                        ext4Session = session
+                                        overlayReturn = Overlay.LpView(ov.path)
+                                        overlay = Overlay.Ext4View(ov.path, lpPath = ov.path)
+                                    } else if (cancelled) {
+                                        notify(t.workCancelled)
+                                    } else {
+                                        notify(t.opFailed)
+                                    }
                                 }
                             }
                         },
@@ -1537,8 +1636,14 @@ fun SysFileApp() {
                             if (lp == null) {
                                 notify(t.opFailed)
                             } else {
-                                runOp(t.extractDone) {
-                                    lp.reader.materialize(part, File(imgFile.parentFile ?: imgFile, part.name + ".img"))
+                                // LD3 r159: unduh partisi berprogres + bisa dibatalkan.
+                                runLongOp(t.workStageMaterialize, t.extractDone) { flag, onProgress ->
+                                    lp.reader.materialize(
+                                        part,
+                                        File(imgFile.parentFile ?: imgFile, part.name + ".img"),
+                                        onProgress = onProgress,
+                                        cancelFlag = flag
+                                    )
                                 }
                             }
                         }
@@ -2015,7 +2120,7 @@ fun SysFileApp() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             LoadingIndicator(Modifier.size(52.dp))
                             Spacer(Modifier.width(16.dp))
-                            Text(t.working)
+                            Text(workStage ?: t.working)
                         }
                         val prog = workProgress
                         if (prog != null) {
@@ -2024,7 +2129,7 @@ fun SysFileApp() {
                                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
                             )
                             Text(
-                                "${(prog * 100).toInt()}%",
+                                workProgressText ?: "${(prog * 100).toInt()}%",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 6.dp)

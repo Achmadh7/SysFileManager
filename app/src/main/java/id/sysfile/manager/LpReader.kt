@@ -5,6 +5,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Satu partisi logis di dalam super.img (liblp). [available] false
  *  bila partisi dinonaktifkan (LP_PARTITION_ATTR_DISABLED), atau
@@ -433,30 +434,46 @@ class LpReader private constructor(
      *  yang sudah ada sebelumnya, seperti pola unsparse r153).
      *  Extent ZERO ditulis sebagai nol; extent LINEAR disalin dari
      *  sektor fisiknya. True hanya bila byte tertulis sama persis
-     *  dengan ukuran partisi. */
+     *  dengan ukuran partisi. LD3 r159: [onProgress] dipanggil per
+     *  64 KiB yang tertulis (done, total = ukuran partisi);
+     *  [cancelFlag] yang terpasang melempar [ImgCancelledException]
+     *  (berkas parsial tetap dihapus). */
     fun materialize(
         partition: LpPartition,
         out: File,
-        maxBytes: Long = ImgOps.MAX_UNSPARSE_BYTES
+        maxBytes: Long = ImgOps.MAX_UNSPARSE_BYTES,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        cancelFlag: AtomicBoolean? = null
     ): Boolean {
         if (!partition.available) return false
         if (partition.sizeBytes < 0 || partition.sizeBytes > maxBytes) return false
         val existed = out.exists()
         return try {
-            val ok = materializeRun(partition, out, maxBytes)
+            val ok = materializeRun(partition, out, maxBytes, onProgress, cancelFlag)
             if (!ok && !existed) out.delete()
             ok
+        } catch (e: ImgCancelledException) {
+            if (!existed) out.delete()
+            throw e
         } catch (_: Exception) {
             if (!existed) out.delete()
             false
         }
     }
 
-    private fun materializeRun(partition: LpPartition, out: File, maxBytes: Long): Boolean {
+    private fun materializeRun(
+        partition: LpPartition,
+        out: File,
+        maxBytes: Long,
+        onProgress: (Long, Long) -> Unit,
+        cancelFlag: AtomicBoolean?
+    ): Boolean {
         var written = 0L
         FileOutputStream(out).use { fos ->
             val buf = ByteArray(IO_BUFFER)
             for (i in partition.firstExtentIndex until partition.firstExtentIndex + partition.numExtents) {
+                // LD3 r159: batal sebelum extent berikutnya ditulis.
+                if (cancelFlag?.get() == true) throw ImgCancelledException()
                 val e = extents[i]
                 val bytes = e.numSectors * SECTOR_SIZE
                 if (e.targetType == TARGET_ZERO) {
@@ -468,6 +485,8 @@ class LpReader private constructor(
                         remaining -= n
                         written += n
                         if (written > maxBytes) return false
+                        if (cancelFlag?.get() == true) throw ImgCancelledException()
+                        onProgress(written, partition.sizeBytes)
                     }
                 } else {
                     var pos = e.targetData * SECTOR_SIZE
@@ -480,6 +499,8 @@ class LpReader private constructor(
                         remaining -= n
                         written += n
                         if (written > maxBytes) return false
+                        if (cancelFlag?.get() == true) throw ImgCancelledException()
+                        onProgress(written, partition.sizeBytes)
                     }
                 }
             }

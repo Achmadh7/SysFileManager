@@ -10,6 +10,7 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.RandomAccessFile
 import java.util.zip.CRC32
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.GZIPInputStream
 
 /** Jenis citra disk (.img), dikenali dari isi berkas — bukan dari namanya.
@@ -47,12 +48,19 @@ sealed interface RamdiskResult {
     data object Invalid : RamdiskResult
 }
 
+/** Dibatalkan pengguna lewat tombol Batal dialog kerja (LD3 r159).
+ *  Dilempar dari operasi panjang .img saat cancelFlag terpasang —
+ *  pemanggil (MainActivity) menangkapnya untuk membedakan
+ *  "dibatalkan" dari "gagal". */
+internal class ImgCancelledException : Exception()
+
 /** Hasil unsparse citra sparse Android: citra mentah, terlalu besar
- *  untuk batas, atau rusak — tidak pernah throw. */
+ *  untuk batas, rusak, atau dibatalkan — tidak pernah throw. */
 sealed interface UnsparseResult {
     data class Ok(val outFile: File, val totalBytes: Long) : UnsparseResult
     data object TooLarge : UnsparseResult
     data class Invalid(val reason: String) : UnsparseResult
+    data object Cancelled : UnsparseResult
 }
 
 /** Info superblock ext4 (kernel.org ext4/super.html): dibaca dari
@@ -374,6 +382,9 @@ object ImgOps {
      *  unsparse: bila gagal (terlalu besar / rusak), berkas output
      *  parsial dihapus — kecuali berkas yang sudah ada sebelumnya.
      *  Batas keluaran [maxBytes] (default 8 GiB).
+ *  LD3 r159: [onProgress] dipanggil per 64 KiB yang tertulis
+ *  (done, total = totalBlks * blk_sz); [cancelFlag] yang terpasang
+ *  menghentikan kerja dan mengembalikan [UnsparseResult.Cancelled].
      *
      *  Format (sparse_format.h AOSP): header 28 byte (magic 0xED26FF3A,
      *  major 1, blk_sz kelipatan 4, total_blks, total_chunks,
@@ -383,11 +394,17 @@ object ImgOps {
      *  CRC32 0xCAC4. Isi chunk CRC32 dilewati — pembaca nyata
      *  (u-boot / libsparse) mengabaikannya; yang diverifikasi adalah
      *  image_checksum di header, bila bukan nol. */
-    fun unsparse(source: File, out: File, maxBytes: Long = MAX_UNSPARSE_BYTES): UnsparseResult {
+    fun unsparse(
+        source: File,
+        out: File,
+        maxBytes: Long = MAX_UNSPARSE_BYTES,
+        onProgress: (Long, Long) -> Unit = { _, _ -> },
+        cancelFlag: AtomicBoolean? = null
+    ): UnsparseResult {
         if (!source.isFile) return UnsparseResult.Invalid("bukan berkas")
         if (maxBytes < 0) return UnsparseResult.Invalid("batas negatif")
         val existed = out.exists()
-        val result = unsparseRun(source, out, maxBytes)
+        val result = unsparseRun(source, out, maxBytes, onProgress, cancelFlag)
         // Gagal -> berkas output parsial tidak boleh tertinggal; berkas
         // yang sudah ada sebelumnya tidak disentuh.
         if (result !is UnsparseResult.Ok && !existed) out.delete()
@@ -593,7 +610,13 @@ object ImgOps {
     /** Kerja [unsparse]; pemanggil yang menghapus output bila gagal.
      *  Semua jalan gagal mengembalikan Invalid/TooLarge — tidak ada
      *  yang throw ke pemanggil (exception IO ditangkap di bawah). */
-    private fun unsparseRun(source: File, out: File, maxBytes: Long): UnsparseResult {
+    private fun unsparseRun(
+        source: File,
+        out: File,
+        maxBytes: Long,
+        onProgress: (Long, Long) -> Unit,
+        cancelFlag: AtomicBoolean?
+    ): UnsparseResult {
         return try {
             BufferedInputStream(FileInputStream(source), IO_BUFFER).use { ins ->
                 val header = ByteArray(SPARSE_HEADER_SIZE)
@@ -619,6 +642,11 @@ object ImgOps {
                 }
                 // Total keluaran tanpa overflow: totalBlks * blkSz > maxBytes.
                 if (totalBlks > maxBytes / blkSz) return UnsparseResult.TooLarge
+                if (totalBlks > Long.MAX_VALUE / blkSz) {
+                    return UnsparseResult.Invalid("total_blks * blk_sz meluap")
+                }
+                // LD3 r159: total untuk progres (done, total).
+                val totalBytes = totalBlks * blkSz
                 // Lewati sisa header bila file_hdr_sz > 28.
                 if (!skipExact(ins, (fileHdrSz - SPARSE_HEADER_SIZE).toLong())) {
                     return UnsparseResult.Invalid("header terpotong")
@@ -629,6 +657,8 @@ object ImgOps {
                     var blocksWritten = 0L
                     var bytesWritten = 0L
                     for (chunkIndex in 0L until totalChunks) {
+                        // LD3 r159: batal sebelum chunk berikutnya diproses.
+                        if (cancelFlag?.get() == true) return UnsparseResult.Cancelled
                         val chunkHeader = ByteArray(SPARSE_CHUNK_HEADER_SIZE)
                         if (!readExact(ins, chunkHeader, 0, SPARSE_CHUNK_HEADER_SIZE)) {
                             return UnsparseResult.Invalid("chunk $chunkIndex terpotong")
@@ -665,6 +695,8 @@ object ImgOps {
                                     remaining -= n
                                     bytesWritten += n
                                     if (bytesWritten > maxBytes) return UnsparseResult.TooLarge
+                                    if (cancelFlag?.get() == true) return UnsparseResult.Cancelled
+                                    onProgress(bytesWritten, totalBytes)
                                 }
                                 blocksWritten += chunkSz
                             }
@@ -693,6 +725,8 @@ object ImgOps {
                                     remaining -= n
                                     bytesWritten += n
                                     if (bytesWritten > maxBytes) return UnsparseResult.TooLarge
+                                    if (cancelFlag?.get() == true) return UnsparseResult.Cancelled
+                                    onProgress(bytesWritten, totalBytes)
                                 }
                                 blocksWritten += chunkSz
                             }
@@ -716,6 +750,8 @@ object ImgOps {
                                     remaining -= n
                                     bytesWritten += n
                                     if (bytesWritten > maxBytes) return UnsparseResult.TooLarge
+                                    if (cancelFlag?.get() == true) return UnsparseResult.Cancelled
+                                    onProgress(bytesWritten, totalBytes)
                                 }
                                 blocksWritten += chunkSz
                             }
