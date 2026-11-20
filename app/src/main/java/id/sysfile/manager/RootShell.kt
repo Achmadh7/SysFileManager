@@ -222,4 +222,38 @@ object RootShell {
         val ok = runSu(cmd, 30) != null
         return if (ok && dest.exists()) dest else null
     }
+
+    /**
+     * Tulis teks ke berkas target lewat shell root (su).
+     * Berguna untuk berkas di /system, /vendor, /data, Magisk module, atau berkas sistem lainnya.
+     * Menggunakan file cache sementara dan cat/cp agar kepemilikan dan permission berkas asli tetap terjaga.
+     */
+    fun writeFile(target: File, text: String, cacheDir: File): Boolean {
+        if (!ensureRoot()) return false
+        val dir = File(cacheDir, "rootsave").apply { mkdirs() }
+        FileOps.evictStaleCache(dir)
+        val temp = File(dir, "save-" + System.nanoTime() + ".tmp")
+        return try {
+            temp.writeText(text, Charsets.UTF_8)
+            val qSrc = quote(temp.absolutePath)
+            val qDst = quote(target.absolutePath)
+            val parent = target.parentFile
+            val qParent = if (parent != null) quote(parent.absolutePath) else null
+
+            val script = buildString {
+                if (qParent != null) {
+                    append("mkdir -p $qParent && ")
+                }
+                append("cat $qSrc > $qDst 2>/dev/null || ")
+                append("(mount -o remount,rw / 2>/dev/null; mount -o remount,rw /system 2>/dev/null; cat $qSrc > $qDst 2>/dev/null || cp -f $qSrc $qDst) && ")
+                append("chmod 644 $qDst")
+            }
+            val res = runSu(script, 30)
+            res != null
+        } catch (e: Exception) {
+            false
+        } finally {
+            try { temp.delete() } catch (_: Exception) {}
+        }
+    }
 }

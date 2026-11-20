@@ -31,6 +31,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.WrapText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -309,32 +326,57 @@ fun ImageViewerScreen(
  *  dan disimpan kembali ke arsipnya. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit, extractedText: String? = null, onSaveArchiveText: ((String) -> Boolean)? = null, onSaved: (() -> Unit)? = null) {
+fun TextViewerScreen(
+    path: String,
+    onBack: () -> Unit,
+    notify: (String) -> Unit,
+    extractedText: String? = null,
+    onSaveArchiveText: ((String) -> Boolean)? = null,
+    onSaved: (() -> Unit)? = null,
+    originalPath: String? = null
+) {
     val t = txt()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var content by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf(false) }
+    var editorValue by remember { mutableStateOf(TextFieldValue("")) }
     var failed by remember { mutableStateOf(false) }
-    val fileExt = remember(path) { FileOps.extOf(File(path).name) }
+    val displayPath = originalPath ?: path
+    val fileName = remember(displayPath) { File(displayPath).name }
+    val fileExt = remember(displayPath) { FileOps.extOf(fileName) }
     val isHtml = fileExt == "html" || fileExt == "htm"
     val isMarkdown = fileExt == "md"
-    val isMarkup = isHtml || fileExt == "xml"
     var preview by remember { mutableStateOf(false) }
     var previewTick by remember { mutableStateOf(0) }
 
+    // Redesain: state navigasi & editor
+    var wrapLines by remember { mutableStateOf(true) }
+    var searchVisible by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchMatchIndex by remember { mutableStateOf(0) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    val vScrollView = rememberScrollState()
+    val hScrollView = rememberScrollState()
+    val vScrollEdit = rememberScrollState()
+
+    // Deteksi apakah berkas berada di partisi sistem/root atau hanya bisa ditulis oleh superuser
+    val isRootTarget = remember(displayPath) {
+        val f = File(displayPath)
+        (displayPath.startsWith("/") && !displayPath.startsWith("/storage") && !displayPath.startsWith("/sdcard")) ||
+        (f.exists() && !f.canWrite())
+    }
+
     LaunchedEffect(path) {
-        // BC3: teks hasil ekstrak (Office) ditampilkan apa adanya tanpa
-        // membaca berkas — dan tanpa tombol edit/simpan (read-only).
         if (extractedText != null) {
             content = extractedText
+            editorValue = TextFieldValue(extractedText)
             return@LaunchedEffect
         }
         val text = withContext(Dispatchers.IO) {
             try {
                 val f = File(path)
-                // L10: baca streaming dengan cap 2 MB — dulu readBytes()
-                // penuh lalu copyOf: berkas >2 MB dialokasikan utuh di heap
-                // sebelum dipotong.
                 val buf = ByteArray(8192)
                 val out = ByteArrayOutputStream()
                 f.inputStream().use { input ->
@@ -348,21 +390,112 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit,
                 }
                 String(out.toByteArray(), Charsets.UTF_8)
             } catch (e: Exception) {
-                null
+                // Fallback: berkas sistem izin 0600 dibaca lewat staging root
+                if (RootShell.state == RootShell.GRANTED || RootShell.ensureRoot()) {
+                    val staged = RootShell.stageToCache(File(path), context.cacheDir)
+                    if (staged != null && staged.exists()) {
+                        try {
+                            staged.readText(Charsets.UTF_8)
+                        } catch (_: Exception) { null }
+                    } else null
+                } else null
             }
         }
-        if (text == null) failed = true else content = text
+        if (text == null) failed = true else {
+            content = text
+            editorValue = TextFieldValue(text)
+        }
+    }
+
+    val currentText = if (editing) editorValue.text else (content ?: "")
+    val lines = remember(currentText) { currentText.lines() }
+    val lineCount = maxOf(lines.size, 1)
+
+    // Pencarian
+    val searchMatches = remember(currentText, searchQuery) {
+        if (searchQuery.length < 2) emptyList<Int>()
+        else {
+            val list = mutableListOf<Int>()
+            var idx = 0
+            while (idx < currentText.length) {
+                val found = currentText.indexOf(searchQuery, idx, ignoreCase = true)
+                if (found == -1) break
+                list.add(found)
+                idx = found + searchQuery.length
+            }
+            list
+        }
+    }
+
+    val saveAction = {
+        val toSave = if (editing) editorValue.text else (content ?: "")
+        isSaving = true
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                if (onSaveArchiveText != null) {
+                    onSaveArchiveText(toSave)
+                } else {
+                    val targetFile = File(displayPath)
+                    val success = FileOps.writeTextSafe(targetFile, toSave, context.cacheDir)
+                    if (success && originalPath != null && path != originalPath) {
+                        try { File(path).writeText(toSave, Charsets.UTF_8) } catch (_: Exception) {}
+                    }
+                    success
+                }
+            }
+            isSaving = false
+            if (ok) {
+                content = toSave
+                editing = false
+                notify(t.textSaved)
+                if (onSaveArchiveText != null) onSaved?.invoke()
+            } else {
+                notify(t.opFailed)
+            }
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(File(path).name, maxLines = 1) },
+                title = {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(fileName, maxLines = 1, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            if (isRootTarget) {
+                                Spacer(Modifier.width(6.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        "ROOT",
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            displayPath,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
                 },
                 actions = {
                     if (content != null) {
+                        // Tombol pencarian
+                        IconButton(onClick = { searchVisible = !searchVisible }) {
+                            Icon(Icons.Default.Search, "Cari", tint = if (searchVisible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
                         if (isHtml || isMarkdown) {
                             if (preview) {
                                 IconButton(onClick = { previewTick++ }) { Icon(Icons.Default.Refresh, t.refresh) }
@@ -371,147 +504,357 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit,
                                 IconButton(onClick = { preview = true }) { Icon(Icons.Default.Visibility, t.preview) }
                             }
                         }
+
                         if (!preview && editing) {
-                            IconButton(onClick = {
-                                val toSave = content ?: ""
-                                scope.launch {
-                                    val ok = withContext(Dispatchers.IO) {
-                                        if (onSaveArchiveText != null) {
-                                            onSaveArchiveText(toSave)
-                                        } else {
-                                            try {
-                                                File(path).writeText(toSave, Charsets.UTF_8)
-                                                true
-                                            } catch (e: Exception) {
-                                                false
-                                            }
-                                        }
-                                    }
-                                    if (ok) {
-                                        editing = false
-                                        notify(t.textSaved)
-                                        if (onSaveArchiveText != null) onSaved?.invoke()
-                                    } else {
-                                        notify(t.opFailed)
-                                    }
-                                }
-                            }) { Icon(Icons.Default.Save, t.save) }
+                            Button(
+                                onClick = { saveAction() },
+                                shape = RoundedCornerShape(20.dp),
+                                enabled = !isSaving,
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.Save, null, Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(t.save, style = MaterialTheme.typography.labelMedium)
+                            }
                         } else if (!preview && (extractedText == null || onSaveArchiveText != null)) {
-                            IconButton(onClick = { editing = true }) { Icon(Icons.Default.Edit, t.edit) }
+                            IconButton(onClick = {
+                                editorValue = TextFieldValue(content ?: "")
+                                editing = true
+                            }) { Icon(Icons.Default.Edit, t.edit) }
                         }
                     }
                 }
             )
-        }
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when {
-                failed -> Text(t.readFailed, Modifier.align(Alignment.Center))
-                content == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
-                preview && (isHtml || isMarkdown) -> key(previewTick) {
-                    AndroidView(
-                        factory = { ctx ->
-                            WebView(ctx).apply {
-                                // Pratinjau HTML statis (r176: H5/M11/M12):
-                                // JavaScript mati, DOM storage mati, akses
-                                // file WebView dimatikan (allowFileAccess=false)
-                                // dan muatan jaringan diblokir (blockNetworkLoads).
-                                // Subresource file:// yang sah (gambar/CSS di
-                                // folder induk) dilayani klien di bawah lewat
-                                // WebViewPolicy — file di luar folder itu dan
-                                // semua http(s) diblokir. Tautan hanya boleh
-                                // http/https (dibuka eksternal lewat chooser).
-                                settings.javaScriptEnabled = false
-                                settings.allowFileAccess = false
-                                settings.allowFileAccessFromFileURLs = false
-                                settings.allowUniversalAccessFromFileURLs = false
-                                settings.domStorageEnabled = false
-                                settings.blockNetworkLoads = true
-                                val allowedDir = File(path).parent
-                                    ?.takeIf { it.isNotEmpty() }?.let { File(it) }
-                                webViewClient = object : WebViewClient() {
-                                    override fun shouldOverrideUrlLoading(
-                                        view: WebView,
-                                        request: WebResourceRequest
-                                    ): Boolean {
-                                        if (WebViewPolicy.isExternalHttpLink(request.url.toString())) {
-                                            try {
-                                                ctx.startActivity(
-                                                    Intent.createChooser(
-                                                        Intent(Intent.ACTION_VIEW, request.url),
-                                                        null
-                                                    )
+        },
+        bottomBar = {
+            if (content != null && !preview) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        // Accessory Bar saat mode edit (simbol-simbol konfigurasi yang sering dipakai)
+                        if (editing) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    val quickChars = listOf("=", "\"", ":", "#", "[", "]", "{", "}", "/", "_", "-", ".")
+                                    for (ch in quickChars) {
+                                        Surface(
+                                            onClick = {
+                                                val cur = editorValue.text
+                                                val sel = editorValue.selection
+                                                val start = sel.min
+                                                val end = sel.max
+                                                val newText = cur.substring(0, start) + ch + cur.substring(end)
+                                                editorValue = TextFieldValue(newText, TextRange(start + ch.length))
+                                            },
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerLow
+                                        ) {
+                                            Text(
+                                                text = ch,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
                                                 )
-                                            } catch (_: Exception) {
-                                                notify(t.openFailed)
-                                            }
+                                            )
                                         }
-                                        return true
-                                    }
-
-                                    override fun shouldInterceptRequest(
-                                        view: WebView,
-                                        request: WebResourceRequest
-                                    ): WebResourceResponse? {
-                                        if (request.isForMainFrame) return null
-                                        val scheme = request.url.scheme?.lowercase()
-                                        if (scheme != "file" && scheme != "http" && scheme != "https") return null
-                                        val file = WebViewPolicy.resolveAllowedSubresource(
-                                            request.url.toString(), allowedDir
-                                        )
-                                        if (file != null) {
-                                            return try {
-                                                val mime = WebViewPolicy.mimeTypeFor(file.name)
-                                                val encoding = if (mime.startsWith("text/") ||
-                                                    mime == "image/svg+xml" ||
-                                                    mime == "application/json"
-                                                ) "UTF-8" else null
-                                                WebResourceResponse(mime, encoding, FileInputStream(file))
-                                            } catch (_: Exception) {
-                                                WebResourceResponse(
-                                                    "text/plain", "UTF-8",
-                                                    ByteArrayInputStream(ByteArray(0))
-                                                )
-                                            }
-                                        }
-                                        return WebResourceResponse(
-                                            "text/plain", "UTF-8",
-                                            ByteArrayInputStream(ByteArray(0))
-                                        )
                                     }
                                 }
                             }
-                        },
-                        update = { wv ->
-                            val baseUrl = "file://" + (File(path).parent ?: "") + "/"
-                            val html = if (isMarkdown) Markdown.toHtml(content ?: "") else (content ?: "")
-                            wv.loadDataWithBaseURL(baseUrl, html, "text/html", "UTF-8", null)
-                        },
-                        // L8 (r176): WebView dihancurkan saat keluar layar,
-                        // kalau tidak resource native-nya bocor.
-                        onRelease = { it.stopLoading(); it.destroy() },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                        }
+
+                        // Status Info Bar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .background(
+                                            if (editing) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                                            CircleShape
+                                        )
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    if (editing) "Mode Edit" else "Mode Baca",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "$lineCount baris",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "UTF-8",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    onClick = { wrapLines = !wrapLines },
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = if (wrapLines) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent
+                                ) {
+                                    Text(
+                                        text = if (wrapLines) "Wrap: ON" else "Wrap: OFF",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (wrapLines) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = fileExt.uppercase().ifEmpty { "TXT" },
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
-                editing -> OutlinedTextField(
-                    value = content ?: "",
-                    onValueChange = { content = it },
-                    modifier = Modifier.fillMaxSize().padding(12.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
-                )
-                else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-                    if (isMarkup) {
-                        Text(
-                            highlightMarkup(
-                                content ?: "",
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.tertiary,
-                                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // Bilah Pencarian Cepat (Expandable)
+            AnimatedVisibility(visible = searchVisible && content != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.weight(1f).padding(8.dp),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = FontFamily.Monospace
                             ),
-                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            decorationBox = { innerTextField ->
+                                if (searchQuery.isEmpty()) {
+                                    Text("Cari dalam berkas...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                innerTextField()
+                            }
                         )
-                    } else {
-                        Text(content ?: "", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                        if (searchMatches.isNotEmpty()) {
+                            Text(
+                                "${searchMatches.size} temuan",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }, Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Close, "Bersihkan", Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Box(Modifier.fillMaxSize().weight(1f)) {
+                when {
+                    failed -> Text(t.readFailed, Modifier.align(Alignment.Center))
+                    content == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                    preview && (isHtml || isMarkdown) -> key(previewTick) {
+                        AndroidView(
+                            factory = { ctx ->
+                                WebView(ctx).apply {
+                                    settings.javaScriptEnabled = false
+                                    settings.allowFileAccess = false
+                                    settings.allowFileAccessFromFileURLs = false
+                                    settings.allowUniversalAccessFromFileURLs = false
+                                    settings.domStorageEnabled = false
+                                    settings.blockNetworkLoads = true
+                                    val allowedDir = File(path).parent
+                                        ?.takeIf { it.isNotEmpty() }?.let { File(it) }
+                                    webViewClient = object : WebViewClient() {
+                                        override fun shouldOverrideUrlLoading(
+                                            view: WebView,
+                                            request: WebResourceRequest
+                                        ): Boolean {
+                                            if (WebViewPolicy.isExternalHttpLink(request.url.toString())) {
+                                                try {
+                                                    ctx.startActivity(
+                                                        Intent.createChooser(
+                                                            Intent(Intent.ACTION_VIEW, request.url),
+                                                            null
+                                                        )
+                                                    )
+                                                } catch (_: Exception) {
+                                                    notify(t.openFailed)
+                                                }
+                                            }
+                                            return true
+                                        }
+
+                                        override fun shouldInterceptRequest(
+                                            view: WebView,
+                                            request: WebResourceRequest
+                                        ): WebResourceResponse? {
+                                            if (request.isForMainFrame) return null
+                                            val scheme = request.url.scheme?.lowercase()
+                                            if (scheme != "file" && scheme != "http" && scheme != "https") return null
+                                            val file = WebViewPolicy.resolveAllowedSubresource(
+                                                request.url.toString(), allowedDir
+                                            )
+                                            if (file != null) {
+                                                return try {
+                                                    val mime = WebViewPolicy.mimeTypeFor(file.name)
+                                                    val encoding = if (mime.startsWith("text/") ||
+                                                        mime == "image/svg+xml" ||
+                                                        mime == "application/json"
+                                                    ) "UTF-8" else null
+                                                    WebResourceResponse(mime, encoding, FileInputStream(file))
+                                                } catch (_: Exception) {
+                                                    WebResourceResponse(
+                                                        "text/plain", "UTF-8",
+                                                        ByteArrayInputStream(ByteArray(0))
+                                                    )
+                                                }
+                                            }
+                                            return WebResourceResponse(
+                                                "text/plain", "UTF-8",
+                                                ByteArrayInputStream(ByteArray(0))
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            update = { wv ->
+                                val baseUrl = "file://" + (File(path).parent ?: "") + "/"
+                                val html = if (isMarkdown) Markdown.toHtml(content ?: "") else (content ?: "")
+                                wv.loadDataWithBaseURL(baseUrl, html, "text/html", "UTF-8", null)
+                            },
+                            onRelease = { it.stopLoading(); it.destroy() },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    editing -> Row(Modifier.fillMaxSize()) {
+                        // Gutter nomor baris sinkron
+                        Column(
+                            modifier = Modifier
+                                .width(44.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f))
+                                .verticalScroll(vScrollEdit)
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            val editLines = editorValue.text.lines().size
+                            for (i in 1..maxOf(editLines, 1)) {
+                                Text(
+                                    text = "$i",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        lineHeight = 22.sp
+                                    ),
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
+                        BasicTextField(
+                            value = editorValue,
+                            onValueChange = { editorValue = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .verticalScroll(vScrollEdit)
+                                .padding(12.dp),
+                            textStyle = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 22.sp
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                    else -> Row(Modifier.fillMaxSize()) {
+                        // Gutter nomor baris sinkron mode baca
+                        Column(
+                            modifier = Modifier
+                                .width(44.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f))
+                                .verticalScroll(vScrollView)
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            for (i in 1..lineCount) {
+                                Text(
+                                    text = "$i",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        lineHeight = 22.sp
+                                    ),
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .then(if (!wrapLines) Modifier.horizontalScroll(hScrollView) else Modifier)
+                                .verticalScroll(vScrollView)
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = highlightSyntax(
+                                    content ?: "",
+                                    fileExt,
+                                    MaterialTheme.colorScheme,
+                                    searchQuery
+                                ),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight = 22.sp
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -1052,29 +1395,102 @@ private fun FontInfoRow(label: String, value: String) {
     }
 }
 
-/** Penyorotan sintaks ringan untuk markup (HTML/XML): tag, nilai atribut, komentar. */
-private fun highlightMarkup(
+/** Penyorotan sintaks multi-format (XML/HTML, .conf, .toml, .prop, .ini, .json, .sh) + highlight pencarian. */
+private fun highlightSyntax(
     code: String,
-    tagColor: Color,
-    stringColor: Color,
-    commentColor: Color
+    ext: String,
+    colorScheme: ColorScheme,
+    searchQuery: String = ""
 ): AnnotatedString {
     return buildAnnotatedString {
         append(code)
-        Regex("<[^>]+>").findAll(code).forEach { m ->
-            addStyle(SpanStyle(color = tagColor), m.range.first, m.range.last + 1)
-            val tagText = code.substring(m.range.first, m.range.last + 1)
-            Regex("\"[^\"]*\"|'[^']*'").findAll(tagText).forEach { sm ->
-                addStyle(
-                    SpanStyle(color = stringColor),
-                    m.range.first + sm.range.first,
-                    m.range.first + sm.range.last + 1
-                )
+        val lowerExt = ext.lowercase()
+        try {
+            when {
+                lowerExt in setOf("xml", "html", "htm") -> {
+                    // Tag
+                    Regex("<[^>]+>").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.primary), m.range.first, m.range.last + 1)
+                        val tagText = code.substring(m.range.first, m.range.last + 1)
+                        Regex("\"[^\"]*\"|'[^']*'").findAll(tagText).forEach { sm ->
+                            addStyle(
+                                SpanStyle(color = colorScheme.tertiary),
+                                m.range.first + sm.range.first,
+                                m.range.first + sm.range.last + 1
+                            )
+                        }
+                    }
+                    // Komentar XML/HTML
+                    Regex("<!--[\\s\\S]*?-->").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.outline, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                    }
+                }
+                lowerExt in setOf("prop", "conf", "config", "ini", "cfg", "properties", "env", "toml") -> {
+                    // Header bagian [section]
+                    Regex("(?m)^\\s*\\[[^\\]]+\\]").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.tertiary, fontWeight = FontWeight.Bold), m.range.first, m.range.last + 1)
+                    }
+                    // Kunci = nilai
+                    Regex("(?m)^\\s*([a-zA-Z0-9_.-]+)\\s*=").findAll(code).forEach { m ->
+                        val keyGroup = m.groups[1]
+                        if (keyGroup != null) {
+                            addStyle(SpanStyle(color = colorScheme.primary), keyGroup.range.first, keyGroup.range.last + 1)
+                        }
+                    }
+                    // Komentar (# atau ;)
+                    Regex("(?m)^\\s*[#;].*$").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.outline, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                    }
+                    // Teks string berpetik
+                    Regex("\"[^\"]*\"|'[^']*'").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.secondary), m.range.first, m.range.last + 1)
+                    }
+                }
+                lowerExt in setOf("json", "jsonl", "jsonc") -> {
+                    // Kunci JSON
+                    Regex("\"([^\"]+)\"\\s*:").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.primary), m.range.first, m.range.last + 1)
+                    }
+                    // String JSON
+                    Regex(":\\s*(\"[^\"]*\")").findAll(code).forEach { m ->
+                        val g = m.groups[1]
+                        if (g != null) {
+                            addStyle(SpanStyle(color = colorScheme.tertiary), g.range.first, g.range.last + 1)
+                        }
+                    }
+                    // Literal boolean / null
+                    Regex("\\b(true|false|null)\\b").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.error, fontWeight = FontWeight.SemiBold), m.range.first, m.range.last + 1)
+                    }
+                }
+                lowerExt in setOf("sh", "bash", "zsh") -> {
+                    Regex("(?m)^\\s*#.*$").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.outline, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                    }
+                    Regex("\"[^\"]*\"|'[^']*'").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = colorScheme.tertiary), m.range.first, m.range.last + 1)
+                    }
+                }
             }
-        }
-        // Komentar terakhir agar warnanya menimpa tag di dalamnya.
-        Regex("<!--[\\s\\S]*?-->").findAll(code).forEach { m ->
-            addStyle(SpanStyle(color = commentColor), m.range.first, m.range.last + 1)
-        }
+
+            // Penyorotan kata kunci pencarian
+            if (searchQuery.isNotBlank() && searchQuery.length >= 2) {
+                var start = 0
+                while (start < code.length) {
+                    val idx = code.indexOf(searchQuery, start, ignoreCase = true)
+                    if (idx == -1) break
+                    addStyle(
+                        SpanStyle(
+                            background = colorScheme.primaryContainer,
+                            color = colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        idx,
+                        idx + searchQuery.length
+                    )
+                    start = idx + searchQuery.length
+                }
+            }
+        } catch (_: Exception) {}
     }
 }

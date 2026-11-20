@@ -177,7 +177,7 @@ private sealed interface Overlay {
     data class Search(val rootPath: String) : Overlay
     data class ImageView(val paths: List<String>, val startIndex: Int) : Overlay
     data class VideoView(val paths: List<String>, val startIndex: Int) : Overlay
-    data class TextView(val path: String) : Overlay
+    data class TextView(val path: String, val originalPath: String? = null) : Overlay
     data class ArchiveText(val name: String, val content: String, val archivePath: String, val canSave: Boolean) : Overlay
     data class RamdiskText(val name: String, val content: String) : Overlay
     data class Ext4View(val path: String, val lpPath: String? = null) : Overlay
@@ -1124,7 +1124,13 @@ fun SysFileApp() {
             scope.launch {
                 val staged = withContext(Dispatchers.IO) { RootShell.stageToCache(f, context.cacheDir) }
                 working = false
-                if (staged != null) openEntry(FileOps.entryOf(staged)) else notify(t.opFailed)
+                if (staged != null) {
+                    if (FileOps.isTextFile(f)) {
+                        show(Overlay.TextView(staged.absolutePath, originalPath = f.absolutePath))
+                    } else {
+                        openEntry(FileOps.entryOf(staged))
+                    }
+                } else notify(t.opFailed)
             }
             return
         }
@@ -1503,6 +1509,7 @@ fun SysFileApp() {
                         initialState is Overlay.Ext4View || targetState is Overlay.Ext4View ||
                         initialState is Overlay.FatView || targetState is Overlay.FatView ||
                         initialState is Overlay.LpView || targetState is Overlay.LpView ||
+                        initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView ||
                         initialState is Overlay.DexView || targetState is Overlay.DexView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
@@ -1524,7 +1531,7 @@ fun SysFileApp() {
                         onDelete = { p -> dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(p)))) },
                         onPathChange = { viewingPath = it }
                     )
-                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) })
+                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, originalPath = ov.originalPath)
                     is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null })
                     is Overlay.ArchiveText -> TextViewerScreen(
                         ov.name,

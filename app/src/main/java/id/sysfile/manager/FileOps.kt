@@ -181,6 +181,29 @@ object FileOps {
         return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh", "srt", "prop", "config", "conf", "toml", "tsv", "jsonl", "sql", "jsonc", "reg")
     }
 
+    /**
+     * Tulis teks ke berkas secara aman dengan eskalasi izin:
+     * 1. Coba penulisan langsung (jalur normal).
+     * 2. Bila gagal karena izin read-only, coba setWritable(true).
+     * 3. Bila tetap gagal (berkas di /system, /vendor, /data, atau folder root yang membutuhkan root shell),
+     *    eskalasi ke RootShell.writeFile.
+     */
+    fun writeTextSafe(file: File, text: String, cacheDir: File): Boolean {
+        try {
+            file.writeText(text, Charsets.UTF_8)
+            return true
+        } catch (_: Exception) {}
+
+        try {
+            if (file.setWritable(true)) {
+                file.writeText(text, Charsets.UTF_8)
+                return true
+            }
+        } catch (_: Exception) {}
+
+        return RootShell.writeFile(file, text, cacheDir)
+    }
+
     /** Folder yang dibatasi sistem (Android/data, Android/obb): jalur berkas
      *  biasa bisa mengaku kosong padahal isinya tak terbaca — canRead()
      *  true tapi listFiles() kosong (sebagian ROM). Dipakai UI untuk
