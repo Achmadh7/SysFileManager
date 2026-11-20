@@ -17,6 +17,7 @@ import java.util.zip.Adler32
  * checksum/signature bisa diuji. Kelas: com.example.Test (super
  * java.lang.Object, sumber Test.java); field instance private bar:int;
  * metode direct public-static foo/bar/baz/qux.
+ * r209: versi dex 040 diterima (D8/R8 terbaru, mis. Gboard 18.4.1).
  */
 class DexTest {
 
@@ -71,14 +72,14 @@ class DexTest {
         }
     }
 
-    private fun buildTestDex(): ByteArray {
+    private fun buildTestDex(version: String = "038"): ByteArray {
         val w = W()
         val strings = listOf(
             "Lcom/example/Test;", "V", "foo", "I", "bar",
             "Ljava/lang/Object;", "Test.java", "hi", "baz", "qux", "add", "rng", "lit"
         )
         // Header (112 byte) — isi placeholder dulu, patch belakangan.
-        w.bytes("dex\n038\u0000".toByteArray(Charsets.US_ASCII))
+        w.bytes(("dex\n" + version + "\u0000").toByteArray(Charsets.US_ASCII))
         w.u32(0) // checksum
         repeat(20) { w.u8(0) } // signature
         val fileSizePos = w.pos(); w.u32(0) // file_size
@@ -198,13 +199,13 @@ class DexTest {
         // layout di atas (deterministik): ulangi seluruh proses dengan
         // codeOffs yang sudah diketahui dari putaran pertama.
         // (Putaran pertama ini hanya untuk mengukur offset.)
-        return rebuildWithCodeOffs(codeOffs, stringDataOffs, strings)
+        return rebuildWithCodeOffs(codeOffs, stringDataOffs, strings, version)
     }
 
     /** Putaran kedua builder: layout identik, code_off sudah diketahui. */
-    private fun rebuildWithCodeOffs(codeOffs: IntArray, stringDataOffs: IntArray, strings: List<String>): ByteArray {
+    private fun rebuildWithCodeOffs(codeOffs: IntArray, stringDataOffs: IntArray, strings: List<String>, version: String): ByteArray {
         val w = W()
-        w.bytes("dex\n038\u0000".toByteArray(Charsets.US_ASCII))
+        w.bytes(("dex\n" + version + "\u0000").toByteArray(Charsets.US_ASCII))
         w.u32(0)
         repeat(20) { w.u8(0) }
         val fileSizePos = w.pos(); w.u32(0)
@@ -340,6 +341,25 @@ class DexTest {
         val bytes = buildTestDex()
         bytes[0] = 'x'.code.toByte()
         assertTrue(DexOps.open(bytes) is DexOps.OpenResult.Invalid)
+    }
+
+    @Test
+    fun version040Accepted() {
+        val result = DexOps.open(buildTestDex("040"))
+        assertTrue(result is DexOps.OpenResult.Ok)
+        val dex = (result as DexOps.OpenResult.Ok).file
+        assertEquals("040", dex.header.version)
+        assertEquals(1, dex.header.classCount)
+        val detail = dex.classDetail(0)
+        assertNotNull(detail)
+        val foo = detail!!.methods[0]
+        assertEquals("foo", foo.name)
+        assertFalse(dex.methodSmali(foo).lines.isEmpty())
+    }
+
+    @Test
+    fun version041Rejected() {
+        assertTrue(DexOps.open(buildTestDex("041")) is DexOps.OpenResult.Invalid)
     }
 
     @Test

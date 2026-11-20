@@ -58,7 +58,9 @@ object DexOps {
             bytes[7] != 0.toByte()
         ) return null
         val version = String(bytes, 4, 3, Charsets.US_ASCII)
-        if (version !in setOf("035", "036", "037", "038", "039")) return null
+        // 040: dikeluarkan D8/R8 terbaru (mis. Gboard 18.4.1) — layout
+        // sama dengan 039; hanya daftar versi yang diperluas (r209).
+        if (version !in setOf("035", "036", "037", "038", "039", "040")) return null
         val fileSize = u32(bytes, 32)
         if (fileSize != bytes.size.toLong()) return null
         if (u32(bytes, 36) != HEADER_SIZE.toLong()) return null
