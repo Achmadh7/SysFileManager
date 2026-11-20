@@ -77,4 +77,62 @@ object ExifOps {
             null
         }
     }
+
+    /** Tag GPS yang dihapus dari salinan yang dibagikan (L9). */
+    private val GPS_TAGS = listOf(
+        ExifInterface.TAG_GPS_LATITUDE,
+        ExifInterface.TAG_GPS_LATITUDE_REF,
+        ExifInterface.TAG_GPS_LONGITUDE,
+        ExifInterface.TAG_GPS_LONGITUDE_REF,
+        ExifInterface.TAG_GPS_ALTITUDE,
+        ExifInterface.TAG_GPS_ALTITUDE_REF,
+        ExifInterface.TAG_GPS_TIMESTAMP,
+        ExifInterface.TAG_GPS_DATESTAMP,
+        ExifInterface.TAG_GPS_PROCESSING_METHOD,
+        ExifInterface.TAG_GPS_SPEED,
+        ExifInterface.TAG_GPS_SPEED_REF,
+        ExifInterface.TAG_GPS_DIRECTION,
+        ExifInterface.TAG_GPS_DIRECTION_REF,
+        ExifInterface.TAG_GPS_DOP,
+        ExifInterface.TAG_GPS_MEASURE_MODE,
+        ExifInterface.TAG_GPS_SATELLITES,
+        ExifInterface.TAG_GPS_STATUS,
+        ExifInterface.TAG_GPS_TRACK,
+        ExifInterface.TAG_GPS_TRACK_REF,
+        ExifInterface.TAG_GPS_IMG_DIRECTION,
+        ExifInterface.TAG_GPS_IMG_DIRECTION_REF,
+        ExifInterface.TAG_GPS_MAP_DATUM,
+        ExifInterface.TAG_GPS_VERSION_ID
+    )
+
+    /** L9: salin [file] ke [cacheDir]/share-strip, hapus semua tag GPS
+     *  dari salinan, dan kembalikan salinan; null bila tidak ada GPS
+     *  atau salinan gagal. Berkas asli tidak disentuh. */
+    fun stripGpsCopy(file: File, cacheDir: File): File? {
+        val exif = try {
+            ExifInterface(file)
+        } catch (e: Exception) {
+            return null
+        }
+        if (GPS_TAGS.none { exif.getAttribute(it) != null }) return null
+        val dir = File(cacheDir, "share-strip").apply {
+            FileOps.evictStaleCache(this)
+            mkdirs()
+        }
+        val copy = File(dir, file.name)
+        try {
+            file.copyTo(copy, overwrite = true)
+        } catch (e: Exception) {
+            return null
+        }
+        return try {
+            val copyExif = ExifInterface(copy)
+            for (tag in GPS_TAGS) copyExif.setAttribute(tag, null)
+            copyExif.saveAttributes()
+            copy
+        } catch (e: Exception) {
+            copy.delete()
+            null
+        }
+    }
 }

@@ -644,6 +644,13 @@ class FatReader private constructor(
         val onEntry: () -> Unit = { done++; onProgress(done, total) }
         val budget = ExtractBudget()
         val written = mutableListOf<File>()
+        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
+        val createdDirs = mutableListOf<File>()
+        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
+        fun cleanup() {
+            written.forEach { file -> file.delete() }
+            FileOps.deleteCreatedDirs(createdDirs)
+        }
         val visitedDirs = mutableSetOf<Long>()
         val destCanonical = try {
             destDir.mkdirs()
@@ -652,17 +659,17 @@ class FatReader private constructor(
         return try {
             val ok = walkExtract(
                 ROOT_CLUSTER, "", 0, destDir, destCanonical,
-                budget, written, visitedDirs, onEntry, cancelFlag
+                budget, written, createdDirs, visitedDirs, onEntry, cancelFlag
             )
             if (!ok) {
-                for (f in written) f.delete()
+                cleanup()
             }
             ok
         } catch (e: ImgCancelledException) {
-            for (f in written) f.delete()
+            cleanup()
             throw e
         } catch (_: Exception) {
-            for (f in written) f.delete()
+            cleanup()
             false
         }
     }
@@ -691,6 +698,7 @@ class FatReader private constructor(
         destCanonical: String,
         budget: ExtractBudget,
         written: MutableList<File>,
+        createdDirs: MutableList<File>,
         visitedDirs: MutableSet<Long>,
         onEntry: () -> Unit,
         cancelFlag: AtomicBoolean?
@@ -707,10 +715,14 @@ class FatReader private constructor(
             val outCanonical = try { out.canonicalPath } catch (_: Exception) { return false }
             if (!FileOps.isPathInside(destCanonical, outCanonical)) return false
             if (e.isDir) {
+                FileOps.noteCreatedDir(out, destCanonical, createdDirs)
                 out.mkdirs()
+                // L1: validasi ulang canonical SETELAH mkdirs (TOCTOU).
+                val dirCanon = try { out.canonicalPath } catch (_: Exception) { return false }
+                if (!FileOps.isPathInside(destCanonical, dirCanon)) return false
                 if (!walkExtract(
                         e.firstCluster, childRel, depth + 1, destDir,
-                        destCanonical, budget, written, visitedDirs,
+                        destCanonical, budget, written, createdDirs, visitedDirs,
                         onEntry, cancelFlag
                     )
                 ) return false
@@ -726,7 +738,11 @@ class FatReader private constructor(
                 val final = File(parent, FileOps.uniqueName(parent, out.name))
                 val finalCanonical = try { final.canonicalPath } catch (_: Exception) { return false }
                 if (!FileOps.isPathInside(destCanonical, finalCanonical)) return false
+                FileOps.noteCreatedDir(parent, destCanonical, createdDirs)
                 parent.mkdirs()
+                // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
+                val parentCanon = try { parent.canonicalPath } catch (_: Exception) { return false }
+                if (!FileOps.isPathInside(destCanonical, parentCanon)) return false
                 val tmp = FileOps.tempFileIn(parent) ?: return false
                 if (!writeFileData(e, tmp)) {
                     tmp.delete()

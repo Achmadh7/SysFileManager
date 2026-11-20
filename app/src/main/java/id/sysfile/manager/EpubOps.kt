@@ -153,27 +153,24 @@ internal fun newSafeDocumentBuilder(allowDoctype: Boolean = true): DocumentBuild
     factory.isNamespaceAware = true
     factory.isXIncludeAware = false
     factory.isExpandEntityReferences = false
-    try {
-        factory.setFeature("http://xml.org/sax/features/external-general-entities", false)
-    } catch (_: Exception) {
+    // L11: gagal men-set fitur keamanan XML kini FAIL-CLOSED (dulu
+    // ditelan diam-diam — parser berjalan tanpa proteksi XXE).
+    fun requireFeature(name: String, value: Boolean) {
+        try {
+            factory.setFeature(name, value)
+        } catch (e: Exception) {
+            throw IllegalStateException("Fitur XML tidak didukung: $name", e)
+        }
     }
-    try {
-        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-    } catch (_: Exception) {
-    }
-    try {
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
-    } catch (_: Exception) {
-    }
+    requireFeature("http://xml.org/sax/features/external-general-entities", false)
+    requireFeature("http://xml.org/sax/features/external-parameter-entities", false)
+    requireFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
     // M8: pemanggil yang tidak pernah memakai DOCTYPE (Office) boleh
     // memintanya ditolak — entity expansion tidak lagi bisa mengembang
     // sebelum parser membaca isinya. Jalur EPUB memakai default true
     // karena toc.ncx yang sah memakai DOCTYPE.
     if (!allowDoctype) {
-        try {
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-        } catch (_: Exception) {
-        }
+        requireFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
     }
     return factory.newDocumentBuilder()
 }

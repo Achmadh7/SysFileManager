@@ -135,6 +135,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -243,13 +244,13 @@ fun SysFileApp() {
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val motion = MaterialTheme.motionScheme
 
-    var homeTab by remember { mutableStateOf(0) }
-    var showSettings by remember { mutableStateOf(false) }
-    var showTrash by remember { mutableStateOf(false) }
-    var showApps by remember { mutableStateOf(false) }
-    var showAbout by remember { mutableStateOf(false) }
-    var showSpecs by remember { mutableStateOf(false) }
-    var showFormats by remember { mutableStateOf(false) }
+    var homeTab by rememberSaveable { mutableStateOf(0) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showTrash by rememberSaveable { mutableStateOf(false) }
+    var showApps by rememberSaveable { mutableStateOf(false) }
+    var showAbout by rememberSaveable { mutableStateOf(false) }
+    var showSpecs by rememberSaveable { mutableStateOf(false) }
+    var showFormats by rememberSaveable { mutableStateOf(false) }
     var settingsExiting by remember { mutableStateOf(false) }
     var safTreeUri by remember { mutableStateOf<String?>(null) }
     var safRelPath by remember { mutableStateOf("") }
@@ -314,27 +315,27 @@ fun SysFileApp() {
     val rootFs = remember { FileOps.rootFilesystem() }
     var rootActive by remember { mutableStateOf(false) }
     val allRoots = roots + rootFs
-    var browseStack by remember { mutableStateOf<List<String>>(emptyList()) }
+    var browseStack by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     var overlayReturn by remember { mutableStateOf<Overlay?>(null) }
     // r108: subfolder arsip yang sedang dibuka — disimpan di sini supaya
     // kembali dari berkas di dalam arsip mendarat di subfolder yang sama,
     // bukan di akar arsip (remember() ArchiveScreen terbuang saat overlay
     // berganti ke penampil berkas).
-    var archivePrefix by remember { mutableStateOf("") }
-    var archivePrefixPath by remember { mutableStateOf<String?>(null) }
+    var archivePrefix by rememberSaveable { mutableStateOf("") }
+    var archivePrefixPath by rememberSaveable { mutableStateOf<String?>(null) }
     // r152: sama seperti archivePrefix (r108) — subfolder ramdisk
     // yang sedang dibuka, supaya kembali dari berkas di dalam
     // ramdisk mendarat di subfolder yang sama.
-    var imgPrefix by remember { mutableStateOf("") }
-    var imgPrefixPath by remember { mutableStateOf<String?>(null) }
+    var imgPrefix by rememberSaveable { mutableStateOf("") }
+    var imgPrefixPath by rememberSaveable { mutableStateOf<String?>(null) }
     // r154: sesi baca ext4 (reader + temp unsparse bila sparse) —
     // dibuat saat membuka .img ext4/sparse, ditutup saat layar
     // Ext4View ditutup (onBack/onError). Bertahan saat overlay
     // berganti ke Ext4Text supaya kembali mendarat di folder yang sama.
     var ext4Session by remember { mutableStateOf<Ext4Session?>(null) }
-    var ext4Prefix by remember { mutableStateOf("") }
-    var ext4PrefixPath by remember { mutableStateOf<String?>(null) }
+    var ext4Prefix by rememberSaveable { mutableStateOf("") }
+    var ext4PrefixPath by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun closeExt4Session() {
         ext4Session?.close()
@@ -347,8 +348,8 @@ fun SysFileApp() {
     // Bertahan saat overlay berganti ke FatText supaya kembali
     // mendarat di folder yang sama (pola r108/r154).
     var fatReader by remember { mutableStateOf<FatReader?>(null) }
-    var fatPrefix by remember { mutableStateOf("") }
-    var fatPrefixPath by remember { mutableStateOf<String?>(null) }
+    var fatPrefix by rememberSaveable { mutableStateOf("") }
+    var fatPrefixPath by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun closeFatReader() {
         fatReader?.close()
@@ -395,11 +396,32 @@ fun SysFileApp() {
         onDispose { try { audioPlayer.value?.release() } catch (_: Exception) { } }
     }
 
+    // L25: kunci folder yang volumenya sedang tidak terpasang TIDAK
+    // lagi dibuang — dulu filter isDirectory menghapusnya permanen
+    // (kunci hilang begitu volume dicabut).
+    var lockedFolders by remember {
+        mutableStateOf(
+            // r175 H4: simpan ejaan mentah + kanonis tiap folder
+            // terkunci, supaya alias path (/sdcard/...) dikenali.
+            FileOps.canonicalizeLocked(
+                prefs.getStringSet("locked_folders", emptySet()) ?: emptySet()
+            )
+        )
+    }
+
     // r116: refreshRoots dideklarasikan di sini — receiver OT1 di
     // bawah memakainya, dan fungsi lokal harus dideklarasi sebelum
     // pemakaian pertama.
+    // L18: refreshRoots TIDAK lagi memblokir main thread (storageRoots
+    // membaca /proc/mounts + sysfs — dulu ANR saat storage lambat).
     fun refreshRoots() {
-        roots = FileOps.storageRoots(context)
+        scope.launch {
+            val fresh = withContext(Dispatchers.IO) { FileOps.storageRoots(context) }
+            roots = fresh
+            lockedFolders = FileOps.canonicalizeLocked(
+                prefs.getStringSet("locked_folders", emptySet()) ?: emptySet()
+            )
+        }
     }
 
     // OT1 (r110): pantau colok/cabut media + perangkat USB — daftar
@@ -483,15 +505,6 @@ fun SysFileApp() {
     var workProgressText by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<DialogKind?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
-    var lockedFolders by remember {
-        mutableStateOf(
-            // r175 H4: simpan ejaan mentah + kanonis tiap folder
-            // terkunci, supaya alias path (/sdcard/...) dikenali.
-            FileOps.canonicalizeLocked(
-                prefs.getStringSet("locked_folders", emptySet())?.filter { File(it).isDirectory }?.toSet() ?: emptySet()
-            )
-        )
-    }
     var unlockedSession by remember { mutableStateOf<Set<String>>(emptySet()) }
     var recentFiles by remember { mutableStateOf<List<FEntry>>(emptyList()) }
 
@@ -702,14 +715,12 @@ fun SysFileApp() {
         if (accessGranted) showAccessDialog = false
     }
 
+    // L17: prompt root HANYA dari sakelar di Pengaturan — efek pasif
+    // ini tidak lagi memanggil ensureRoot() (dulu prompt su bisa muncul
+    // begitu saja saat root dipilih).
     LaunchedEffect(currentRoot?.kind) {
-        if (currentRoot?.kind == "root" && RootShell.state == RootShell.UNKNOWN) {
-            working = true
-            val granted = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
-            working = false
-            rootActive = granted
-            reloadKey++
-        }
+        rootActive = RootShell.state == RootShell.GRANTED
+        if (rootActive) reloadKey++
     }
 
     LaunchedEffect(currentPath, reloadKey, showHidden, sortKey, sortAsc, accessGranted) {
@@ -748,17 +759,8 @@ fun SysFileApp() {
                 if (plain != null && (plain.isNotEmpty() ||
                     (dirFile.canRead() && !FileOps.isRestrictedDir(path)))) {
                     plain
-                } else if (showRootEntry) {
-                    val showedWorking = RootShell.state == RootShell.UNKNOWN
-                    if (showedWorking) working = true
-                    val granted = RootShell.state == RootShell.GRANTED ||
-                        RootShell.ensureRoot()
-                    if (showedWorking) working = false
-                    if (granted) {
-                        RootShell.listDir(dirFile, showHidden, sortKey, sortAsc) ?: plain
-                    } else {
-                        plain
-                    }
+                } else if (showRootEntry && RootShell.state == RootShell.GRANTED) {
+                    RootShell.listDir(dirFile, showHidden, sortKey, sortAsc) ?: plain
                 } else {
                     plain
                 }
@@ -789,14 +791,6 @@ fun SysFileApp() {
                         // shell root / SAF, bukan percaya angka 0.
                         return lf == null || (lf.isEmpty() &&
                             (!f.canRead() || FileOps.isRestrictedDir(f.absolutePath)))
-                    }
-                    // Siapkan akses root sekali di depan (bila fitur root
-                    // aktif) agar hitungan folder terkunci tidak berlomba
-                    // memicu prompt su dari banyak async sekaligus.
-                    if (showRootEntry && RootShell.state == RootShell.UNKNOWN &&
-                        missing.any { unreadable(it.file) }
-                    ) {
-                        RootShell.ensureRoot()
                     }
                     coroutineScope {
                         missing.map { entry ->
@@ -837,7 +831,11 @@ fun SysFileApp() {
             dirs.associate { it.path to (countCache[it.path] ?: 0) }
         }
         entriesLoaded = true
-        selected = emptySet()
+        // L29: pertahankan seleksi yang masih ada di daftar baru —
+        // dulu seleksi dihapus di setiap reload (termasuk saat folder
+        // berubah, entri yang hilang ikut terbuang dari seleksi).
+        val kept = entries.map { it.path }.toSet()
+        selected = selected.intersect(kept)
     }
 
     LaunchedEffect(accessGranted, roots, showHidden, reloadKey, lockedFolders) {
@@ -857,7 +855,10 @@ fun SysFileApp() {
                 setDataAndType(uri, FileOps.mimeOf(file))
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(intent)
+            // L21: selalu lewat chooser — dulu aplikasi default
+            // langsung dibuka tanpa pilihan (pengguna tak bisa memilih
+            // penampil lain).
+            context.startActivity(Intent.createChooser(intent, t.openWith))
         } catch (e: Exception) {
             notify(t.openFailed)
         }
@@ -918,7 +919,15 @@ fun SysFileApp() {
 
     fun shareFile(file: File) {
         try {
-            val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+            // L9: foto yang dibagikan distrip GPS-nya dulu (salinan di
+            // cache) supaya lokasi tidak ikut terkirim tanpa sadar.
+            val stripped = if (FileOps.categoryOf(file.name) == Category.IMAGE) {
+                ExifOps.stripGpsCopy(file, context.cacheDir)
+            } else {
+                null
+            }
+            if (stripped != null) notify(t.shareGpsStripped)
+            val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", stripped ?: file)
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = FileOps.mimeOf(file)
                 putExtra(Intent.EXTRA_STREAM, uri)
@@ -1007,7 +1016,16 @@ fun SysFileApp() {
         }
     }
 
-    fun openEntry(entry: FEntry, siblings: List<FEntry>? = null) {
+    // L26: [onOverlayOpened] dipanggil setiap kali overlay dibuka —
+    // pemanggil (mis. CategoryScreen) bisa mencatat overlayReturn
+    // dengan benar juga untuk jalur async (.img/.bin/arsip); dulu
+    // overlayReturn ditebak dari perbandingan state sesudah pemanggilan
+    // sinkron, sehingga jalur async kehilangan jalan kembali.
+    fun openEntry(entry: FEntry, siblings: List<FEntry>? = null, onOverlayOpened: ((Overlay) -> Unit)? = null) {
+        fun show(ov: Overlay) {
+            overlay = ov
+            onOverlayOpened?.invoke(ov)
+        }
         if (entry.isDir) {
             openFolderGuarded(entry.path) { browseStack = browseStack + entry.path }
             return
@@ -1034,7 +1052,7 @@ fun SysFileApp() {
                     listing.error == "notpayload" -> openExternal(f)
                     listing.error == "unsupported" -> notify(t.payloadUnsupported)
                     listing.error != null -> notify(t.payloadInvalid)
-                    else -> overlay = Overlay.PayloadView(entry.path)
+                    else -> show(Overlay.PayloadView(entry.path)
                 }
             }
             return
@@ -1054,14 +1072,14 @@ fun SysFileApp() {
                 when (detected) {
                     ImgType.BOOT -> {
                         working = false
-                        overlay = Overlay.ImgView(entry.path)
+                        show(Overlay.ImgView(entry.path)
                     }
                     ImgType.SUPER -> {
                         val reader = withContext(Dispatchers.IO) { LpReader.open(f) }
                         working = false
                         if (reader != null) {
                             lpSession = LpSession(f, null, reader)
-                            overlay = Overlay.LpView(entry.path)
+                            show(Overlay.LpView(entry.path)
                         } else {
                             notify(t.opFailed)
                         }
@@ -1073,7 +1091,7 @@ fun SysFileApp() {
                         working = false
                         if (session != null) {
                             ext4Session = session
-                            overlay = Overlay.Ext4View(entry.path)
+                            show(Overlay.Ext4View(entry.path)
                         } else {
                             notify(t.opFailed)
                         }
@@ -1100,15 +1118,15 @@ fun SysFileApp() {
                         if (ext != null) {
                             working = false
                             ext4Session = ext
-                            overlay = Overlay.Ext4View(entry.path)
+                            show(Overlay.Ext4View(entry.path)
                         } else if (fat != null) {
                             working = false
                             fatReader = fat
-                            overlay = Overlay.FatView(entry.path)
+                            show(Overlay.FatView(entry.path)
                         } else if (lp != null) {
                             working = false
                             lpSession = LpSession(f, null, lp)
-                            overlay = Overlay.LpView(entry.path)
+                            show(Overlay.LpView(entry.path)
                         } else {
                             // LD3 r159: fallback unsparse (jarang — hanya
                             // bila direct ext4/FAT/LP gagal) ikut berprogres
@@ -1150,10 +1168,10 @@ fun SysFileApp() {
                             val ext2 = opened.second
                             if (lp2 != null) {
                                 lpSession = lp2
-                                overlay = Overlay.LpView(entry.path)
+                                show(Overlay.LpView(entry.path)
                             } else if (ext2 != null) {
                                 ext4Session = ext2
-                                overlay = Overlay.Ext4View(entry.path)
+                                show(Overlay.Ext4View(entry.path)
                             } else if (unsparseCancelled) {
                                 notify(t.workCancelled)
                             } else {
@@ -1166,7 +1184,7 @@ fun SysFileApp() {
                         working = false
                         if (reader != null) {
                             fatReader = reader
-                            overlay = Overlay.FatView(entry.path)
+                            show(Overlay.FatView(entry.path)
                         } else {
                             notify(t.opFailed)
                         }
@@ -1193,21 +1211,21 @@ fun SysFileApp() {
         when {
             entry.category == Category.IMAGE -> {
                 val (paths, idx) = FileOps.mediaSiblings(siblings ?: entries, entry)
-                overlay = Overlay.ImageView(paths, idx)
+                show(Overlay.ImageView(paths, idx)
             }
             entry.category == Category.VIDEO -> {
                 stopAudio()
                 val (paths, idx) = FileOps.mediaSiblings(siblings ?: entries, entry)
-                overlay = Overlay.VideoView(paths, idx)
+                show(Overlay.VideoView(paths, idx)
             }
             entry.category == Category.AUDIO -> {
                 startAudio(entry)
             }
-            FileOps.extOf(f.name) == "pdf" -> overlay = Overlay.PdfView(entry.path)
-            FileOps.extOf(f.name) == "epub" -> overlay = Overlay.EpubView(entry.path)
-            FileOps.extOf(f.name) == "ttf" -> overlay = Overlay.FontView(entry.path)
-            FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> overlay = Overlay.OfficeView(entry.path)
-            FileOps.isTextFile(f) && f.length() <= 2_000_000 -> overlay = Overlay.TextView(entry.path)
+            FileOps.extOf(f.name) == "pdf" -> show(Overlay.PdfView(entry.path)
+            FileOps.extOf(f.name) == "epub" -> show(Overlay.EpubView(entry.path)
+            FileOps.extOf(f.name) == "ttf" -> show(Overlay.FontView(entry.path)
+            FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> show(Overlay.OfficeView(entry.path)
+            FileOps.isTextFile(f) && f.length() <= 2_000_000 -> show(Overlay.TextView(entry.path)
             entry.category == Category.ARCHIVE -> {
                 val kind = ArchiveOps.kindOf(f.name)
                 when {
@@ -1232,11 +1250,11 @@ fun SysFileApp() {
                             if (encrypted) {
                                 dialog = DialogKind.RarPassword(entry)
                             } else {
-                                overlay = Overlay.ArchiveView(entry.path)
+                                show(Overlay.ArchiveView(entry.path)
                             }
                         }
                     }
-                    else -> overlay = Overlay.ArchiveView(entry.path)
+                    else -> show(Overlay.ArchiveView(entry.path)
                 }
             }
             else -> openExternal(f)
@@ -1320,9 +1338,15 @@ fun SysFileApp() {
                     showAbout = false
                     showSettings = false
                     homeTab = 0
-                    val root = FileOps.storageRoots(context)
-                        .firstOrNull { it.kind == "internal" }?.path
-                    if (root != null) openFolderGuarded(root) { browseStack = listOf(root) }
+                    // L18: pakai state roots (bukan storageRoots di main
+                    // thread); bila root internal belum ada di state,
+                    // segarkan dulu.
+                    val root = roots.firstOrNull { it.kind == "internal" }?.path
+                    if (root != null) {
+                        openFolderGuarded(root) { browseStack = listOf(root) }
+                    } else {
+                        refreshRoots()
+                    }
                 },
                 onOpenSpecs = { showSpecs = true }
             )
@@ -1345,6 +1369,19 @@ fun SysFileApp() {
                 onRootEntry = { v ->
                     showRootEntry = v
                     prefs.edit().putBoolean("root_entry", v).apply()
+                    // L17: satu-satunya pemicu prompt root — hanya saat
+                    // sakelar dihidupkan dan akses root belum diketahui.
+                    // Bila ditolak, sakelar kembali mati.
+                    if (v && RootShell.state == RootShell.UNKNOWN) {
+                        scope.launch {
+                            val ok = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+                            if (!ok) {
+                                showRootEntry = false
+                                prefs.edit().putBoolean("root_entry", false).apply()
+                                notify(t.opFailed)
+                            }
+                        }
+                    }
                 },
                 onApps = { showApps = true },
                 onAbout = { showAbout = true },
@@ -1456,9 +1493,18 @@ fun SysFileApp() {
                                 openFolderGuarded(entry.path) { browseStack = listOf(entry.path) }
                             } else {
                                 entry.parentPath()?.let { parent ->
-                                    if (browseStack.lastOrNull() != parent) browseStack = listOf(parent)
+                                    if (browseStack.lastOrNull() != parent) {
+                                        // L12: masuk folder terkunci lewat
+                                        // gerbang (biometrik), bukan
+                                        // browseStack langsung.
+                                        openFolderGuarded(parent) {
+                                            browseStack = listOf(parent)
+                                            openEntry(entry)
+                                        }
+                                    } else {
+                                        openEntry(entry)
+                                    }
                                 }
-                                openEntry(entry)
                             }
                         }
                     )
@@ -1473,9 +1519,8 @@ fun SysFileApp() {
                         accessGranted = accessGranted,
                         onBack = { overlay = null; overlayReturn = null },
                         onOpenEntry = { entry, siblings ->
-                            val before = overlay
-                            openEntry(entry, siblings)
-                            overlayReturn = if (overlay !== before) ov else null
+                            overlayReturn = null
+                            openEntry(entry, siblings) { _ -> overlayReturn = ov }
                         }
                     )
                     is Overlay.ArchiveView -> ArchiveScreen(
@@ -2195,7 +2240,7 @@ fun SysFileApp() {
                                                 )
                                                 2 -> AnalysisScreen(
                                                     roots = roots,
-                                                    onOpenFolder = { path -> homeTab = 0; browseStack = listOf(path) },
+                                                    onOpenFolder = { path -> homeTab = 0; openFolderGuarded(path) { browseStack = listOf(path) } },
                                                     onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                                 )
                                                 else -> HomeScreen(
@@ -2446,7 +2491,9 @@ fun SysFileApp() {
                                 requestUnlock(stillLocked.path, ::doDelete)
                             } else {
                                 runOp(t.movedToTrash) {
-                                    d.entries.all { TrashOps.moveToTrash(it.file) }
+                                    var allOk = true
+                                    d.entries.forEach { if (!TrashOps.moveToTrash(it.file)) allOk = false }
+                                    allOk
                                 }
                                 val viewing = viewingPath
                                 if (viewing != null && d.entries.any { it.path == viewing }) {

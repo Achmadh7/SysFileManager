@@ -16,6 +16,8 @@ import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 
 /**
  * Unit tests for the file operations in FileOps / ArchiveOps (copy/move/delete/
@@ -303,6 +305,113 @@ class FileOpsTest {
         }
         val dest = tmp.newFolder("manyout")
         assertFalse(FileOps.unzip(zip, dest))
+    }
+
+    // --- r179: L14 / L23 / L7 / L1 / L2 ---
+
+    @Test
+    fun isUsbVolume_multiSpaceAndUnresolvableFirstMatchContinues() {
+        // L14: baris mounts ber-spasi ganda + match pertama yang sysfs-nya
+        // tak bisa di-resolve tidak menghentikan scan.
+        val mounts = "8,33  /mnt/media_rw/ABCD-1234   vfat rw,relatime 0 0\n" +
+            "8,34  /storage/ABCD-1234  vfat rw,relatime 0 0\n"
+        val resolved = mapOf<Pair<Int, Int>, String?>(
+            (8 to 33) to null,
+            (8 to 34) to "/sys/devices/pci0000:00/0000:00:14.0/usb1/8:0:0:0/block/sda"
+        )
+        assertTrue(FileOps.isUsbVolume("/storage/ABCD-1234", mounts) { major, minor ->
+            resolved[major to minor]
+        })
+    }
+
+    @Test
+    fun isUsbVolume_noUsbSegmentReturnsFalse() {
+        val mounts = "179,33  /mnt/media_rw/ABCD-1234  vfat rw 0 0\n"
+        assertFalse(FileOps.isUsbVolume("/storage/ABCD-1234", mounts) { _, _ ->
+            "/sys/devices/platform/soc/mmc_host/mmc0/block/mmcblk0"
+        })
+    }
+
+    @Test
+    fun folderStats_symlinkCycleVisitedOnce() {
+        // L23: siklus symlink (sub/loop -> dir) tidak lagi dikunjungi
+        // berulang kali — berkas dihitung sekali; direktori loop-nya
+        // sendiri tidak dihitung (onEnter false = entri dilewati walk).
+        val dir = tmp.newFolder("cyc")
+        val sub = File(dir, "sub").apply { mkdirs() }
+        File(sub, "f.txt").writeText("hello")
+        Files.createSymbolicLink(File(sub, "loop").toPath(), dir.toPath())
+        val stats = FileOps.folderStats(dir)
+        assertEquals(1, stats.fileCount)
+        assertEquals(5L, stats.totalSize)
+        assertEquals(1, stats.dirCount)
+    }
+
+    @Test
+    fun search_symlinkCycleReturnsOnce() {
+        val dir = tmp.newFolder("cyc2")
+        val sub = File(dir, "sub").apply { mkdirs() }
+        File(sub, "target.txt").writeText("hello")
+        Files.createSymbolicLink(File(sub, "loop").toPath(), dir.toPath())
+        val results = FileOps.search(dir, "target", showHidden = false)
+        assertEquals(1, results.size)
+        assertEquals("target.txt", results[0].name)
+    }
+
+    @Test
+    fun unzip_nestedDirsCleanedOnSlip() {
+        // L7: direktori yang dibuat selama ekstraksi ikut dihapus bila
+        // ekstraksi gagal (dulu hanya berkas yang dibersihkan).
+        val zip = File(tmp.root, "nested.zip")
+        makeZip(zip, listOf("a/b/c.txt" to "deep", "../evil.txt" to "x"))
+        val dest = tmp.newFolder("nestedout")
+        assertFalse(FileOps.unzip(zip, dest))
+        assertFalse(File(dest, "a").exists())
+        assertTrue(dest.listFiles().orEmpty().isEmpty())
+        assertFalse(File(tmp.root, "evil.txt").exists())
+    }
+
+    @Test
+    fun noteCreatedDir_recordsNewChainOnly() {
+        // L1: hanya rantai direktori yang belum ada yang dicatat.
+        val dest = tmp.newFolder("d1")
+        val created = mutableListOf<File>()
+        FileOps.noteCreatedDir(File(dest, "a/b"), dest.canonicalPath, created)
+        assertEquals(listOf(File(dest, "a/b"), File(dest, "a")), created)
+        val created2 = mutableListOf<File>()
+        FileOps.noteCreatedDir(dest, dest.canonicalPath, created2)
+        assertTrue(created2.isEmpty())
+    }
+
+    @Test
+    fun deleteCreatedDirs_removesDeepestFirst() {
+        val dest = tmp.newFolder("d2")
+        val deep = File(dest, "a/b/c").apply { mkdirs() }
+        val created = mutableListOf(deep, File(dest, "a/b"), File(dest, "a"))
+        FileOps.deleteCreatedDirs(created)
+        assertFalse(File(dest, "a").exists())
+        assertTrue(dest.exists())
+    }
+
+    @Test
+    fun extractSingle_tarScanCap() {
+        // L2: target di posisi 10.001 (di luar cap) -> null; target awal ketemu.
+        val tar = File(tmp.root, "many.tar")
+        TarArchiveOutputStream(FileOutputStream(tar)).use { tos ->
+            for (i in 0..FileOps.MAX_ARCHIVE_ENTRIES) {
+                val data = "x".toByteArray()
+                val e = TarArchiveEntry("f$i.txt")
+                e.size = data.size.toLong()
+                tos.putArchiveEntry(e)
+                tos.write(data)
+                tos.closeArchiveEntry()
+            }
+        }
+        val dest = tmp.newFolder("singleout")
+        assertNull(ArchiveOps.extractSingle(tar, "f${FileOps.MAX_ARCHIVE_ENTRIES}.txt", dest))
+        val found = ArchiveOps.extractSingle(tar, "f5.txt", dest)
+        assertNotNull(found)
+        assertEquals("x", found!!.readText())
     }
 
     // --- extract (LD3 r160: progres + batal) ---

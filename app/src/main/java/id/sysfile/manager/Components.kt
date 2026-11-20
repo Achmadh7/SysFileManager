@@ -179,36 +179,6 @@ fun rememberThumbLoader(): ImageLoader {
     }
 }
 
-/** Miniatur foto/video, atau ikon kategori untuk berkas lain. */
-@Composable
-fun FileThumb(entry: FEntry, sizeDp: Int) {
-    val isMedia = entry.category == Category.IMAGE || entry.category == Category.VIDEO
-    if (isMedia && !entry.isDir) {
-        AsyncImage(
-            model = File(entry.path),
-            contentDescription = null,
-            imageLoader = rememberThumbLoader(),
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        )
-    } else {
-        val color = entryColor(entry)
-        Box(
-            Modifier.size(sizeDp.dp).clip(CircleShape)
-                .background(color.copy(alpha = 0.16f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                if (entry.isDir) Icons.Default.Folder else categoryIcon(entry.category, entry.name),
-                null,
-                tint = color,
-                modifier = Modifier.size((sizeDp * 0.52f).dp)
-            )
-        }
-    }
-}
-
 /** Miniatur besar untuk sel kisi 2 kolom: foto/video memenuhi sel, lainnya panel ikon berwarna. */
 @Composable
 fun FileThumbLarge(entry: FEntry) {

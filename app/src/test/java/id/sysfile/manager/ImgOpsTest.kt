@@ -952,4 +952,30 @@ class ImgOpsTest {
         assertNull(ImgOps.readExt4Info(boot))
         assertNull(ImgOps.readExt4Info(writeFile("raw.img", ByteArray(64) { 0x42 })))
     }
+
+    // --- r179: L3 (unsparse tidak menimpa out sebelum validasi) ---
+
+    @Test
+    fun unsparse_corruptKeepsExistingOut() {
+        // L3: sparse korup tidak lagi menghapus konten out yang sudah ada.
+        val out = File(tmp.root, "keep.img")
+        out.writeText("SENTINEL")
+        val bad = writeFile("bad.img", "bukan-sparse".toByteArray())
+        assertTrue(ImgOps.unsparse(bad, out) is UnsparseResult.Invalid)
+        assertEquals("SENTINEL", out.readText())
+    }
+
+    @Test
+    fun unsparse_validReplacesExistingOut() {
+        // L3: sparse valid tetap menimpa out yang sudah ada.
+        val blkSz = 4096
+        val raw = ByteArray(blkSz) { 0x42 }
+        val f = makeSparse(blkSz, 1, listOf(rawChunk(raw, blkSz)))
+        val out = File(tmp.root, "replace.img")
+        out.writeText("SENTINEL")
+        val r = ImgOps.unsparse(f, out)
+        assertTrue(r is UnsparseResult.Ok)
+        assertEquals(out, (r as UnsparseResult.Ok).outFile)
+        assertEquals(raw.toList(), out.readBytes().toList())
+    }
 }

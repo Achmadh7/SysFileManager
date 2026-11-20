@@ -107,6 +107,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 
@@ -297,7 +298,7 @@ fun ImageViewerScreen(
     }
 }
 
-/** Penampil/pengubah berkas teks sederhana (maks 1 MB yang dimuat).
+/** Penampil/pengubah berkas teks sederhana (maks 2 MB yang dimuat).
  *  .md dan .html/.htm punya tombol pratinjau di bilah atas: HTML tampil
  *  apa adanya, Markdown di-render dulu jadi HTML (Markdown.kt) — keduanya
  *  di WebView yang sama (JS mati, base file:// folder induk supaya gambar
@@ -331,9 +332,21 @@ fun TextViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit,
         val text = withContext(Dispatchers.IO) {
             try {
                 val f = File(path)
-                val bytes = f.inputStream().use { it.readBytes() }
-                val capped = if (bytes.size > 2_000_000) bytes.copyOf(2_000_000) else bytes
-                String(capped, Charsets.UTF_8)
+                // L10: baca streaming dengan cap 2 MB — dulu readBytes()
+                // penuh lalu copyOf: berkas >2 MB dialokasikan utuh di heap
+                // sebelum dipotong.
+                val buf = ByteArray(8192)
+                val out = ByteArrayOutputStream()
+                f.inputStream().use { input ->
+                    var remaining = 2_000_000
+                    while (remaining > 0) {
+                        val n = input.read(buf, 0, minOf(buf.size, remaining))
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        remaining -= n
+                    }
+                }
+                String(out.toByteArray(), Charsets.UTF_8)
             } catch (e: Exception) {
                 null
             }

@@ -49,12 +49,17 @@ object RootShell {
         }
     }
 
+    /** L28: kunci untuk check-and-run [ensureRoot] — dulu dua pemanggil
+     *  bersamaan bisa lolos dari cek state bersamaan dan menampilkan
+     *  prompt su dua kali. */
+    private val rootLock = Any()
+
     /** Cek/minta akses root (memicu prompt Magisk bila belum diputuskan). Hasil di-cache per sesi. */
-    fun ensureRoot(): Boolean {
-        if (state != UNKNOWN) return state == GRANTED
+    fun ensureRoot(): Boolean = synchronized(rootLock) {
+        if (state != UNKNOWN) return@synchronized state == GRANTED
         val granted = runSu("id", 20)?.any { it.contains("uid=0") } == true
         state = if (granted) GRANTED else DENIED
-        return granted
+        granted
     }
 
     /** Shell root dipakai untuk jalur di luar penyimpanan bersama. */
@@ -91,28 +96,63 @@ object RootShell {
         return if (viaMedia != null && viaMedia.isNotEmpty()) viaMedia else primary
     }
 
-    /** Pola awal rekaman stat: "T|angka|angka|" (T = D/F/O). */
-    private val statLinePattern = Regex("^[DFO]\\|\\d+\\|\\d+\\|")
-
-    /** Gabungkan baris keluaran stat menjadi rekaman; nama berkas boleh mengandung
-     *  baris baru (E1). Baris rekaman baru selalu cocok pola di atas; baris lain
-     *  adalah kelanjutan nama rekaman sebelumnya. '|' di nama aman: jalur terakhir
-     *  dan split memakai limit=4, jadi tidak memecah rekaman. Internal agar bisa
-     *  diuji tanpa su. */
+    // L15: record stat berformat length-prefixed (T|size|mtime|len|path)
+    // sehingga nama file yang mengandung newline tidak lagi menyamar
+    // sebagai record baru — dulu parser berbasis Regex per baris membuat
+    // record hantu (baris lanjutan nama yang kebetulan cocok pola
+    // "D|angka|angka|" dianggap record baru dengan nama/saat salah).
     internal fun groupStatLines(lines: List<String>): List<String> {
-        val records = mutableListOf<String>()
-        val current = StringBuilder()
-        for (line in lines) {
-            if (statLinePattern.containsMatchIn(line)) {
-                if (current.isNotEmpty()) records += current.toString()
-                current.clear()
-                current.append(line)
-            } else if (current.isNotEmpty()) {
-                current.append('\n').append(line)
+        val bytes = (lines.joinToString("\n") + "\n").toByteArray(Charsets.UTF_8)
+        val result = mutableListOf<String>()
+        var i = 0
+        while (i < bytes.size) {
+            // Header: T|size|mtime|len — 4 pemisah '|' pertama dari i.
+            // Path bisa mengandung '|' dan newline, jadi batas path
+            // ditentukan len, BUKAN newline berikutnya.
+            var p1 = -1
+            var p2 = -1
+            var p3 = -1
+            var p4 = -1
+            var j = i
+            var corrupt = false
+            while (j < bytes.size) {
+                val b = bytes[j]
+                if (b == '\n'.code.toByte()) {
+                    // Newline sebelum 4 pemisah ketemu: header rusak.
+                    corrupt = true
+                    break
+                }
+                if (b == '|'.code.toByte()) {
+                    if (p1 < 0) p1 = j else if (p2 < 0) p2 = j else if (p3 < 0) p3 = j else if (p4 < 0) {
+                        p4 = j
+                        break
+                    }
+                }
+                j++
             }
+            if (corrupt || p4 < 0) {
+                // Lewati baris ini, lanjut dari baris berikut.
+                i = if (corrupt) j + 1 else bytes.size
+                continue
+            }
+            val kind = bytes[i].toInt().toChar()
+            val size = String(bytes, p1 + 1, p2 - p1 - 1, Charsets.UTF_8).toLongOrNull()
+            val mtime = String(bytes, p2 + 1, p3 - p2 - 1, Charsets.UTF_8).toLongOrNull()
+            // wc -c mengeluarkan spasi di depan angka — trim dulu.
+            val len = String(bytes, p3 + 1, p4 - p3 - 1, Charsets.UTF_8).trim().toIntOrNull()
+            if (kind != 'D' && kind != 'F' && kind != 'O' || size == null || mtime == null || len == null || len < 0) {
+                i = p4 + 1
+                continue
+            }
+            val pathStart = p4 + 1
+            val pathEnd = pathStart + len
+            if (pathEnd > bytes.size) break
+            val path = String(bytes, pathStart, len, Charsets.UTF_8)
+            result += "$kind|$size|$mtime|$path"
+            // Setelah path ada satu '\n' pemisah.
+            i = if (pathEnd < bytes.size && bytes[pathEnd] == '\n'.code.toByte()) pathEnd + 1 else pathEnd
         }
-        if (current.isNotEmpty()) records += current.toString()
-        return records
+        return result
     }
 
     private fun listDirRaw(dir: File, showHidden: Boolean, sort: SortKey, ascending: Boolean): List<FEntry>? {
@@ -121,7 +161,8 @@ object RootShell {
             "[ -e \"\$f\" ] || [ -L \"\$f\" ] || continue; " +
             "if [ -d \"\$f\" ]; then t=D; elif [ -f \"\$f\" ]; then t=F; else t=O; fi; " +
             "s=\$(stat -c %s \"\$f\" 2>/dev/null); m=\$(stat -c %Y \"\$f\" 2>/dev/null); " +
-            "echo \"\$t|\${s:-0}|\${m:-0}|\$f\"; done"
+            "n=\$(printf '%s' \"\$f\" | wc -c); " +
+            "printf '%s|%s|%s|%s|%s\\n' \"\$t\" \"\${s:-0}\" \"\${m:-0}\" \"\$n\" \"\$f\"; done"
         val lines = runSu(script, 30) ?: return null
         val entries = mutableListOf<FEntry>()
         for (line in groupStatLines(lines)) {

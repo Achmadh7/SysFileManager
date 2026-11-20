@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- L20: hanya jalur yang benar-benar dipakai FileProvider:
+         external-path untuk share/buka berkas storage; cache-path
+         hanya subdir yang dilewatkan ke getUriForFile (rootstage,
+         archive-view, apkshare, share-strip). files-path dan
+         external-files-path dihapus — tidak ada pemakai. -->
     <external-path name="external" path="." />
-    <external-files-path name="external_files" path="." />
-    <files-path name="files" path="." />
-    <cache-path name="cache" path="." />
+    <cache-path name="rootstage" path="rootstage/" />
+    <cache-path name="archive-view" path="archive-view/" />
+    <cache-path name="apkshare" path="apkshare/" />
+    <cache-path name="share-strip" path="share-strip/" />
 </paths>

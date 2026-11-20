@@ -340,7 +340,14 @@ object ImgOps {
         val total = entries.size.toLong()
         var done = 0L
         val written = mutableListOf<File>()
+        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
+        val createdDirs = mutableListOf<File>()
         var ok = true
+        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
+        fun cleanup() {
+            written.forEach { file -> file.delete() }
+            FileOps.deleteCreatedDirs(createdDirs)
+        }
         try {
             val destCanonical = destDir.canonicalPath
             val budget = ExtractBudget()
@@ -352,10 +359,18 @@ object ImgOps {
                 if (!FileOps.isPathInside(destCanonical, out.canonicalPath)) { ok = false; break }
                 val type = e.mode and 0xF000L
                 if (type == 0x4000L) {
+                    FileOps.noteCreatedDir(out, destCanonical, createdDirs)
                     out.mkdirs()
+                    // L1: validasi ulang canonical SETELAH mkdirs (TOCTOU).
+                    val dirCanon = try { out.canonicalPath } catch (e: Exception) { null }
+                    if (dirCanon == null || !FileOps.isPathInside(destCanonical, dirCanon)) { ok = false; break }
                 } else if (type == 0x8000L) {
                     val existed = out.exists()
+                    FileOps.noteCreatedDir(out.parentFile, destCanonical, createdDirs)
                     out.parentFile?.mkdirs()
+                    // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
+                    val parentCanon = try { out.parentFile?.canonicalPath } catch (e: Exception) { null }
+                    if (parentCanon == null || !FileOps.isPathInside(destCanonical, parentCanon)) { ok = false; break }
                     val count = (e.dataEnd - e.dataStart).toLong()
                     // M1: anggaran diperiksa SEBELUM menulis — data sudah
                     // di memori dan ukurannya diketahui, jadi tidak ada
@@ -369,12 +384,12 @@ object ImgOps {
                 onProgress(done, total)
             }
         } catch (e: ImgCancelledException) {
-            written.forEach { it.delete() }
+            cleanup()
             throw e
         } catch (e: Exception) {
             ok = false
         }
-        if (!ok) written.forEach { it.delete() }
+        if (!ok) cleanup()
         return ok
     }
 
@@ -413,9 +428,9 @@ object ImgOps {
     }
 
     /** Ubah citra sparse Android menjadi citra mentah di [out] (streaming,
-     *  bukan ke memori — system image bisa multi-GB). [out] dimiliki
-     *  unsparse: bila gagal (terlalu besar / rusak), berkas output
-     *  parsial dihapus — kecuali berkas yang sudah ada sebelumnya.
+     *  bukan ke memori — system image bisa multi-GB). L3: bila gagal,
+     *  out yang sudah ada tidak disentuh (tulis ke temp, rename bila
+     *  sukses).
      *  Batas keluaran [maxBytes] (default 8 GiB).
  *  LD3 r159: [onProgress] dipanggil per 64 KiB yang tertulis
  *  (done, total = totalBlks * blk_sz); [cancelFlag] yang terpasang
@@ -438,12 +453,29 @@ object ImgOps {
     ): UnsparseResult {
         if (!source.isFile) return UnsparseResult.Invalid("bukan berkas")
         if (maxBytes < 0) return UnsparseResult.Invalid("batas negatif")
-        val existed = out.exists()
-        val result = unsparseRun(source, out, maxBytes, onProgress, cancelFlag)
-        // Gagal -> berkas output parsial tidak boleh tertinggal; berkas
-        // yang sudah ada sebelumnya tidak disentuh.
-        if (result !is UnsparseResult.Ok && !existed) out.delete()
-        return result
+        // L3: out yang sudah ada TIDAK boleh ditimpa sebelum validasi —
+        // dulu unsparseRun menulis langsung ke out (FileOutputStream
+        // memotongnya), jadi sparse korup menghapus konten out padahal
+        // komentar di sini mengklaim "tidak disentuh".
+        // Tulis ke temp di direktori out, lalu rename hanya bila sukses.
+        val parent = out.parentFile ?: return UnsparseResult.Invalid("induk tidak ada")
+        val tmp = try {
+            FileOps.tempFileIn(parent)
+        } catch (e: Exception) {
+            null
+        } ?: return UnsparseResult.Invalid("temp gagal dibuat")
+        try {
+            val result = unsparseRun(source, tmp, maxBytes, onProgress, cancelFlag)
+            if (result is UnsparseResult.Ok) {
+                if (tmp.renameTo(out)) {
+                    return UnsparseResult.Ok(out, result.totalBytes)
+                }
+                return UnsparseResult.Invalid("rename gagal")
+            }
+            return result
+        } finally {
+            tmp.delete()
+        }
     }
 
     /** Parse superblock ext4 (1024 byte di offset 1024); null bila bukan

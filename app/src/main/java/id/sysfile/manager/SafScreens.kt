@@ -70,15 +70,25 @@ object SafOps {
     /** URI awal pemilih berkas agar langsung membuka folder [path]. */
     fun initialUriFor(path: String): Uri? {
         val internal = Environment.getExternalStorageDirectory().absolutePath
+        // L16: /sdcard dan /storage/self/primary adalah alias storage
+        // internal — dulu jatuh ke null ("/sdcard") atau volume "self"
+        // yang salah, sehingga pemilih SAF dibuka di lokasi default
+        // sistem, bukan di folder yang diminta.
+        val normalized = when {
+            path == "/sdcard" || path == "/storage/self/primary" -> internal
+            path.startsWith("/sdcard/") -> internal + path.removePrefix("/sdcard")
+            path.startsWith("/storage/self/primary/") -> internal + path.removePrefix("/storage/self/primary")
+            else -> path
+        }
         val vol: String
         val rel: String
         when {
-            path == internal || path.startsWith("$internal/") -> {
+            normalized == internal || normalized.startsWith("$internal/") -> {
                 vol = "primary"
-                rel = path.removePrefix(internal).trim('/')
+                rel = normalized.removePrefix(internal).trim('/')
             }
-            path.startsWith("/storage/") -> {
-                val rest = path.removePrefix("/storage/")
+            normalized.startsWith("/storage/") -> {
+                val rest = normalized.removePrefix("/storage/")
                 vol = rest.substringBefore('/')
                 rel = rest.substringAfter('/', "")
             }
@@ -102,6 +112,9 @@ object SafOps {
         } catch (e: Exception) {
             return ""
         }
+        // L16: docId tanpa ':' bukan path storage (mis. "home") — dulu
+        // dipetakan ke "/storage/<seluruh-docId>" yang palsu.
+        if (!docId.contains(':')) return ""
         val vol = docId.substringBefore(':')
         val rel = docId.substringAfter(':', "")
         val base = if (vol == "primary") {
@@ -121,6 +134,8 @@ object SafOps {
         } catch (e: Exception) {
             return ""
         }
+        // L16: docId tanpa ':' bukan path storage (lihat pathOfTree).
+        if (!docId.contains(':')) return ""
         val vol = docId.substringBefore(':')
         val rel = docId.substringAfter(':', "")
         val base = if (vol == "primary") {
@@ -389,13 +404,18 @@ private fun copySafOut(context: Context, doc: DocumentFile, dirPath: String): Bo
     val dir = File(dirPath)
     if (!dir.isDirectory) return false
     val name = FileOps.uniqueName(dir, doc.name ?: "file")
+    val outFile = File(dir, name)
+    // L6: total byte dicap (2 GiB) dan output sebagian dihapus bila
+    // gagal — dulu copyTo tanpa batas + tanpa cleanup (berkas SAF
+    // setengah jadi tertinggal di folder lokal).
     return try {
         val input = context.contentResolver.openInputStream(doc.uri) ?: return false
         input.use { inp ->
-            FileOutputStream(File(dir, name)).use { out -> inp.copyTo(out) }
+            CountingOutputStream(FileOutputStream(outFile), FileOps.MAX_EXTRACT_BYTES).use { out -> inp.copyTo(out) }
         }
         true
     } catch (e: Exception) {
+        outFile.delete()
         false
     }
 }
