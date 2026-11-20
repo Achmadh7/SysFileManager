@@ -250,6 +250,8 @@ fun SysFileApp() {
     // r137 TM1 Pudar Utuh: tangkapan layar tema lama + alfa memudarnya.
     // Saat tema diganti, layar lama (bitmap) memudar di atas layar baru
     // ~300 ms — bar atas tidak ketinggalan lagi.
+    // r140: tangkapan hanya saat tidak ada fade yang sedang berjalan
+    // (themeShot == null) — lihat onTheme.
     val rootView = LocalView.current
     var themeShot by remember { mutableStateOf<Bitmap?>(null) }
     val themeShotAlpha = remember { Animatable(1f) }
@@ -907,10 +909,18 @@ fun SysFileApp() {
                 onTheme = { mode ->
                     // r137 TM1: tangkap layar lama SEBELUM ganti tema;
                     // gagal tangkap = ganti instan seperti biasa.
-                    themeShot = try {
-                        if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
-                    } catch (_: Exception) {
-                        null
+                    // r140: tangkap HANYA bila tidak ada fade yang sedang
+                    // berjalan. Ketukan saat overlay masih memudar akan
+                    // menangkap overlay itu juga (makin buram tiap
+                    // ketukan) + bar atas yang masih beranimasi; tanpa
+                    // tangkap ulang, fade lama terus jalan di atas tema
+                    // terbaru tanpa tumpukan.
+                    if (themeShot == null) {
+                        themeShot = try {
+                            if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
                     themeMode = mode
                     prefs.edit().putString("theme_mode", mode).apply()
