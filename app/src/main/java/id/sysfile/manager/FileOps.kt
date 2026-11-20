@@ -123,8 +123,16 @@ object FileOps {
     }
 
     fun isTextFile(file: File): Boolean {
+        // r148: berkas dotfile tanpa ekstensi (.env, .editorconfig,
+        // .gitignore) tidak tertangkap extOf — titiknya di indeks 0
+        // sehingga ekstensinya "" — jadi dicocokkan dari namanya.
+        // .env.* (mis. .env.local) juga berkas env.
+        val lower = file.name.lowercase()
+        if (lower == ".env" || lower.startsWith(".env.") ||
+            lower == ".editorconfig" || lower == ".gitignore"
+        ) return true
         val ext = extOf(file.name)
-        return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh", "srt", "prop", "config", "conf", "toml")
+        return ext in setOf("txt", "md", "log", "json", "xml", "csv", "html", "htm", "kt", "java", "py", "js", "css", "ini", "cfg", "yaml", "yml", "properties", "sh", "srt", "prop", "config", "conf", "toml", "tsv", "jsonl", "sql", "jsonc", "reg")
     }
 
     /** Folder yang dibatasi sistem (Android/data, Android/obb): jalur berkas

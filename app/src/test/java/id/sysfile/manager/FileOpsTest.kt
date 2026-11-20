@@ -386,6 +386,24 @@ class FileOpsTest {
     }
 
     @Test
+    fun isTextFile_practicalBatch_returnsTrue() {
+        // r148: 5 ekstensi baru + 3 dotfile (dicocokkan dari nama
+        // karena extOf mengembalikan "" untuk dotfile).
+        assertTrue(FileOps.isTextFile(File("data.tsv")))
+        assertTrue(FileOps.isTextFile(File("data.jsonl")))
+        assertTrue(FileOps.isTextFile(File("query.sql")))
+        assertTrue(FileOps.isTextFile(File("QUERY.SQL")))
+        assertTrue(FileOps.isTextFile(File("settings.jsonc")))
+        assertTrue(FileOps.isTextFile(File("fix.reg")))
+        assertTrue(FileOps.isTextFile(File(".env")))
+        assertTrue(FileOps.isTextFile(File(".env.local")))
+        assertTrue(FileOps.isTextFile(File(".editorconfig")))
+        assertTrue(FileOps.isTextFile(File(".gitignore")))
+        assertFalse(FileOps.isTextFile(File("env")))
+        assertFalse(FileOps.isTextFile(File("foto.png")))
+    }
+
+    @Test
     fun isRestrictedDir_androidDataObb() {
         assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/data"))
         assertTrue(FileOps.isRestrictedDir("/storage/emulated/0/Android/data/com.example"))
