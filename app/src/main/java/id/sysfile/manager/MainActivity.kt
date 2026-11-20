@@ -561,6 +561,7 @@ fun SysFileApp() {
 
     var showHidden by remember { mutableStateOf(prefs.getBoolean("show_hidden", false)) }
     var showRootEntry by remember { mutableStateOf(prefs.getBoolean("root_entry", false)) }
+    var trashEnabled by remember { mutableStateOf(prefs.getBoolean("trash_enabled", true)) }
     var gridView by remember { mutableStateOf(prefs.getBoolean("grid_view", false)) }
     var sortKey by remember {
         mutableStateOf(
@@ -1548,6 +1549,7 @@ fun SysFileApp() {
                 language = language,
                 showHidden = showHidden,
                 showRootEntry = showRootEntry,
+                trashEnabled = trashEnabled,
                 onTheme = onThemeChange,
                 onLanguage = { lang ->
                     language = lang
@@ -1581,6 +1583,10 @@ fun SysFileApp() {
                             }
                         }
                     }
+                },
+                onTrashEnabled = { v ->
+                    trashEnabled = v
+                    prefs.edit().putBoolean("trash_enabled", v).apply()
                 },
                 onApps = { showApps = true },
                 onAbout = { showAbout = true },
@@ -2840,8 +2846,11 @@ fun SysFileApp() {
             )
             is DialogKind.Delete -> AlertDialog(
                 onDismissRequest = { dialog = null },
-                title = { Text(t.delete) },
-                text = { Text(t.deleteConfirm(if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size))) },
+                title = { Text(if (trashEnabled) t.delete else t.deleteForever) },
+                text = {
+                    val name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
+                    Text(if (trashEnabled) t.deleteConfirm(name) else t.deleteForeverConfirm(name))
+                },
                 confirmButton = {
                     TextButton(onClick = {
                         dialog = null
@@ -2858,10 +2867,14 @@ fun SysFileApp() {
                             } else {
                                 runCardOp(
                                     name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
-                                    successMsg = t.movedToTrash
+                                    successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
                                 ) {
                                     var allOk = true
-                                    d.entries.forEach { if (!TrashOps.moveToTrash(it.file)) allOk = false }
+                                    d.entries.forEach {
+                                        val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
+                                        else FileOps.deleteRecursively(it.file)
+                                        if (!ok) allOk = false
+                                    }
                                     allOk
                                 }
                                 val viewing = viewingPath
@@ -2873,7 +2886,7 @@ fun SysFileApp() {
                             }
                         }
                         doDelete()
-                    }) { Text(t.delete) }
+                    }) { Text(if (trashEnabled) t.delete else t.deleteForever) }
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
             )

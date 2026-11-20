@@ -168,10 +168,12 @@ fun SettingsScreen(
     language: String,
     showHidden: Boolean,
     showRootEntry: Boolean,
+    trashEnabled: Boolean,
     onTheme: (String) -> Unit,
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
+    onTrashEnabled: (Boolean) -> Unit,
     onApps: () -> Unit,
     onAbout: () -> Unit,
     onBack: () -> Unit,
@@ -278,6 +280,17 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                             title = t.rootAccessTitle,
                             subtitle = t.rootAccessDesc,
                             trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsRow(
+                            icon = Icons.Default.Delete,
+                            circleColor = Color(0xFF9AA8B5),
+                            title = t.trash,
+                            subtitle = if (trashEnabled) t.trashHintOn else t.trashHintOff,
+                            trailing = { Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled) }
                         )
                     }
                 }
