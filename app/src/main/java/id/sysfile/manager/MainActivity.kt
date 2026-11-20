@@ -1509,7 +1509,6 @@ fun SysFileApp() {
                         initialState is Overlay.Ext4View || targetState is Overlay.Ext4View ||
                         initialState is Overlay.FatView || targetState is Overlay.FatView ||
                         initialState is Overlay.LpView || targetState is Overlay.LpView ||
-                        initialState is Overlay.PayloadView || targetState is Overlay.PayloadView) {
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView ||
                         initialState is Overlay.DexView || targetState is Overlay.DexView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
