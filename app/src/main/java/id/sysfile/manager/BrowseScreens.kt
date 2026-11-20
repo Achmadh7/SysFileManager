@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -203,7 +204,12 @@ fun BrowseHeaderBar(
             },
             expanded = false,
             onExpandedChange = {},
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
+            // status bar di atas pil (windowInsets default), padahal
+            // ia duduk di bawah TopAppBar yang inset-nya sudah
+            // dikonsumsi Scaffold; tanpa ini pil terdorong ~36dp.
+            windowInsets = WindowInsets(0.dp)
         ) {}
         ButtonGroup(modifier = Modifier.padding(top = 8.dp)) {
             toggleableItem(
