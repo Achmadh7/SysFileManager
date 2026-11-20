@@ -284,7 +284,7 @@ fun BrowseScreen(
     counts: Map<String, Int>,
     lockedPaths: Set<String> = emptySet(),
     safHasGrant: Boolean = false,
-    onSafAction: (() -> Unit)? = null
+    onSafAction: (() -> Unit)? = null,
     safSubtreeBlocked: Boolean = false
 ) {
     val t = txt()
