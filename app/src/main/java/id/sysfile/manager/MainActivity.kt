@@ -1530,12 +1530,13 @@ fun SysFileApp() {
                         onDelete = { p -> dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(p)))) },
                         onPathChange = { viewingPath = it }
                     )
-                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, originalPath = ov.originalPath)
+                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, snackbarHostState = snackbar, originalPath = ov.originalPath)
                     is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null })
                     is Overlay.ArchiveText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
+                        snackbarHostState = snackbar,
                         extractedText = ov.content,
                         onSaveArchiveText = if (ov.canSave) { { newText -> ArchiveOps.replaceZipEntry(File(ov.archivePath), ov.name, newText) } } else null,
                         onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) }
@@ -1544,18 +1545,21 @@ fun SysFileApp() {
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
+                        snackbarHostState = snackbar,
                         extractedText = ov.content
                     )
                     is Overlay.Ext4Text -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
+                        snackbarHostState = snackbar,
                         extractedText = ov.content
                     )
                     is Overlay.FatText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
+                        snackbarHostState = snackbar,
                         extractedText = ov.content
                     )
                     is Overlay.PdfView -> PdfViewerScreen(
@@ -1570,7 +1574,8 @@ fun SysFileApp() {
                     is Overlay.OfficeView -> OfficeViewerScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
-                        notify = { notify(it) }
+                        notify = { notify(it) },
+                        snackbarHostState = snackbar
                     )
                     is Overlay.VideoView -> VideoViewerScreen(
                         paths = ov.paths,

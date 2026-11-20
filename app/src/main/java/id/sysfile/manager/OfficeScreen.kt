@@ -13,6 +13,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -34,7 +35,7 @@ import java.io.File
  *  boleh disimpan kembali). Gagal ekstrak -> pesan gagal baca. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun OfficeViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit) {
+fun OfficeViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Unit, snackbarHostState: SnackbarHostState) {
     val t = txt()
     var text by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
@@ -53,7 +54,7 @@ fun OfficeViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Uni
     val content = text
     BackHandler { onBack() }
     if (content != null) {
-        TextViewerScreen(path, onBack, notify, extractedText = content)
+        TextViewerScreen(path, onBack, notify, snackbarHostState, extractedText = content)
     } else {
         Scaffold(
             topBar = {
