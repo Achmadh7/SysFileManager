@@ -549,6 +549,9 @@ fun SysFileApp() {
                     .putStringSet("saf_grants", (kept + "$p\u0001$uri").toSet())
                     .apply()
             }
+            // Hitungan "0 item" yang telanjur tersimpan untuk folder ini
+            // harus dihitung ulang lewat SAF saat layar induk dibuka lagi.
+            if (p.isNotEmpty()) countCache.remove(p)
             safRelPath = ""
             safTreeUri = uri.toString()
         }
@@ -682,11 +685,19 @@ fun SysFileApp() {
                                 // Angka 0 karena folder tak terbaca langsung
                                 // (wilayah root atau Android/data): hitung
                                 // lewat shell root bila aksesnya sudah ada.
+                                // Folder terkunci yang sudah diberi izin SAF
+                                // dihitung lewat DocumentFile.
                                 val count = if (direct == 0 &&
                                     RootShell.state == RootShell.GRANTED &&
                                     unreadable(entry.file)
                                 ) {
                                     RootShell.childCount(entry.file) ?: direct
+                                } else if (direct == 0 &&
+                                    FileOps.isRestrictedDir(entry.path)
+                                ) {
+                                    safGrantFor(entry.path)?.let { (uri, rel) ->
+                                        SafOps.countChildren(context, uri, rel)
+                                    } ?: direct
                                 } else {
                                     direct
                                 }

@@ -84,7 +84,11 @@ object SafOps {
             }
             else -> return null
         }
-        val docId = if (rel.isEmpty()) "$vol:" else "$vol:$rel"
+        // AOSP DocumentsUI membuang URI awal di dalam /Android/data|obb|sandbox
+        // (beserta subfoldernya) — pemilih malah terbuka di lokasi terakhir.
+        // Minta akar volume saja (SafPath); dari sana pengguna mengetuk
+        // Android -> obb/data -> folder paket, lalu "Gunakan folder ini".
+        val docId = SafPath.initialDocId(vol, rel)
         val treeUri = DocumentsContract.buildTreeDocumentUri(
             "com.android.externalstorage.documents", docId
         )
@@ -106,6 +110,20 @@ object SafOps {
             "/storage/$vol"
         }
         return if (rel.isEmpty()) base else "$base/$rel"
+    }
+
+    /** Jumlah anak langsung di bawah pohon SAF (untuk angka "N item" di layar induk). */
+    fun countChildren(context: Context, treeUri: String, relPath: String): Int? {
+        return try {
+            var cur = DocumentFile.fromTreeUri(context, Uri.parse(treeUri)) ?: return null
+            for (seg in relPath.split('/')) {
+                if (seg.isEmpty()) continue
+                cur = cur.listFiles().firstOrNull { it.isDirectory && it.name == seg } ?: return null
+            }
+            cur.listFiles().size
+        } catch (e: Exception) {
+            null
+        }
     }
 }
 

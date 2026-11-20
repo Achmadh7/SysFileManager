@@ -325,6 +325,21 @@ fun BrowseScreen(
                             Text(if (safHasGrant) t.safOpen else t.safGrant)
                         }
                     }
+                    if (restricted && !safHasGrant && onSafAction != null) {
+                        // Pemilih sistem membuang URI awal di dalam Android/data|obb,
+                        // jadi ia tidak terbuka di folder ini — beri tahu pengguna
+                        // persis folder mana yang harus dibuka di pemilih.
+                        val hintRel = currentPath.substringAfter("/Android/", "")
+                        val hintPath = if (hintRel.isNotEmpty()) "Android/$hintRel"
+                            else File(currentPath).name
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            t.safPickHint(hintPath),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
                 gridView -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
