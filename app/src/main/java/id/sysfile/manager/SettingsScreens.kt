@@ -255,7 +255,6 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         SettingsRow(
-                        SettingsRow(
                             icon = Icons.Default.Palette,
                             circleColor = Color(0xFF64D2FF),
                             title = t.themeStyle,
@@ -266,6 +265,7 @@ fun SettingsScreen(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
+                        SettingsRow(
                             icon = Icons.Default.Translate,
                             circleColor = Color(0xFF4DA3FF),
                             title = t.language,
