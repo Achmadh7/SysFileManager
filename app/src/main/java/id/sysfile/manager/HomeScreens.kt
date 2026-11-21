@@ -97,7 +97,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
@@ -213,13 +212,10 @@ fun HomeScreen(
     roots: List<RootInfo>,
     rootActive: Boolean,
     trashEnabled: Boolean,
-    recentFiles: List<FEntry> = emptyList(),
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
     onOpenTrash: () -> Unit,
-    onOpenEntry: ((FEntry) -> Unit)? = null,
-    onSeeAllRecents: (() -> Unit)? = null,
 ) {
     val t = txt()
     LazyColumn(
@@ -394,90 +390,6 @@ fun HomeScreen(
                         )
                     } else {
                         Spacer(Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-        // Seksi File Terbaru (Quick Recents - Hasil efisiensi ruang kategori)
-        if (recentFiles.isNotEmpty() && onOpenEntry != null) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.History,
-                                null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                if (t.recentShort.isNotBlank()) t.recentShort else "Baru Ditambahkan",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        if (onSeeAllRecents != null) {
-                            Text(
-                                "Lihat Semua ›",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onSeeAllRecents() }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    ) {
-                        val topRecents = recentFiles.take(3)
-                        topRecents.forEachIndexed { idx, entry ->
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onOpenEntry(entry) }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                FileThumbTile(entry, 36)
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        entry.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    val dateStr = shortDate(entry.modified, t)
-                                    val sizeStr = FileOps.formatSize(entry.size)
-                                    Text(
-                                        "$sizeStr \u00b7 $dateStr",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                            if (idx < topRecents.size - 1) {
-                                HorizontalDivider(
-                                    Modifier.padding(horizontal = 12.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                )
-                            }
-                        }
                     }
                 }
             }
