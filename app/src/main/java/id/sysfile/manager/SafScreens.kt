@@ -300,7 +300,6 @@ fun SafBrowseScreen(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(children!!, key = { it.uri.toString() }) { doc ->
                     if (isLiquid) {
                         item {
                             Text(
@@ -313,6 +312,7 @@ fun SafBrowseScreen(
                             )
                         }
                     }
+                    items(children!!, key = { it.uri.toString() }) { doc ->
                         SafRow(
                             doc = doc,
                             onClick = {

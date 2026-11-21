@@ -286,7 +286,6 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
                     )
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
-                    items(visible, key = { it.packageName }) { app ->
                     if (isLiquid) {
                         item {
                             Text(
@@ -299,6 +298,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
                             )
                         }
                     }
+                    items(visible, key = { it.packageName }) { app ->
                         ListItem(
                             headlineContent = {
                                 Text(

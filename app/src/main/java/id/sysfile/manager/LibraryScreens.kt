@@ -403,7 +403,6 @@ fun CategoryScreen(
                         )
                     }
                     else -> LazyColumn(Modifier.fillMaxSize()) {
-                        items(loaded.orEmpty(), key = { it.path }) { entry ->
                         if (isLiquid) {
                             item {
                                 Text(
@@ -424,6 +423,7 @@ fun CategoryScreen(
                                 )
                             }
                         }
+                        items(loaded.orEmpty(), key = { it.path }) { entry ->
                             FileRow(
                                 entry = entry,
                                 selectionMode = false,
@@ -873,7 +873,6 @@ fun PayloadScreen(
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     item {
                     if (isLiquid) {
-                        item {
                             Text(
                                 payloadFile.name,
                                 style = MaterialTheme.typography.headlineLarge,
@@ -882,7 +881,6 @@ fun PayloadScreen(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                             )
-                        }
                     }
                         val meta = loaded
                         if (meta != null) {
@@ -1000,7 +998,6 @@ fun ArchiveScreen(
                     else -> {
                         val children = archiveChildren(loaded.orEmpty(), shownPrefix)
                         LazyColumn(Modifier.fillMaxSize()) {
-                            items(children, key = { it.first.name }) { (item, count) ->
                             if (isLiquid) {
                                 item {
                                     Text(
@@ -1013,6 +1010,7 @@ fun ArchiveScreen(
                                     )
                                 }
                             }
+                            items(children, key = { it.first.name }) { (item, count) ->
                                 ArchiveItemRow(item = item, count = count, onClick = {
                                     if (item.isDir) { prefix = item.name; onPrefixChange(item.name) } else onOpenFile(item.name)
                                 })
@@ -1166,7 +1164,6 @@ fun ImgBrowseScreen(
                     else -> {
                         val children = ImgOps.ramdiskChildren(entries, shownPrefix)
                         LazyColumn(Modifier.fillMaxSize()) {
-                            items(children, key = { it.first.name }) { (item, count) ->
                             if (isLiquid) {
                                 item {
                                     Text(
@@ -1179,6 +1176,7 @@ fun ImgBrowseScreen(
                                     )
                                 }
                             }
+                            items(children, key = { it.first.name }) { (item, count) ->
                                 ArchiveItemRow(
                                     item = ArchiveItem(item.name, item.isDir, item.size),
                                     count = count,
@@ -1301,7 +1299,6 @@ fun Ext4BrowseScreen(
                     else -> {
                         val items = loaded!!
                         LazyColumn(Modifier.fillMaxSize()) {
-                            items(items, key = { it.name }) { item ->
                             if (isLiquid) {
                                 item {
                                     Text(
@@ -1314,6 +1311,7 @@ fun Ext4BrowseScreen(
                                     )
                                 }
                             }
+                            items(items, key = { it.name }) { item ->
                                 ArchiveItemRow(
                                     item = ArchiveItem(item.name, item.isDir, item.size),
                                     count = null,
@@ -1452,7 +1450,6 @@ fun FatBrowseScreen(
                     else -> {
                         val items = loaded!!
                         LazyColumn(Modifier.fillMaxSize()) {
-                            items(items, key = { it.name }) { item ->
                             if (isLiquid) {
                                 item {
                                     Text(
@@ -1465,6 +1462,7 @@ fun FatBrowseScreen(
                                     )
                                 }
                             }
+                            items(items, key = { it.name }) { item ->
                                 ArchiveItemRow(
                                     item = ArchiveItem(item.name, item.isDir, item.size),
                                     count = null,
@@ -1545,7 +1543,6 @@ fun LpBrowseScreen(
                     )
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
-                    items(list, key = { it.name }) { part ->
                     if (isLiquid) {
                         item {
                             Text(
@@ -1558,6 +1555,7 @@ fun LpBrowseScreen(
                             )
                         }
                     }
+                    items(list, key = { it.name }) { part ->
                         ArchiveItemRow(
                             item = ArchiveItem(part.name, false, part.sizeBytes),
                             count = null,
