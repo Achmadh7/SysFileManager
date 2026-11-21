@@ -194,6 +194,7 @@ private sealed interface Overlay {
     data class ImgView(val path: String) : Overlay
     data class PayloadView(val path: String) : Overlay
     data class DexView(val path: String) : Overlay
+    data class ArscView(val path: String) : Overlay
 }
 
 private enum class ClipMode { COPY, CUT }
@@ -1426,6 +1427,7 @@ fun SysFileApp() {
             FileOps.extOf(f.name) == "epub" -> show(Overlay.EpubView(entry.path))
             FileOps.extOf(f.name) == "ttf" -> show(Overlay.FontView(entry.path))
             FileOps.extOf(f.name) == "dex" -> show(Overlay.DexView(entry.path))
+            FileOps.extOf(f.name) == "arsc" -> show(Overlay.ArscView(entry.path))
             FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> show(Overlay.OfficeView(entry.path))
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> show(Overlay.TextView(entry.path))
             entry.category == Category.ARCHIVE -> {
@@ -1629,7 +1631,8 @@ fun SysFileApp() {
                         initialState is Overlay.FatView || targetState is Overlay.FatView ||
                         initialState is Overlay.LpView || targetState is Overlay.LpView ||
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView ||
-                        initialState is Overlay.DexView || targetState is Overlay.DexView) {
+                        initialState is Overlay.DexView || targetState is Overlay.DexView ||
+                        initialState is Overlay.ArscView || targetState is Overlay.ArscView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
                             fadeOut(animationSpec = fadeSpec)
                     } else {
@@ -2083,6 +2086,10 @@ fun SysFileApp() {
                         onOpenPartition = { name -> dialog = DialogKind.PayloadExtract(ov.path, name) }
                     )
                     is Overlay.DexView -> DexBrowseScreen(
+                        path = ov.path,
+                        onBack = { overlay = overlayReturn; overlayReturn = null }
+                    )
+                    is Overlay.ArscView -> ArscBrowseScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null }
                     )
