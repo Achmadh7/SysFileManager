@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -207,15 +208,12 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 4.dp)
         ) {
-            // PS1 Baris ringkas (pilihan Achmad 2026-11-19): kartu per
-            // baris dihapus — baris langsung di latar, dipisah garis
-            // tipis di dalam seksi; judul grup (Tampilan / Berkas /
-            // Aplikasi) tetap sebagai pemisah. Baris Warna Dinamis
-            // dihapus sekalian: fitur dynamic color dicabut seluruhnya.
-            // r166 DS1 Rapat Modern (pilihannya): baris lebih rapat —
-            // ubin 40->32dp, sudut kartu 28->16dp, padding baris 10->6dp,
-            // celah seksi 8->4dp + penutup versi di bawah.
-            item { SettingsSectionLabel(t.tampilanSection) }
+            // Redesain Opsi 1 (Material 3 Expressive • Biru Senja):
+            // - Segmented buttons inline untuk Tema & Bahasa (1-tap switch tanpa popup dialog)
+            // - Harmonisasi warna ikon Biru Senja seragam (aksen merah semantik khusus Root)
+            // - Baris dan deskripsi lebih rapi & proporsional
+            // - Footer lencana aplikasi modern (SF • SysFile Manager • v1.3.0)
+            item { SettingsSectionLabel(t.tampilanSection, topPadding = 6.dp) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -229,17 +227,51 @@ fun SettingsScreen(
                                 "dark" -> Icons.Default.DarkMode
                                 else -> Icons.Default.BrightnessAuto
                             },
-                            circleColor = Color(0xFFFFB020),
+                            circleColor = MaterialTheme.colorScheme.primary,
                             title = t.theme,
-                            subtitle = when (themeMode) {
-                                "light" -> t.themeLight
-                                "dark" -> t.themeDark
-                                else -> t.themeSystem
-                            },
-                            // Ketuk 1x langsung ganti Gelap <-> Terang; opsi
-                            // "Ikuti Sistem" dihapus (nilai lama "system" ikut
-                            // hilang begitu petak ini diketuk).
-                            onClick = { onTheme(if (themeMode == "dark") "light" else "dark") }
+                            subtitle = if (language == "id") "Warna dasar sistem" else "System appearance",
+                            trailing = {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainer,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Row(Modifier.padding(2.dp)) {
+                                        val isLight = themeMode == "light"
+                                        Box(
+                                            Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isLight) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                                .clickable { onTheme("light") }
+                                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                t.themeLight,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = if (isLight) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isLight) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        val isDark = themeMode == "dark"
+                                        Box(
+                                            Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isDark) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                                .clickable { onTheme("dark") }
+                                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                t.themeDark,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = if (isDark) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isDark) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         )
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -247,16 +279,56 @@ fun SettingsScreen(
                         )
                         SettingsRow(
                             icon = Icons.Default.Translate,
-                            circleColor = Color(0xFF4DA3FF),
+                            circleColor = MaterialTheme.colorScheme.primary,
                             title = t.language,
-                            subtitle = if (language == "id") "Indonesia" else "English",
-                            // Ketuk 1x langsung ganti Indonesia <-> English.
-                            onClick = { onLanguage(if (language == "id") "en" else "id") }
+                            subtitle = if (language == "id") "Bahasa antarmuka" else "Interface language",
+                            trailing = {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainer,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                ) {
+                                    Row(Modifier.padding(2.dp)) {
+                                        val isId = language == "id"
+                                        Box(
+                                            Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isId) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                                .clickable { onLanguage("id") }
+                                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                "Indonesia",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = if (isId) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isId) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        val isEn = language == "en"
+                                        Box(
+                                            Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isEn) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                                .clickable { onLanguage("en") }
+                                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                "English",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = if (isEn) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isEn) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         )
                     }
                 }
             }
-item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
+            item { SettingsSectionLabel(t.fileSection, topPadding = 10.dp) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -266,8 +338,9 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
                             icon = Icons.Default.Folder,
-                            circleColor = Color(0xFFF06292),
+                            circleColor = MaterialTheme.colorScheme.primary,
                             title = t.showHidden,
+                            subtitle = if (language == "id") "Berkas berawalan titik (.)" else "Dotfiles (.)",
                             trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
                         )
                         HorizontalDivider(
@@ -276,9 +349,11 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                         )
                         SettingsRow(
                             icon = Icons.Default.Security,
-                            circleColor = Color(0xFFC62828),
+                            circleColor = MaterialTheme.colorScheme.error,
                             title = t.rootAccessTitle,
                             subtitle = t.rootAccessDesc,
+                            badge = "SU",
+                            badgeColor = MaterialTheme.colorScheme.error,
                             trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
                         )
                         HorizontalDivider(
@@ -287,7 +362,7 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                         )
                         SettingsRow(
                             icon = Icons.Default.Delete,
-                            circleColor = Color(0xFF9AA8B5),
+                            circleColor = MaterialTheme.colorScheme.primary,
                             title = t.trash,
                             subtitle = if (trashEnabled) t.trashHintOn else t.trashHintOff,
                             trailing = { Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled) }
@@ -295,7 +370,7 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                     }
                 }
             }
-item { SettingsSectionLabel(t.aplikasiSection, topPadding = 4.dp) }
+            item { SettingsSectionLabel(t.aplikasiSection, topPadding = 10.dp) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -305,8 +380,9 @@ item { SettingsSectionLabel(t.aplikasiSection, topPadding = 4.dp) }
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
                             icon = Icons.Default.Apps,
-                            circleColor = Color(0xFF7ED957),
+                            circleColor = MaterialTheme.colorScheme.primary,
                             title = t.appsTitle,
+                            subtitle = if (language == "id") "Daftar APK terpasang & ekspor" else "Installed APK list & export",
                             onClick = onApps
                         )
                         HorizontalDivider(
@@ -315,23 +391,67 @@ item { SettingsSectionLabel(t.aplikasiSection, topPadding = 4.dp) }
                         )
                         SettingsRow(
                             icon = Icons.Default.Info,
-                            circleColor = Color(0xFFB39DDB),
+                            circleColor = MaterialTheme.colorScheme.primary,
                             title = t.about,
+                            subtitle = if (language == "id") "Spesifikasi mesin & pengembang" else "Specifications & developers",
                             onClick = onAbout
                         )
                     }
                 }
             }
-            // r166 DS1: penutup versi di bawah — pakai t.version +
-            // BuildConfig.VERSION_NAME seperti AboutScreen (tanpa string baru).
+            // Footer Branding Elegan: Lencana SysFile Manager + Versi
             item {
-                Text(
-                    t.version(BuildConfig.VERSION_NAME),
-                    Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 28.dp, bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(18.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.primary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "SF",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                            Text(
+                                "SysFile Manager",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "v" + BuildConfig.VERSION_NAME,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Text(
+                        "Jetpack Compose • Biru Senja",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
     }
@@ -343,8 +463,9 @@ private fun SettingsSectionLabel(text: String, topPadding: Dp = 4.dp) {
     Text(
         text,
         style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = topPadding, bottom = 2.dp)
+        modifier = Modifier.padding(start = 4.dp, top = topPadding, bottom = 4.dp)
     )
 }
 
@@ -354,6 +475,9 @@ private fun SettingsRow(
     circleColor: Color,
     title: String,
     subtitle: String? = null,
+    trailingText: String? = null,
+    badge: String? = null,
+    badgeColor: Color? = null,
     onClick: (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null
 ) {
@@ -373,22 +497,55 @@ private fun SettingsRow(
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                if (badge != null) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = (badgeColor ?: MaterialTheme.colorScheme.error).copy(alpha = 0.16f)
+                    ) {
+                        Text(
+                            badge,
+                            Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = badgeColor ?: MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
             if (subtitle != null) {
                 Text(
                     subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
         if (trailing != null) {
             trailing()
         } else if (onClick != null) {
-            Icon(
-                Icons.Default.ChevronRight, null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (trailingText != null) {
+                    Text(
+                        trailingText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight, null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

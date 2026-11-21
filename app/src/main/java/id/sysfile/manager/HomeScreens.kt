@@ -88,6 +88,8 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AssistChip
@@ -95,6 +97,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
@@ -209,10 +212,13 @@ fun HomeScreen(
     roots: List<RootInfo>,
     rootActive: Boolean,
     trashEnabled: Boolean,
+    recentFiles: List<FEntry> = emptyList(),
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
     onOpenTrash: () -> Unit,
+    onOpenEntry: ((FEntry) -> Unit)? = null,
+    onSeeAllRecents: (() -> Unit)? = null,
 ) {
     val t = txt()
     LazyColumn(
@@ -331,101 +337,196 @@ fun HomeScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(t.categories, style = MaterialTheme.typography.titleMedium)
+                    Text(t.categories, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-                // KG1 (r114): ubin rapat — 64dp, lingkaran 32dp +
-                // ikon 18dp, sudut 16dp, jarak antar ubin 8dp.
-                // BR4 (r161): tinggi ubin 64dp -> 72dp.
-                // KG14 (r173): grid 2 kolom, ubin 56dp, lingkaran
-                // 28dp + ikon 16dp di KIRI label (bodyMedium,
-                // ellipsis), sudut tetap 16dp, jarak 8dp.
-                // UB2 (r191): ubin 56dp -> 72dp, lingkaran
-                // 28dp -> 36dp + ikon 16dp -> 20dp.
-                // Tanpa sub-label ukuran: tidak ada sumber ukuran
-                // per kategori yang murah + tepercaya di Beranda
-                // (pemindaian kategori r128 dibatasi; analisis
-                // penuh hanya di tab Analisis) — angka dari daftar
-                // terpotong akan menyesatkan.
+                // Redesain Opsi 1 (Expressive Hub - 4 Kolom Kompak):
+                // 8 ubin (7 kategori + Tempat Sampah) disusun dalam 4 kolom x 2 baris
+                // dengan warna semantik khas per kategori untuk pengenalan visual cepat.
                 val cats = listOf(
-                    Category.IMAGE to t.catImagesS,
-                    Category.VIDEO to t.catVideosS,
-                    Category.AUDIO to t.catAudioS,
-                    Category.DOCUMENT to t.catDocumentsS,
-                    Category.APP to t.catAppsS,
-                    Category.ARCHIVE to t.catArchivesS,
-                    Category.OTHER to t.catOtherS
+                    Triple(Category.IMAGE, t.catImagesS, Color(0xFF8B5CF6)), // Violet
+                    Triple(Category.VIDEO, t.catVideosS, Color(0xFFF43F5E)), // Rose/Coral
+                    Triple(Category.AUDIO, t.catAudioS, Color(0xFF14B8A6)), // Teal
+                    Triple(Category.DOCUMENT, t.catDocumentsS, Color(0xFF3B82F6)), // Blue
+                    Triple(Category.APP, t.catAppsS, Color(0xFF10B981)), // Emerald
+                    Triple(Category.ARCHIVE, t.catArchivesS, Color(0xFFF59E0B)), // Amber
+                    Triple(Category.OTHER, t.catOtherS, Color(0xFF64748B)) // Slate
                 )
-                cats.chunked(2).forEach { rowCats ->
+                
+                // Baris 1: Gambar, Video, Audio, Dokumen
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    cats.take(4).forEach { (cat, label, color) ->
+                        CategoryTile(
+                            icon = categoryIcon(cat, ""),
+                            label = label,
+                            color = color,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onOpenCategory(cat) }
+                        )
+                    }
+                }
+
+                // Baris 2: APK, Arsip, Lainnya, dan Tempat Sampah
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    cats.drop(4).forEach { (cat, label, color) ->
+                        CategoryTile(
+                            icon = categoryIcon(cat, ""),
+                            label = label,
+                            color = color,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onOpenCategory(cat) }
+                        )
+                    }
+                    if (trashEnabled) {
+                        val trashColor = Color(0xFFEF5350)
+                        CategoryTile(
+                            icon = Icons.Default.Delete,
+                            label = t.trash,
+                            color = trashColor,
+                            modifier = Modifier.weight(1f),
+                            onClick = onOpenTrash
+                        )
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+        // Seksi File Terbaru (Quick Recents - Hasil efisiensi ruang kategori)
+        if (recentFiles.isNotEmpty() && onOpenEntry != null) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        rowCats.forEach { (cat, label) ->
-                            val color = MaterialTheme.colorScheme.primary
-                            Column(
-                                Modifier.weight(1f).height(80.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(color.copy(alpha = 0.16f))
-                                    .clickable { onOpenCategory(cat) }
-                                    .padding(horizontal = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Box(
-                                    Modifier.size(32.dp).clip(CircleShape).background(color),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.History,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (t.recentShort.isNotBlank()) t.recentShort else "Baru Ditambahkan",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        if (rowCats.size == 1 && trashEnabled) {
-                            val trashColor = Color(0xFFEF5350)
-                            Column(
-                                Modifier.weight(1f).height(80.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(trashColor.copy(alpha = 0.16f))
-                                    .clickable { onOpenTrash() }
-                                    .padding(horizontal = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                        if (onSeeAllRecents != null) {
+                            Text(
+                                "Lihat Semua ›",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onSeeAllRecents() }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    ) {
+                        val topRecents = recentFiles.take(3)
+                        topRecents.forEachIndexed { idx, entry ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onOpenEntry(entry) }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    Modifier.size(32.dp).clip(CircleShape).background(trashColor),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                FileThumbTile(entry, 36)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        entry.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    val dateStr = shortDate(entry.modified, t)
+                                    val sizeStr = FileOps.formatSize(entry.size)
+                                    Text(
+                                        "$sizeStr \u00b7 $dateStr",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
-                                Spacer(Modifier.height(6.dp))
-                                Text(
-                                    t.trash,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
+                            }
+                            if (idx < topRecents.size - 1) {
+                                HorizontalDivider(
+                                    Modifier.padding(horizontal = 12.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                                 )
                             }
-                        } else if (rowCats.size == 1) {
-                            Spacer(Modifier.weight(1f))
-                        } else {
-                            repeat(2 - rowCats.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CategoryTile(
+    icon: ImageVector,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .height(76.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(color.copy(alpha = 0.12f))
+            .clickable { onClick() }
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.22f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                null,
+                tint = color,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(Modifier.height(5.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

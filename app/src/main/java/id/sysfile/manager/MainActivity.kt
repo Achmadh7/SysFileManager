@@ -2505,10 +2505,19 @@ fun SysFileApp() {
                                                     roots = if (showRootEntry) allRoots else roots,
                                                     rootActive = rootActive,
                                                     trashEnabled = trashEnabled,
+                                                    recentFiles = recentFiles,
                                                     onRequestAccess = { requestAccess() },
                                                     onOpenRoot = { browseStack = listOf(it) },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
                                                     onOpenTrash = { showTrash = true },
+                                                    onOpenEntry = { entry ->
+                                                        if (entry.isDir) {
+                                                            openFolderGuarded(entry.path) { browseStack = listOf(entry.path) }
+                                                        } else {
+                                                            openEntry(entry, recentFiles)
+                                                        }
+                                                    },
+                                                    onSeeAllRecents = { homeTab = 1 }
                                                 )
                                             }
                                         }
