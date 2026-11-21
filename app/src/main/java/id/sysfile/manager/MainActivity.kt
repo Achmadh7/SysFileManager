@@ -1531,6 +1531,8 @@ fun SysFileApp() {
     SysFileTheme(themeMode, themeStyle) {
         // r224: warna kaca untuk TopAppBar utama; hanya dipakai di cabang liquid.
         val liquid = LocalLiquid.current
+        val selFirst = selected.firstOrNull()
+        val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1646,12 +1648,6 @@ fun SysFileApp() {
             // r88: Box pembungkus supaya pill audio bisa melayang
             // di atas layar overlay (kategori/arsip/viewer).
             Box(Modifier.fillMaxSize()) {
-            // r123: nilai pilihan pertama dihitung SEKALI di sini dengan
-            // firstOrNull — isi AnimatedVisibility tetap terkomposisi
-            // selama animasi keluar, dan selected sudah kosong saat itu;
-            // first() di dalam bar melempar NoSuchElementException -> FC.
-            val selFirst = selected.firstOrNull()
-            val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
             AnimatedContent(
                 targetState = overlay,
                 transitionSpec = {

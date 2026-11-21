@@ -490,66 +490,13 @@ fun BrowseScreen(
                             modifier = Modifier.graphicsLayer { rotationZ = fabRotation }
                         )
                     }
-                    AnimatedVisibility(
+                    LiquidActionSheet(
                         visible = fabOpen,
-                        enter = IosTransitions.sheetEnter(),
-                        exit = IosTransitions.sheetExit(),
+                        onNewFolder = { fabOpen = false; onNewFolder() },
+                        onNewFile = { fabOpen = false; onNewFile() },
+                        onDismiss = { fabOpen = false },
                         modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                Modifier.fillMaxWidth()
-                                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
-                            ) {
-                                Column(Modifier.fillMaxWidth()) {
-                                    Box(
-                                        Modifier.fillMaxWidth()
-                                            .clickable { fabOpen = false; onNewFolder() }
-                                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            t.newFolder,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    HorizontalDivider(color = liquid.separator)
-                                    Box(
-                                        Modifier.fillMaxWidth()
-                                            .clickable { fabOpen = false; onNewFile() }
-                                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            t.newFile,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            }
-                            Box(
-                                Modifier.fillMaxWidth()
-                                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
-                                    .clickable { fabOpen = false }
-                            ) {
-                                Box(
-                                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        t.cancel,
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    )
                 } else {
                     if (fabOpen) {
                         Box(
@@ -584,6 +531,78 @@ fun BrowseScreen(
                             icon = { Icon(Icons.Default.NoteAdd, null) }
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiquidActionSheet(
+    visible: Boolean,
+    onNewFolder: () -> Unit,
+    onNewFile: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val t = txt()
+    val liquid = LocalLiquid.current
+    AnimatedVisibility(
+        visible = visible,
+        enter = IosTransitions.sheetEnter(),
+        exit = IosTransitions.sheetExit(),
+        modifier = modifier
+    ) {
+        Column(
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                Modifier.fillMaxWidth()
+                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+            ) {
+                Column(Modifier.fillMaxWidth()) {
+                    Box(
+                        Modifier.fillMaxWidth()
+                            .clickable { onNewFolder() }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            t.newFolder,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    HorizontalDivider(color = liquid.separator)
+                    Box(
+                        Modifier.fillMaxWidth()
+                            .clickable { onNewFile() }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            t.newFile,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            Box(
+                Modifier.fillMaxWidth()
+                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+                    .clickable { onDismiss() }
+            ) {
+                Box(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        t.cancel,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
