@@ -22,6 +22,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -139,6 +140,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.asImageBitmap
@@ -326,7 +328,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     // PR1 Grid (r111, pilihannya): semua baris jadi grid
                     // 2 kolom (label kiri, nilai kanan) dalam SATU kartu —
                     // info + izin; dialog jadi jauh lebih pendek.
-                    Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                    Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest), border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null) {
                         Column {
                             PropGridRow(
                                 t.propParent,
@@ -423,7 +425,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         // Isi tombol LAGI: jalur lengkap (dengan salin) +
                         // rincian stat lanjutan bila tersedia.
                         Spacer(Modifier.height(12.dp))
-                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest), border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null) {
                             Column {
                                 PropGridRow(t.propPath, ellipsizeMiddle(entry.path)) {
                                     IconButton(onClick = {
@@ -544,7 +546,7 @@ fun ExifDialog(entry: FEntry, onDismiss: () -> Unit) {
                     if (rows.isEmpty()) {
                         Text(t.exifNoData, style = MaterialTheme.typography.bodyMedium)
                     } else {
-                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest), border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null) {
                             Column {
                                 rows.forEachIndexed { i, (label, value) ->
                                     if (i > 0) PropGroupDivider()
@@ -691,7 +693,8 @@ private fun PropGroupRow(
             if (monospace) {
                 Surface(
                     shape = RoundedCornerShape(9.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null
                 ) {
                     Text(
                         value,
@@ -743,7 +746,8 @@ private fun PropGridRow(
             Spacer(Modifier.weight(1f))
             Surface(
                 shape = RoundedCornerShape(9.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
+                color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+                border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null
             ) {
                 Text(
                     value,
@@ -1156,7 +1160,8 @@ fun ApkActionsDialog(
                 if (perms.isNotEmpty()) {
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .background(if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .then(if (LocalIsLiquid.current) Modifier.border(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd)), RoundedCornerShape(18.dp)) else Modifier)
                             .clickable { permsExpanded = !permsExpanded }.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

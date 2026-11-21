@@ -2711,7 +2711,8 @@ fun SysFileApp() {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
                     shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null,
                     tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
