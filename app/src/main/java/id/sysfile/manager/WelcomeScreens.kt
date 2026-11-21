@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,17 +39,48 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Layar sambutan (Opsi 3 Thumb-Zone Power Spec + Logo Aurora Opsi 2):
+ * Logo Aurora SF Monogram (Opsi 1): latar gradasi gelap aurora + vektor
+ * `ic_launcher_foreground` sehingga konsisten di launcher, welcome, beranda, dan setelan.
+ */
+@Composable
+fun SysFileLogo(
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 22.dp
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF082F49))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_launcher_foreground),
+            contentDescription = "SysFile Logo",
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(1.28f)
+        )
+    }
+}
+
+/**
+ * Layar sambutan (Opsi 3 Thumb-Zone Power Spec + Logo Aurora Opsi 1):
  * hero logo SF bercahaya di atas, grid kapabilitas 2x2, lalu banner izin
  * dan tombol lanjut di area jempol bawah. Muncul sekali sampai welcome_done.
  */
@@ -98,26 +130,10 @@ fun WelcomeScreen(
                                     )
                                 )
                         )
-                        Box(
-                            Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(22.dp))
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "SF",
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 30.sp
-                            )
-                            Box(
-                                Modifier
-                                    .size(width = 3.dp, height = 92.dp)
-                                    .rotate(30f)
-                                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.7f))
-                            )
-                        }
+                        SysFileLogo(
+                            modifier = Modifier.size(72.dp),
+                            cornerRadius = 22.dp
+                        )
                     }
                     Text(
                         t.welcomeTitle,

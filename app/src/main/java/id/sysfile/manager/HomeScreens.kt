@@ -19,6 +19,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -253,10 +254,9 @@ fun HomeScreen(
                     // USB/SD kalau ada). Titik di bawah: aktif = aksen,
                     // ketuk titik = geser ke halaman itu.
                     if (heroes.isNotEmpty()) {
-                        // r171 (HC6 Naik Pudar, pilihannya): kartu hero naik
-                        // + memudar saat berpindah — translateY + alfa dari
-                        // offset pager (graphicsLayer per halaman).
-                        val risePx = with(LocalDensity.current) { 24.dp.toPx() }
+                        // Opsi 1 (Shared-Axis Parallax + Scale Depth): kartu mengecil,
+                        // memudar, dan bergeser parallax horizontal saat digeser.
+                        val parallaxPx = with(LocalDensity.current) { 36.dp.toPx() }
                         // r169: pageSpacing 16dp - kartu yang
                         // bersebelahan tidak menempel saat digeser.
                         // Settled page tetap penuh (PageSize.Fill
@@ -266,13 +266,16 @@ fun HomeScreen(
                             pageSpacing = 16.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) { page ->
-                            // r171: offset halaman -> naik + pudar (HC6).
                             val pageOffset = pagerState.getOffsetDistanceInPages(page)
-                            val heroAlpha = lerp(1f, 0.5f, minOf(1f, abs(pageOffset)))
+                            val absOffset = minOf(1f, abs(pageOffset))
+                            val heroScale = lerp(1f, 0.90f, absOffset)
+                            val heroAlpha = lerp(1f, 0.35f, absOffset)
                             Box(
                                 Modifier.graphicsLayer {
-                                    translationY = pageOffset * risePx
+                                    scaleX = heroScale
+                                    scaleY = heroScale
                                     alpha = heroAlpha
+                                    translationX = pageOffset * -parallaxPx
                                 }
                             ) {
                                 StorageHeroCard(
@@ -288,6 +291,11 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 heroes.forEachIndexed { i, _ ->
+                                    val selected = pagerState.currentPage == i
+                                    val dotWidth by animateDpAsState(
+                                        targetValue = if (selected) 24.dp else 8.dp,
+                                        label = "heroDot"
+                                    )
                                     Box(
                                         Modifier.padding(4.dp).clickable {
                                             scope.launch { pagerState.animateScrollToPage(i) }
@@ -295,9 +303,9 @@ fun HomeScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Box(
-                                            Modifier.size(8.dp).clip(CircleShape)
+                                            Modifier.height(8.dp).width(dotWidth).clip(CircleShape)
                                                 .background(
-                                                    if (pagerState.currentPage == i) MaterialTheme.colorScheme.primary
+                                                    if (selected) MaterialTheme.colorScheme.primary
                                                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                                 )
                                         )
@@ -462,9 +470,11 @@ private fun CategoryTile(
  *  selebar bar (308dp di screenshot, harusnya ~109dp).
  *  Menggantikan HS1 rapat (r94).
  *  r164: bar/pill/on-pill kini dari peran skema (surfaceContainer /
- *  primary / onPrimary) — sama persis di mode gelap, mengikuti tema
- *  di mode terang; ikon tak aktif putih di gelap, onSurfaceVariant
- *  di terang (sebelumnya keempatnya literal gelap). */
+ *  diganti di bawah). */
+/**
+ * Bilah navigasi bawah gaya Opsi 3 (Split Power Dock tanpa tombol su/img):
+ * dock kapsul rounded-2xl dengan border halus dan tile ikon+label bertumpuk.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
@@ -475,105 +485,62 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         Triple(1, Icons.Default.History, t.recentShort),
         Triple(2, Icons.Default.Analytics, t.analysisShort)
     )
-    // r81 NV10: tab tidak aktif memakai ikon outline (filled hanya
-    // saat aktif). Urutan sejajar `items` di atas.
     val outlined = listOf(
         Icons.Outlined.Home, Icons.Outlined.History, Icons.Outlined.Analytics
     )
-    // r89 NV17: lebar pill mengikuti konten (ikon + label tab aktif).
-    // Lebar label diukur saat komposisi dengan TextMeasurer
-    // (titleMedium, 16sp — sesuai foto); rememberTextMeasurer di
-    // androidx.compose.ui.text (ui-text 1.9.3, terverifikasi r89).
-    val density = LocalDensity.current
-    val textMeasurer = rememberTextMeasurer()
-    val labelWidths = items.map { (_, _, label) ->
-        with(density) {
-            textMeasurer.measure(
-                label,
-                style = MaterialTheme.typography.titleMedium
-            ).size.width.toDp()
-        }
-    }
-    // r135 NV23: bar lebar video (margin 48dp, tinggi 60dp), pill
-    // primary #9ACBFA 44dp. Posisi pill dijepit ke dalam bar
-    // (coerceIn) — pill Analisis ~126dp lebih lebar dari slot
-    // ~99dp, tanpa jepitan ia keluar dari bar.
-    // r141 NP2 Geser Utuh: pill BERGESER + berubah lebar ke tab
-    // baru (animateDpAsState, defaultSpatialSpec) — tanpa pudar.
-    // NP3 Pudar (r136, r138) diganti atas permintaannya
-    // 'implement geser utuh' (2026-11-20, setelah papan Auriya).
-    // Warna ikon/label (fg) tetap memakai defaultSpatialSpec;
-    // label tab baru muncul saat pill tiba (selected = homeTab
-    // langsung — selama geser, label tujuan gelap-di-atas-bar
-    // gelap sampai pill menutupinya).
-    // r164: warna bar/pill dari peran skema, bukan literal gelap —
-    // bar #1C2024 = surfaceContainer, pill #9ACBFA = primary,
-    // on-pill #003352 = onPrimary; ketiganya sama persis di mode
-    // gelap dan mengikuti tema di mode terang.
     val barColor = MaterialTheme.colorScheme.surfaceContainer
-    val pillColor = MaterialTheme.colorScheme.primary
-    val onPillColor = MaterialTheme.colorScheme.onPrimary
-    // Ikon tab tak aktif: tidak ada peran skema yang putih di mode
-    // gelap DAN gelap di mode terang — bedakan dari kecerahan latar
-    // (gelap #101418 ~0,01; terang #F7F9FF ~0,93).
+    val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val activeBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+    val activeFg = MaterialTheme.colorScheme.primary
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val inactiveColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val inactiveFg = if (isDark) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
-        Modifier.fillMaxWidth()
-            .padding(start = 48.dp, end = 48.dp, bottom = 16.dp)
-            .height(60.dp)
-            .clip(RoundedCornerShape(50))
-            .background(barColor),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 36.dp, vertical = 12.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(barColor)
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val tabWidth = maxWidth / 3
-            fun pillWFor(tab: Int) = 24.dp + 8.dp + labelWidths[tab] + 22.dp
-            fun pillXFor(tab: Int) =
-                (tabWidth * tab + (tabWidth - pillWFor(tab)) / 2)
-                    .coerceIn(0.dp, maxWidth - pillWFor(tab))
-            val pillX by animateDpAsState(
-                targetValue = pillXFor(homeTab),
-                animationSpec = motion.defaultSpatialSpec(),
-                label = "pillX"
+        items.forEach { (index, icon, label) ->
+            val selected = homeTab == index
+            val bg by animateColorAsState(
+                targetValue = if (selected) activeBg else Color.Transparent,
+                animationSpec = motion.defaultEffectsSpec(),
+                label = "navTileBg"
             )
-            val pillW by animateDpAsState(
-                targetValue = pillWFor(homeTab),
-                animationSpec = motion.defaultSpatialSpec(),
-                label = "pillW"
+            val fg by animateColorAsState(
+                targetValue = if (selected) activeFg else inactiveFg,
+                animationSpec = motion.defaultEffectsSpec(),
+                label = "navTileFg"
             )
-            Box(
-                Modifier.offset(x = pillX, y = 8.dp)
-                    .size(width = pillW, height = 44.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(pillColor)
-            )
-            Row(Modifier.fillMaxSize()) {
-                items.forEach { (index, icon, label) ->
-                    val selected = homeTab == index
-                    val fg by animateColorAsState(
-                        targetValue = if (selected) onPillColor
-                        else inactiveColor,
-                        animationSpec = motion.defaultSpatialSpec(),
-                        label = "tabFg"
-                    )
-                    Row(
-                        Modifier.weight(1f).fillMaxHeight().clickable { onSelect(index) },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(if (selected) icon else outlined[index], null, tint = fg, modifier = Modifier.size(24.dp))
-                        if (selected) {
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = fg,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(bg)
+                    .clickable { onSelect(index) }
+                    .padding(vertical = 7.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Icon(
+                    imageVector = if (selected) icon else outlined[index],
+                    contentDescription = label,
+                    tint = fg,
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = fg,
+                    maxLines = 1
+                )
             }
         }
     }

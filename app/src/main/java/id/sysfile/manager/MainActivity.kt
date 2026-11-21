@@ -1574,8 +1574,9 @@ fun SysFileApp() {
                 onRootEntry = { v ->
                     showRootEntry = v
                     prefs.edit().putBoolean("root_entry", v).apply()
-                    // L17: satu-satunya pemicu prompt root — hanya saat
-                    // sakelar dihidupkan. Bila ditolak, sakelar kembali mati.
+                    // Prompt root hanya saat sakelar dihidupkan. Bila belum/tidak
+                    // diberi akses root, sakelar tetap ON agar kartu Root tampil
+                    // dalam mode terbatas (read-only non-root).
                     if (v) {
                         scope.launch {
                             // r204: tiap kali dihidupkan, coba dari nol —
@@ -1583,16 +1584,19 @@ fun SysFileApp() {
                             // gagal) tidak boleh mengunci root seumur proses.
                             RootShell.resetRootState()
                             val ok = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+                            rootActive = ok
                             // r204: hanya ingat keberhasilan — kegagalan
                             // sementara tidak boleh menghapus ingatan bahwa
                             // root pernah diberikan.
-                            if (ok) prefs.edit().putBoolean("root_granted_before", true).apply()
-                            if (!ok) {
-                                showRootEntry = false
-                                prefs.edit().putBoolean("root_entry", false).apply()
-                                notify(t.opFailed)
+                            if (ok) {
+                                prefs.edit().putBoolean("root_granted_before", true).apply()
+                                refreshRoots()
+                            } else {
+                                notify(t.rootLimited)
                             }
                         }
+                    } else {
+                        rootActive = false
                     }
                 },
                 onTrashEnabled = { v ->
@@ -2106,27 +2110,10 @@ fun SysFileApp() {
                                     TopAppBar(
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
-                                                        // r56: logo M11 "SF" terpotong diagonal —
-                                                        // pita warna ubin di atas huruf (rotate
-                                                        // 30° = diagonal "/"), lebih tinggi dari
-                                                        // ubin (kelebihan terpotong clip ubin).
-                                                        .background(MaterialTheme.colorScheme.primaryContainer),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        "SF",
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                        fontWeight = FontWeight.ExtraBold,
-                                                        fontSize = 16.sp
-                                                    )
-                                                    Box(
-                                                        Modifier.size(width = 2.dp, height = 64.dp)
-                                                            .rotate(30f)
-                                                            .background(MaterialTheme.colorScheme.primaryContainer)
-                                                    )
-                                                }
+                                                SysFileLogo(
+                                                    modifier = Modifier.size(40.dp),
+                                                    cornerRadius = 11.dp
+                                                )
                                                 Spacer(Modifier.width(12.dp))
                                                 Column {
                                                     Text("SysFile")

@@ -418,20 +418,10 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(
-                                Modifier
-                                    .size(18.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "SF",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
+                            SysFileLogo(
+                                modifier = Modifier.size(18.dp),
+                                cornerRadius = 4.dp
+                            )
                             Text(
                                 "SysFile Manager",
                                 style = MaterialTheme.typography.labelMedium,
@@ -784,28 +774,10 @@ fun AboutScreen(
                     Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Ubin logo M11 "SF" terpotong diagonal (sama seperti
-                    // bilah atas Beranda, lebih besar) — pita warna ubin
-                    // di atas huruf (rotate 30° = diagonal "/").
-                    Box(
-                        Modifier
-                            .size(84.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "SF",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 36.sp
-                        )
-                        Box(
-                            Modifier.size(width = 4.dp, height = 130.dp)
-                                .rotate(30f)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                        )
-                    }
+                    SysFileLogo(
+                        modifier = Modifier.size(84.dp),
+                        cornerRadius = 22.dp
+                    )
                     Spacer(Modifier.height(16.dp))
                     Text(
                         "SysFile",
