@@ -468,6 +468,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                 }
                                                 context.startActivity(Intent.createChooser(intent, t.share))
+                                                notify(t.appSharedDone)
                                             } catch (e: Exception) {
                                                 notify(t.opFailed)
                                             }
