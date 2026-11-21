@@ -917,6 +917,8 @@ fun AboutScreen(
 @Composable
 fun SpecScreen(onBack: () -> Unit) {
     val t = txt()
+    val isLiquid = LocalIsLiquid.current
+    val liquid = LocalLiquid.current
     // r145: animasi masuk sama seperti FormatsScreen — geser
     // dari kanan 1/3 lebar + pudar (motionScheme).
     val visState = remember { MutableTransitionState(false) }
