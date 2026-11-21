@@ -88,6 +88,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
@@ -1530,15 +1531,6 @@ fun SysFileApp() {
     SysFileTheme(themeMode, themeStyle) {
         // r224: warna kaca untuk TopAppBar utama; hanya dipakai di cabang liquid.
         val liquid = LocalLiquid.current
-        // r123: nilai pilihan pertama dihitung SEKALI di sini dengan
-        // firstOrNull — isi AnimatedVisibility tetap terkomposisi
-        // selama animasi keluar, dan selected sudah kosong saat itu;
-        // first() di dalam bar melempar NoSuchElementException -> FC.
-        // r228: dipindah ke sini (dulu di dalam Box cabang else di
-        // bawah) supaya blok overlay liquid di bawah juga bisa
-        // memakainya — Box itu menutup sebelum blok overlay.
-        val selFirst = selected.firstOrNull()
-        val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1654,10 +1646,18 @@ fun SysFileApp() {
             // r88: Box pembungkus supaya pill audio bisa melayang
             // di atas layar overlay (kategori/arsip/viewer).
             Box(Modifier.fillMaxSize()) {
+            // r123: nilai pilihan pertama dihitung SEKALI di sini dengan
+            // firstOrNull — isi AnimatedVisibility tetap terkomposisi
+            // selama animasi keluar, dan selected sudah kosong saat itu;
+            // first() di dalam bar melempar NoSuchElementException -> FC.
+            val selFirst = selected.firstOrNull()
+            val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
             AnimatedContent(
                 targetState = overlay,
                 transitionSpec = {
-                    if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
+                    if (themeStyle == "liquid") {
+                        IosTransitions.sheetEnter() togetherWith IosTransitions.sheetExit()
+                    } else if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
                         initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView ||
                         initialState is Overlay.ImgView || targetState is Overlay.ImgView ||
                         initialState is Overlay.Ext4View || targetState is Overlay.Ext4View ||
@@ -2150,19 +2150,19 @@ fun SysFileApp() {
                                                         // pita warna ubin di atas huruf (rotate
                                                         // 30° = diagonal "/"), lebih tinggi dari
                                                         // ubin (kelebihan terpotong clip ubin).
-                                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                                        .background(if (themeStyle == "liquid") liquid.chipBg else MaterialTheme.colorScheme.primaryContainer),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Text(
                                                         "SF",
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        color = if (themeStyle == "liquid") liquid.chipFg else MaterialTheme.colorScheme.onPrimaryContainer,
                                                         fontWeight = FontWeight.ExtraBold,
                                                         fontSize = 16.sp
                                                     )
                                                     Box(
                                                         Modifier.size(width = 2.dp, height = 64.dp)
                                                             .rotate(30f)
-                                                            .background(MaterialTheme.colorScheme.primaryContainer)
+                                                            .background(if (themeStyle == "liquid") liquid.chipFg.copy(alpha = 0.25f) else MaterialTheme.colorScheme.primaryContainer)
                                                     )
                                                 }
                                                 Spacer(Modifier.width(12.dp))
@@ -2248,7 +2248,7 @@ fun SysFileApp() {
                                         },
                                         actions = {
                                             Box {
-                                                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
+                                                IconButton(onClick = { menuOpen = true }) { Icon(if (themeStyle == "liquid") Icons.Default.MoreHoriz else Icons.Default.MoreVert, null) }
                                                 DropdownMenu(
                                                     expanded = menuOpen,
                                                     onDismissRequest = { menuOpen = false },
@@ -2509,11 +2509,7 @@ fun SysFileApp() {
                                                 )
                                             }
                                         } else {
-                                            if (themeStyle == "liquid") {
-                                                LiquidGlassTabBar(selected = homeTab, onSelect = { homeTab = it })
-                                            } else {
-                                                SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
-                                            }
+                                            SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
                                         }
                                         }
                                     }
@@ -2526,12 +2522,20 @@ fun SysFileApp() {
                                     transitionSpec = {
                                         val fromDepth = initialState?.count { it == '/' } ?: -1
                                         val toDepth = targetState?.count { it == '/' } ?: -1
-                                        if (toDepth >= fromDepth) {
-                                            (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
-                                                (slideOutHorizontally { w -> -w / 3 } + fadeOut())
+                                        if (themeStyle == "liquid") {
+                                            if (toDepth >= fromDepth) {
+                                                IosTransitions.pushEnter() togetherWith IosTransitions.pushExit()
+                                            } else {
+                                                IosTransitions.popEnter() togetherWith IosTransitions.popExit()
+                                            }
                                         } else {
-                                            (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
-                                                (slideOutHorizontally { w -> w / 3 } + fadeOut())
+                                            if (toDepth >= fromDepth) {
+                                                (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
+                                                    (slideOutHorizontally { w -> -w / 3 } + fadeOut())
+                                            } else {
+                                                (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
+                                                    (slideOutHorizontally { w -> w / 3 } + fadeOut())
+                                            }
                                         }
                                     },
                                     label = "folderAnim"
@@ -2540,8 +2544,12 @@ fun SysFileApp() {
                                         AnimatedContent(
                                             targetState = homeTab,
                                             transitionSpec = {
-                                                fadeIn(animationSpec = fadeSpec) togetherWith
-                                                    fadeOut(animationSpec = fadeSpec)
+                                                if (themeStyle == "liquid") {
+                                                    IosTransitions.tabTransition()
+                                                } else {
+                                                    fadeIn(animationSpec = fadeSpec) togetherWith
+                                                        fadeOut(animationSpec = fadeSpec)
+                                                }
                                             },
                                             label = "tabAnim"
                                         ) { tab ->
@@ -2672,12 +2680,22 @@ fun SysFileApp() {
                 ) {
                     AnimatedVisibility(
                         visible = pillVisible,
-                        enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
-                            expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Top),
-                        exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
-                            shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
+                        enter = if (themeStyle == "liquid") {
+                            IosTransitions.topPillEnter() +
+                                expandVertically(animationSpec = IosTransitions.sizeSpring, expandFrom = Alignment.Top)
+                        } else {
+                            fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                                expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Top)
+                        },
+                        exit = if (themeStyle == "liquid") {
+                            IosTransitions.topPillExit() +
+                                shrinkVertically(animationSpec = IosTransitions.sizeSpring, shrinkTowards = Alignment.Top)
+                        } else {
+                            fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                                shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
+                        }
                     ) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
@@ -2741,12 +2759,10 @@ fun SysFileApp() {
                         }
                         AnimatedVisibility(
                             visible = selected.isNotEmpty() && currentPath != null,
-                            enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                                slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
-                                expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
-                            exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                                slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
-                                shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Bottom)
+                            enter = IosTransitions.sheetEnter() +
+                                expandVertically(animationSpec = IosTransitions.sizeSpring, expandFrom = Alignment.Bottom),
+                            exit = IosTransitions.sheetExit() +
+                                shrinkVertically(animationSpec = IosTransitions.sizeSpring, shrinkTowards = Alignment.Bottom)
                         ) {
                             SelectionBar(
                                 single = selected.size == 1,
@@ -2836,7 +2852,13 @@ fun SysFileApp() {
                                 }
                             )
                         }
-                        if (selected.isEmpty() && currentPath != null) {
+                        AnimatedVisibility(
+                            visible = selected.isEmpty() && currentPath != null && clipboard != null,
+                            enter = IosTransitions.sheetEnter() +
+                                expandVertically(animationSpec = IosTransitions.sizeSpring, expandFrom = Alignment.Bottom),
+                            exit = IosTransitions.sheetExit() +
+                                shrinkVertically(animationSpec = IosTransitions.sizeSpring, shrinkTowards = Alignment.Bottom)
+                        ) {
                             clipboard?.let { clip ->
                                 ClipboardBar(
                                     count = clip.first.size,

@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.animateColorAsState
@@ -150,6 +151,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -329,82 +331,6 @@ fun BrowseHeaderBar(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun LiquidActionSheet(
-    visible: Boolean,
-    onNewFolder: () -> Unit,
-    onNewFile: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val t = txt()
-    val liquid = LocalLiquid.current
-    val motion = MaterialTheme.motionScheme
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
-            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it },
-        exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
-            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it },
-        modifier = modifier
-    ) {
-        Column(
-            Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
-                Modifier.fillMaxWidth()
-                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
-            ) {
-                Column(Modifier.fillMaxWidth()) {
-                    Box(
-                        Modifier.fillMaxWidth()
-                            .clickable { onDismiss(); onNewFolder() }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            t.newFolder,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    HorizontalDivider(color = liquid.separator)
-                    Box(
-                        Modifier.fillMaxWidth()
-                            .clickable { onDismiss(); onNewFile() }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            t.newFile,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-            Box(
-                Modifier.fillMaxWidth()
-                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
-                    .clickable { onDismiss() }
-            ) {
-                Box(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        t.cancel,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BrowseScreen(
@@ -546,22 +472,84 @@ fun BrowseScreen(
                                 ) { fabOpen = false }
                         )
                     }
+                    val fabRotation by animateFloatAsState(
+                        targetValue = if (fabOpen) 45f else 0f,
+                        animationSpec = iosSpring(0.4f, 0.15f),
+                        label = "fabRot"
+                    )
                     Box(
                         Modifier.align(Alignment.BottomEnd).padding(16.dp)
                             .size(56.dp).clip(CircleShape)
-                            .glassBlur(RoundedCornerShape(50), liquid.glassTint) // r232: 50% = lingkaran penuh; CircleShape tak bisa di-lens
+                            .glassBlur(RoundedCornerShape(50), liquid.glassTint)
                             .clickable { fabOpen = !fabOpen },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, null)
+                        Icon(
+                            Icons.Default.Add,
+                            null,
+                            modifier = Modifier.graphicsLayer { rotationZ = fabRotation }
+                        )
                     }
-                    LiquidActionSheet(
+                    AnimatedVisibility(
                         visible = fabOpen,
-                        onNewFolder = { fabOpen = false; onNewFolder() },
-                        onNewFile = { fabOpen = false; onNewFile() },
-                        onDismiss = { fabOpen = false },
+                        enter = IosTransitions.sheetEnter(),
+                        exit = IosTransitions.sheetExit(),
                         modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
-                    )
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                Modifier.fillMaxWidth()
+                                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+                            ) {
+                                Column(Modifier.fillMaxWidth()) {
+                                    Box(
+                                        Modifier.fillMaxWidth()
+                                            .clickable { fabOpen = false; onNewFolder() }
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            t.newFolder,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    HorizontalDivider(color = liquid.separator)
+                                    Box(
+                                        Modifier.fillMaxWidth()
+                                            .clickable { fabOpen = false; onNewFile() }
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            t.newFile,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                            Box(
+                                Modifier.fillMaxWidth()
+                                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+                                    .clickable { fabOpen = false }
+                            ) {
+                                Box(
+                                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        t.cancel,
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
                 } else {
                     if (fabOpen) {
                         Box(

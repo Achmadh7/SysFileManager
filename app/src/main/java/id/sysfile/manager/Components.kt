@@ -22,7 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Storage
@@ -34,6 +39,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ListItem
@@ -108,8 +114,19 @@ fun SectionCard(
     }
 }
 
-/** Warna + ikon per kategori berkas. */
-fun categoryIcon(category: Category, name: String): ImageVector {
+/** Warna + ikon per kategori berkas (gaya iOS SF Symbol saat isLiquid). */
+fun categoryIcon(category: Category, name: String = "", isLiquid: Boolean = false): ImageVector {
+    if (isLiquid) {
+        return when (category) {
+            Category.IMAGE -> Icons.Default.Photo
+            Category.VIDEO -> Icons.Default.Videocam
+            Category.AUDIO -> Icons.Default.Headphones
+            Category.DOCUMENT -> if (FileOps.extOf(name) == "pdf") Icons.Default.PictureAsPdf else Icons.Default.Article
+            Category.APP -> Icons.Default.Apps
+            Category.ARCHIVE -> Icons.Default.Inventory2
+            Category.OTHER -> Icons.Default.Folder
+        }
+    }
     return when (category) {
         Category.IMAGE -> Icons.Default.Image
         Category.VIDEO -> Icons.Default.Movie

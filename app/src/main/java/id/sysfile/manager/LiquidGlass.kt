@@ -11,9 +11,11 @@ package id.sysfile.manager
 // GlassSurface murah (tint + tepi terang) seperti file aslinya.
 
 import android.os.Build
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -21,6 +23,13 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +59,8 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
@@ -70,6 +81,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -78,6 +90,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
@@ -86,8 +100,8 @@ import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.backdrops.LayerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.rememberLayerBackdrop
+import com.kyant.backdrop.layerBackdrop
 
 /* ───────────── Animasi: pegas ala SwiftUI ─────────────
  * spring(duration, bounce) → dampingRatio = 1 - bounce, stiffness = (2π / duration)²
@@ -97,6 +111,56 @@ fun <T> iosSpring(duration: Float = 0.5f, bounce: Float = 0f) = spring<T>(
     dampingRatio = 1f - bounce,
     stiffness = (2.0 * Math.PI / duration).let { (it * it).toFloat() }
 )
+
+/* ───────────── Transisi Navigasi & Layar ala iOS Liquid Glass ───────────── */
+object IosTransitions {
+    // Kurva pegas khas iOS / SwiftUI
+    val spatialSpring = iosSpring<IntOffset>(duration = 0.45f, bounce = 0.08f)
+    val sheetSpring = iosSpring<IntOffset>(duration = 0.48f, bounce = 0.12f)
+    val floatSpring = iosSpring<Float>(duration = 0.35f, bounce = 0f)
+    val sizeSpring = iosSpring<IntSize>(duration = 0.45f, bounce = 0.08f)
+
+    // Push: Navigasi masuk folder / hierarki (masuk dari kanan, keluar bergeser sedikit ke kiri dengan efek parallax)
+    fun pushEnter(): EnterTransition =
+        slideInHorizontally(animationSpec = spatialSpring) { it } +
+        fadeIn(animationSpec = floatSpring)
+
+    fun pushExit(): ExitTransition =
+        slideOutHorizontally(animationSpec = spatialSpring) { -it / 3 } +
+        fadeOut(animationSpec = floatSpring)
+
+    // Pop: Navigasi kembali folder / hierarki (masuk parallax dari kiri, keluar meluncur ke kanan)
+    fun popEnter(): EnterTransition =
+        slideInHorizontally(animationSpec = spatialSpring) { -it / 3 } +
+        fadeIn(animationSpec = floatSpring)
+
+    fun popExit(): ExitTransition =
+        slideOutHorizontally(animationSpec = spatialSpring) { it } +
+        fadeOut(animationSpec = floatSpring)
+
+    // Modal / Sheet / Overlays: Meluncur mulus dari bawah dengan pantulan pegas halus
+    fun sheetEnter(): EnterTransition =
+        slideInVertically(animationSpec = sheetSpring) { it } +
+        fadeIn(animationSpec = floatSpring)
+
+    fun sheetExit(): ExitTransition =
+        slideOutVertically(animationSpec = iosSpring(0.38f, 0f)) { it } +
+        fadeOut(animationSpec = floatSpring)
+
+    // Dynamic Island / Top Notification Pill: Meluncur dari atas dengan pegas kenyal
+    fun topPillEnter(): EnterTransition =
+        slideInVertically(animationSpec = sheetSpring) { -it } +
+        fadeIn(animationSpec = floatSpring)
+
+    fun topPillExit(): ExitTransition =
+        slideOutVertically(animationSpec = iosSpring(0.38f, 0f)) { -it } +
+        fadeOut(animationSpec = floatSpring)
+
+    // Tab Crossfade: Responsif tanpa lag
+    fun tabTransition(): ContentTransform =
+        fadeIn(animationSpec = iosSpring(0.30f, 0f)) togetherWith
+        fadeOut(animationSpec = iosSpring(0.22f, 0f))
+}
 
 /* ───────────── Warna (gelap + terang) ───────────── */
 
@@ -122,7 +186,7 @@ class LiquidColors(
 val DarkLiquid = LiquidColors(
     bg = Color(0xFF0D1016), text = Color.White, textSecondary = Color.White.copy(alpha = 0.72f),
     glassTint = Color.White.copy(alpha = 0.10f),
-    rimStart = Color.White.copy(alpha = 0.32f), rimEnd = Color.White.copy(alpha = 0.10f),
+    rimStart = Color.White.copy(alpha = 0.52f), rimEnd = Color.White.copy(alpha = 0.12f),
     barTint = Color.White.copy(alpha = 0.10f), barTintFallback = Color(0xEB1B1F27),
     indicator = Color.White.copy(alpha = 0.17f), indicatorRim = Color.White.copy(alpha = 0.24f),
     accent = Color(0xFF64B5FF), chipBg = Color(0xFF93C5FD), chipFg = Color(0xFF0C2A52),
@@ -265,7 +329,7 @@ fun liquidDialogContainerColor(): Color =
 fun Modifier.glassBlur(shape: Shape, tint: Color): Modifier {
     val backdrop = LocalGlassBackdrop.current
     val c = LocalLiquid.current
-    val rim = Brush.linearGradient(listOf(c.rimStart, c.rimEnd))
+    val rim = Brush.verticalGradient(listOf(c.rimStart, c.rimEnd))
     return if (backdrop != null) {
         this.liquidGlass(backdrop, shape, tint).border(1.dp, rim, shape)
     } else {
@@ -295,7 +359,7 @@ fun LiquidProgressBar(progress: (() -> Float)?, modifier: Modifier = Modifier) {
                 val pillW = maxWidth * 0.4f
                 val frac by rememberInfiniteTransition(label = "liquidProgress").animateFloat(
                     initialValue = 0f, targetValue = 1f,
-                    animationSpec = infiniteRepeatable(tween<Float>(1200, easing = LinearEasing), RepeatMode.Restart),
+                    animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
                     label = "liquidProgressFrac"
                 )
                 val off = (maxWidth + pillW) * frac - pillW
@@ -385,12 +449,8 @@ fun Modifier.liquidGlass(backdrop: Backdrop, shape: Shape, surface: Color): Modi
     shape = { shape },
     effects = {
         if (Build.VERSION.SDK_INT >= 33) vibrancy()
-        if (Build.VERSION.SDK_INT >= 31) blur(8f.dp.toPx())
-        // r232: lens() library Backdrop 1.0.0 HANYA mendukung CornerBasedShape —
-        // CircleShape (dan Shape lain) melempar UnsupportedOperationException ->
-        // FC saat tombol "+" Jelajah digambar dalam gaya Liquid (API 33+).
-        // Lewati lens untuk bentuk lain (blur + vibrancy tetap jalan).
-        if (Build.VERSION.SDK_INT >= 33 && shape is CornerBasedShape) lens(12f.dp.toPx(), 24f.dp.toPx())
+        if (Build.VERSION.SDK_INT >= 31) blur(16f.dp.toPx())
+        if (Build.VERSION.SDK_INT >= 33 && shape is CornerBasedShape) lens(14f.dp.toPx(), 28f.dp.toPx())
     },
     onDrawSurface = { drawRect(surface) }
 )
@@ -413,17 +473,23 @@ fun LiquidGlassTabBar(
     val t = txt()
     val tabs = listOf(
         Triple(0, Icons.Default.Home, t.home),
-        Triple(1, Icons.Default.History, t.recentShort),
-        Triple(2, Icons.Default.Analytics, t.analysisShort)
+        Triple(1, Icons.Default.Schedule, t.recentShort),
+        Triple(2, Icons.Default.PieChart, t.analysisShort)
     )
     val barShape = RoundedCornerShape(50)
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .padding(start = 22.dp, end = 22.dp, bottom = 16.dp)
-            .height(64.dp)
+            .padding(start = 20.dp, end = 20.dp, bottom = 16.dp)
+            .shadow(
+                elevation = 16.dp,
+                shape = barShape,
+                ambientColor = Color.Black.copy(alpha = 0.35f),
+                spotColor = Color.Black.copy(alpha = 0.5f)
+            )
+            .height(66.dp)
             .glassBlur(barShape, c.barTint)
-            .padding(4.dp)
+            .padding(5.dp)
     ) {
         val tabWidth = maxWidth / tabs.size
         val indicatorX by animateDpAsState(
@@ -432,6 +498,9 @@ fun LiquidGlassTabBar(
             label = "indicator"
         )
         val pill = RoundedCornerShape(50)
+        val pillRim = Brush.verticalGradient(
+            listOf(c.indicatorRim, c.indicatorRim.copy(alpha = c.indicatorRim.alpha * 0.4f))
+        )
         Box(
             Modifier
                 .offset(x = indicatorX)
@@ -439,7 +508,7 @@ fun LiquidGlassTabBar(
                 .fillMaxHeight()
                 .clip(pill)
                 .background(c.indicator)
-                .border(1.dp, c.indicatorRim, pill)
+                .border(1.dp, pillRim, pill)
         )
         Row(Modifier.fillMaxSize()) {
             tabs.forEach { (index, icon, label) ->

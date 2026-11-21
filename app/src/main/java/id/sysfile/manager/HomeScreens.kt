@@ -288,6 +288,7 @@ fun HomeScreen(
                                 StorageHeroCard(
                                     root = heroes[page],
                                     rootActive = rootActive,
+                                    isLiquid = isLiquid,
                                     onOpenRoot = onOpenRoot
                                 )
                             }
@@ -388,7 +389,7 @@ fun HomeScreen(
                                     Modifier.size(32.dp).clip(CircleShape).background(if (isLiquid) liquid.chipBg else color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = if (isLiquid) liquid.chipFg else MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                                    Icon(categoryIcon(cat, "", isLiquid), null, tint = if (isLiquid) liquid.chipFg else MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                                 }
                                 Spacer(Modifier.height(6.dp))
                                 Text(

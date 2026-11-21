@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -145,6 +146,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -191,12 +193,29 @@ fun IosAlertDialog(
     twoColumn: Boolean = false
 ) {
     val liquid = LocalLiquid.current
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
+    val scale by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0.88f,
+        animationSpec = iosSpring(duration = 0.38f, bounce = 0.16f),
+        label = "iosDialogScale"
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = iosSpring(duration = 0.28f, bounce = 0f),
+        label = "iosDialogAlpha"
+    )
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = dismissOnClickOutside)
     ) {
         Box(
             Modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    this.alpha = alpha
+                }
                 .fillMaxWidth()
                 .widthIn(min = 280.dp, max = 320.dp)
                 .clip(RoundedCornerShape(28.dp))
