@@ -71,6 +71,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -130,6 +131,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1523,6 +1525,8 @@ fun SysFileApp() {
     // seluruh isi (semua cabang layar) saat memudar.
     Box(Modifier.fillMaxSize()) {
     SysFileTheme(themeMode, themeStyle) {
+        // r224: warna kaca untuk TopAppBar utama; hanya dipakai di cabang liquid.
+        val liquid = LocalLiquid.current
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -2131,6 +2135,7 @@ fun SysFileApp() {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
+                                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (themeStyle == "liquid") liquid.glassTint else Color.Unspecified),
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
@@ -2180,6 +2185,7 @@ fun SysFileApp() {
                                     )
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
+                                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (themeStyle == "liquid") liquid.glassTint else Color.Unspecified),
                                         title = { Text(t.selected(selected.size)) },
                                         navigationIcon = {
                                             IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, t.cancel) }
@@ -2192,6 +2198,7 @@ fun SysFileApp() {
                                     )
                                 } else {
                                     TopAppBar(
+                                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (themeStyle == "liquid") liquid.glassTint else Color.Unspecified),
                                         title = {
                                             Column {
                                                 Text(
@@ -2230,7 +2237,7 @@ fun SysFileApp() {
                                         },
                                         navigationIcon = {
                                             IconButton(onClick = { browseStack = browseStack.dropLast(1) }) {
-                                                Icon(Icons.Default.ArrowBack, t.home)
+                                                Icon(if (themeStyle == "liquid") Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home)
                                             }
                                         },
                                         actions = {
@@ -2346,6 +2353,7 @@ fun SysFileApp() {
                                         }
                                     )
                                 }
+                                if (themeStyle == "liquid") HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
                                 }
                             },
                             bottomBar = {

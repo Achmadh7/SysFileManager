@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +39,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
@@ -259,20 +263,24 @@ fun SafBrowseScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        current.name ?: "SAF",
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { goBack() }) {
-                        Icon(Icons.Default.ArrowBack, t.home)
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = {
+                        Text(
+                            current.name ?: "SAF",
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { goBack() }) {
+                            Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home)
+                        }
                     }
-                }
-            )
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -293,6 +301,18 @@ fun SafBrowseScreen(
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(children!!, key = { it.uri.toString() }) { doc ->
+                    if (isLiquid) {
+                        item {
+                            Text(
+                                current.name ?: "SAF",
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                         SafRow(
                             doc = doc,
                             onClick = {

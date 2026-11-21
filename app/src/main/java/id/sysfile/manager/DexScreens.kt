@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -37,6 +38,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,6 +66,8 @@ import java.io.File
 @Composable
 fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false) {
     val t = txt()
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     var state by remember { mutableStateOf<DexLoadState>(DexLoadState.Loading) }
     var query by remember { mutableStateOf("") }
     var selectedClass by remember { mutableStateOf<Int?>(null) }
@@ -97,12 +101,16 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false)
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, t.home) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = {
+                        IconButton(onClick = back) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
+                    }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {

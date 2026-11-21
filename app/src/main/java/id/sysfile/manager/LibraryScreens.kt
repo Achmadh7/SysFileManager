@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -120,6 +121,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -302,6 +304,8 @@ fun CategoryScreen(
     isLiquid: Boolean = false
 ) {
     val t = txt()
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val context = LocalContext.current
     val lockedFolders = remember {
@@ -342,22 +346,26 @@ fun CategoryScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        when (category) {
-                            Category.IMAGE -> t.catImages
-                            Category.VIDEO -> t.catVideos
-                            Category.AUDIO -> t.catAudio
-                            Category.DOCUMENT -> t.catDocuments
-                            Category.APP -> t.catApps
-                            Category.ARCHIVE -> t.catArchives
-                            Category.OTHER -> t.catOther
-                        }
-                    )
-                },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = {
+                        Text(
+                            when (category) {
+                                Category.IMAGE -> t.catImages
+                                Category.VIDEO -> t.catVideos
+                                Category.AUDIO -> t.catAudio
+                                Category.DOCUMENT -> t.catDocuments
+                                Category.APP -> t.catApps
+                                Category.ARCHIVE -> t.catArchives
+                                Category.OTHER -> t.catOther
+                            }
+                        )
+                    },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -396,6 +404,26 @@ fun CategoryScreen(
                     }
                     else -> LazyColumn(Modifier.fillMaxSize()) {
                         items(loaded.orEmpty(), key = { it.path }) { entry ->
+                        if (isLiquid) {
+                            item {
+                                Text(
+                                    when (category) {
+                                        Category.IMAGE -> t.catImages
+                                        Category.VIDEO -> t.catVideos
+                                        Category.AUDIO -> t.catAudio
+                                        Category.DOCUMENT -> t.catDocuments
+                                        Category.APP -> t.catApps
+                                        Category.ARCHIVE -> t.catArchives
+                                        Category.OTHER -> t.catOther
+                                    },
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
                             FileRow(
                                 entry = entry,
                                 selectionMode = false,
@@ -539,6 +567,8 @@ fun TrashScreen(
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<TrashItem>?>(null) }
     var hiddenCount by remember { mutableStateOf(0) }
@@ -579,15 +609,19 @@ fun TrashScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(t.trash) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
-                actions = {
-                    if (!items.isNullOrEmpty()) {
-                        TextButton(enabled = !busy, onClick = { confirmEmpty = true }) { Text(t.emptyTrash) }
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(t.trash) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } },
+                    actions = {
+                        if (!items.isNullOrEmpty()) {
+                            TextButton(enabled = !busy, onClick = { confirmEmpty = true }) { Text(t.emptyTrash) }
+                        }
                     }
-                }
-            )
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         val loaded = items
@@ -604,6 +638,18 @@ fun TrashScreen(
                 )
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     if (hiddenCount > 0) {
+                    if (isLiquid) {
+                        item {
+                            Text(
+                                t.trash,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                         item {
                             Text(
                                 t.trashLockedHidden(hiddenCount),
@@ -728,6 +774,8 @@ fun PayloadScreen(
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val payloadFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var listing by remember(path) { mutableStateOf<PayloadOps.Listing?>(null) }
@@ -741,13 +789,17 @@ fun PayloadScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(payloadFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
-                actions = {
-                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(payloadFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } },
+                    actions = {
+                        TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                    }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         val loaded = listing
@@ -786,6 +838,18 @@ fun PayloadScreen(
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     item {
+                    if (isLiquid) {
+                        item {
+                            Text(
+                                payloadFile.name,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                         val meta = loaded
                         if (meta != null) {
                             Text(
@@ -826,6 +890,8 @@ fun ArchiveScreen(
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val archiveFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var items by remember(path) { mutableStateOf<List<ArchiveItem>?>(null) }
@@ -842,13 +908,17 @@ fun ArchiveScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(archiveFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
-                actions = {
-                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(archiveFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } },
+                    actions = {
+                        TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                    }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -897,6 +967,18 @@ fun ArchiveScreen(
                         val children = archiveChildren(loaded.orEmpty(), shownPrefix)
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(children, key = { it.first.name }) { (item, count) ->
+                            if (isLiquid) {
+                                item {
+                                    Text(
+                                        archiveFile.name,
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
                                 ArchiveItemRow(item = item, count = count, onClick = {
                                     if (item.isDir) { prefix = item.name; onPrefixChange(item.name) } else onOpenFile(item.name)
                                 })
@@ -932,6 +1014,8 @@ fun ImgBrowseScreen(
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val imgFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var result by remember(path) { mutableStateOf<RamdiskResult?>(null) }
@@ -962,13 +1046,17 @@ fun ImgBrowseScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
-                actions = {
-                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } },
+                    actions = {
+                        TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                    }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -1045,6 +1133,18 @@ fun ImgBrowseScreen(
                         val children = ImgOps.ramdiskChildren(entries, shownPrefix)
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(children, key = { it.first.name }) { (item, count) ->
+                            if (isLiquid) {
+                                item {
+                                    Text(
+                                        imgFile.name,
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
                                 ArchiveItemRow(
                                     item = ArchiveItem(item.name, item.isDir, item.size),
                                     count = count,
@@ -1084,6 +1184,8 @@ fun Ext4BrowseScreen(
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val imgFile = remember(path) { File(path) }
     val scope = rememberCoroutineScope()
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -1107,13 +1209,17 @@ fun Ext4BrowseScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
-                actions = {
-                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } },
+                    actions = {
+                        TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                    }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -1162,6 +1268,18 @@ fun Ext4BrowseScreen(
                         val items = loaded!!
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(items, key = { it.name }) { item ->
+                            if (isLiquid) {
+                                item {
+                                    Text(
+                                        imgFile.name,
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
                                 ArchiveItemRow(
                                     item = ArchiveItem(item.name, item.isDir, item.size),
                                     count = null,
@@ -1221,6 +1339,8 @@ fun FatBrowseScreen(
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val imgFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var entries by remember(path) { mutableStateOf<List<FatEntry>?>(null) }
@@ -1240,13 +1360,17 @@ fun FatBrowseScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
-                actions = {
-                    TextButton(onClick = onExtractAll) { Text(t.extractAll) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } },
+                    actions = {
+                        TextButton(onClick = onExtractAll) { Text(t.extractAll) }
+                    }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -1295,6 +1419,18 @@ fun FatBrowseScreen(
                         val items = loaded!!
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(items, key = { it.name }) { item ->
+                            if (isLiquid) {
+                                item {
+                                    Text(
+                                        imgFile.name,
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
                                 ArchiveItemRow(
                                     item = ArchiveItem(item.name, item.isDir, item.size),
                                     count = null,
@@ -1335,6 +1471,8 @@ fun LpBrowseScreen(
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val imgFile = remember(path) { File(path) }
     val partitions = session?.reader?.partitions
     LaunchedEffect(session) {
@@ -1342,10 +1480,14 @@ fun LpBrowseScreen(
     }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(imgFile.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -1370,6 +1512,18 @@ fun LpBrowseScreen(
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(list, key = { it.name }) { part ->
+                    if (isLiquid) {
+                        item {
+                            Text(
+                                imgFile.name,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                         ArchiveItemRow(
                             item = ArchiveItem(part.name, false, part.sizeBytes),
                             count = null,

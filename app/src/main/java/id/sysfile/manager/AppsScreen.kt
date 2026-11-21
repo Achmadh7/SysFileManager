@@ -41,6 +41,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
@@ -64,6 +65,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -219,15 +222,19 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
     ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(t.appsTitle) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                },
-                actions = {
-                    IconButton(onClick = { reload() }) { Icon(Icons.Default.Refresh, t.refresh) }
-                }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(t.appsTitle) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
+                    },
+                    actions = {
+                        IconButton(onClick = { reload() }) { Icon(Icons.Default.Refresh, t.refresh) }
+                    }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
@@ -280,6 +287,18 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
                 }
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(visible, key = { it.packageName }) { app ->
+                    if (isLiquid) {
+                        item {
+                            Text(
+                                t.appsTitle,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                         ListItem(
                             headlineContent = {
                                 Text(

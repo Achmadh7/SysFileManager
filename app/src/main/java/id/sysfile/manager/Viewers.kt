@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.WrapText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
@@ -79,6 +80,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -144,6 +146,10 @@ fun ImageViewerScreen(
     onPathChange: (String) -> Unit
 ) {
     val t = txt()
+    // r224: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val context = LocalContext.current
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { paths.size })
     val currentPath = paths[pagerState.currentPage]
@@ -187,23 +193,27 @@ fun ImageViewerScreen(
     Scaffold(
         topBar = {
             AnimatedVisibility(visible = chrome, enter = fadeIn(), exit = fadeOut()) {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(File(currentPath).name, maxLines = 1)
-                            if (paths.size > 1) {
-                                Text(
-                                    "${pagerState.currentPage + 1} / ${paths.size}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                Column {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                        title = {
+                            Column {
+                                Text(File(currentPath).name, maxLines = 1)
+                                if (paths.size > 1) {
+                                    Text(
+                                        "${pagerState.currentPage + 1} / ${paths.size}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
                         }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                    }
-                )
+                    )
+                    if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+                }
             }
         }
     ) { padding ->
@@ -462,74 +472,78 @@ fun TextViewerScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(fileName, maxLines = 1, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            if (isRootTarget) {
-                                Spacer(Modifier.width(6.dp))
-                                Surface(
-                                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        "ROOT",
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(fileName, maxLines = 1, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                if (isRootTarget) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "ROOT",
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
                                 }
                             }
+                            Text(
+                                displayPath,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                        Text(
-                            displayPath,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                },
-                actions = {
-                    if (content != null) {
-                        // Tombol pencarian
-                        IconButton(onClick = { searchVisible = !searchVisible }) {
-                            Icon(Icons.Default.Search, "Cari", tint = if (searchVisible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
+                    },
+                    actions = {
+                        if (content != null) {
+                            // Tombol pencarian
+                            IconButton(onClick = { searchVisible = !searchVisible }) {
+                                Icon(Icons.Default.Search, "Cari", tint = if (searchVisible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
 
-                        if (isHtml || isMarkdown) {
-                            if (preview) {
-                                IconButton(onClick = { previewTick++ }) { Icon(Icons.Default.Refresh, t.refresh) }
-                                IconButton(onClick = { preview = false }) { Icon(Icons.Default.Code, t.codeLabel) }
-                            } else {
-                                IconButton(onClick = { preview = true }) { Icon(Icons.Default.Visibility, t.preview) }
+                            if (isHtml || isMarkdown) {
+                                if (preview) {
+                                    IconButton(onClick = { previewTick++ }) { Icon(Icons.Default.Refresh, t.refresh) }
+                                    IconButton(onClick = { preview = false }) { Icon(Icons.Default.Code, t.codeLabel) }
+                                } else {
+                                    IconButton(onClick = { preview = true }) { Icon(Icons.Default.Visibility, t.preview) }
+                                }
+                            }
+
+                            if (!preview && editing) {
+                                Button(
+                                    onClick = { saveAction() },
+                                    shape = RoundedCornerShape(20.dp),
+                                    enabled = !isSaving,
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.Save, null, Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(t.save, style = MaterialTheme.typography.labelMedium)
+                                }
+                            } else if (!preview && (extractedText == null || onSaveArchiveText != null)) {
+                                IconButton(onClick = {
+                                    editorValue = TextFieldValue(content ?: "")
+                                    editing = true
+                                }) { Icon(Icons.Default.Edit, t.edit) }
                             }
                         }
-
-                        if (!preview && editing) {
-                            Button(
-                                onClick = { saveAction() },
-                                shape = RoundedCornerShape(20.dp),
-                                enabled = !isSaving,
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Icon(Icons.Default.Save, null, Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(t.save, style = MaterialTheme.typography.labelMedium)
-                            }
-                        } else if (!preview && (extractedText == null || onSaveArchiveText != null)) {
-                            IconButton(onClick = {
-                                editorValue = TextFieldValue(content ?: "")
-                                editing = true
-                            }) { Icon(Icons.Default.Edit, t.edit) }
-                        }
                     }
-                }
-            )
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         },
         bottomBar = {
             if (content != null && !preview) {
@@ -890,6 +904,8 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
     val t = txt()
     // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
     val isLiquid = LocalIsLiquid.current
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     var renderer by remember { mutableStateOf<PdfRenderer?>(null) }
     var openFailed by remember { mutableStateOf(false) }
     DisposableEffect(path) {
@@ -926,23 +942,27 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
     Scaffold(
         topBar = {
             AnimatedVisibility(visible = chrome, enter = fadeIn(), exit = fadeOut()) {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(File(path).name, maxLines = 1)
-                            if (pageCount > 1) {
-                                Text(
-                                    "${pagerState.currentPage + 1} / $pageCount",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                Column {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                        title = {
+                            Column {
+                                Text(File(path).name, maxLines = 1)
+                                if (pageCount > 1) {
+                                    Text(
+                                        "${pagerState.currentPage + 1} / $pageCount",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
                         }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                    }
-                )
+                    )
+                    if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+                }
             }
         }
     ) { padding ->
@@ -1148,28 +1168,31 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                     slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
                     shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
             ) {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(File(currentPath).name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (paths.size > 1) {
-                                Text(
-                                    "${pagerState.currentPage + 1} / ${paths.size}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = 0.7f)
-                                )
+                Column {
+                    TopAppBar(
+                        title = {
+                            Column {
+                                Text(File(currentPath).name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (paths.size > 1) {
+                                    Text(
+                                        "${pagerState.currentPage + 1} / ${paths.size}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.White.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Black,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Black,
+                            titleContentColor = Color.White,
+                            navigationIconContentColor = Color.White
+                        )
                     )
-                )
+                    if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+                }
             }
         },
         containerColor = Color.Black
@@ -1357,6 +1380,8 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
 @Composable
 fun FontViewerScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false) {
     val t = txt()
+    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val file = File(path)
     val ink = MaterialTheme.colorScheme.onSurface
     var info by remember { mutableStateOf<Pair<String?, String?>?>(null) }
@@ -1380,10 +1405,14 @@ fun FontViewerScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false
     BackHandler { onBack() }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
-            )
+            Column {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
+                    title = { Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } }
+                )
+                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
+            }
         }
     ) { padding ->
         Column(
