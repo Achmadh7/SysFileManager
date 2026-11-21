@@ -1,4 +1,4 @@
-# SysFileManager — File Manager for Android
+# SysFileManager 
 
 An Android file manager written in Kotlin with Jetpack Compose and Material 3 Expressive (the installed app is named **SysFile**), wearing the Biru Senja theme — a fixed dusk-blue palette with solid cards (dark background #101418, primary #9ACBFA; light #F7F9FF with primary #2E628C). Browse internal storage, SD cards, USB drives, and even the system root; copy, move, rename, delete, compress, and extract files; preview photos and text, and play videos in a built-in player; lock private folders behind your fingerprint; break into system-restricted folders (such as `Android/data`) through a one-time Storage Access Framework grant; manage installed apps; search the whole storage; and see what is taking up space — all on-device, no account, no ads.
 
