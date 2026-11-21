@@ -315,15 +315,19 @@ fun SysFileApp() {
     // seperti onThemeChange di atas supaya pergantian memudar (TM1).
     var themeStyle by remember { mutableStateOf(prefs.getString("theme_style", "material") ?: "material") }
     val onThemeStyleChange: (String) -> Unit = { style ->
-        if (themeShot == null) {
-            themeShot = try {
-                if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
-            } catch (_: Exception) {
-                null
+        try {
+            if (themeShot == null) {
+                themeShot = try {
+                    if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
+                } catch (_: Exception) {
+                    null
+                }
             }
+            themeStyle = style
+            prefs.edit().putString("theme_style", style).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SysFileApp", "Theme change crash", e)
         }
-        themeStyle = style
-        prefs.edit().putString("theme_style", style).apply()
     }
 
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
