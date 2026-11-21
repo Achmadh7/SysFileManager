@@ -293,7 +293,7 @@ fun LiquidProgressBar(progress: (() -> Float)?, modifier: Modifier = Modifier) {
                 val pillW = maxWidth * 0.4f
                 val frac by rememberInfiniteTransition(label = "liquidProgress").animateFloat(
                     initialValue = 0f, targetValue = 1f,
-                    animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
+                    animationSpec = infiniteRepeatable(tween<Float>(1200, easing = LinearEasing), RepeatMode.Restart),
                     label = "liquidProgressFrac"
                 )
                 val off = (maxWidth + pillW) * frac - pillW
