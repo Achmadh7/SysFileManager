@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -144,6 +145,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -183,6 +185,9 @@ fun SettingsScreen(
     exiting: Boolean = false
 ) {
     val t = txt()
+    // r213: gaya Liquid dari param themeStyle (bukan local).
+    val isLiquid = themeStyle == "liquid"
+    val liquid = LocalLiquid.current
     val motion = MaterialTheme.motionScheme
     // Animasi perpindahan ke Pengaturan (S3, MotionScheme resmi): masuk geser dari kanan
     // + memudar; keluar (exiting) arah berlawanan. MainActivity menunda
@@ -222,7 +227,8 @@ fun SettingsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
@@ -274,7 +280,8 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
@@ -313,7 +320,8 @@ item { SettingsSectionLabel(t.aplikasiSection, topPadding = 4.dp) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
@@ -465,6 +473,9 @@ private fun FormatGroupHeader(icon: ImageVector, title: String) {
 @Composable
 fun FormatsScreen(onBack: () -> Unit) {
     val t = txt()
+    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
+    val liquid = LocalLiquid.current
     val visState = remember { MutableTransitionState(false) }
     val motion = MaterialTheme.motionScheme
     LaunchedEffect(Unit) { visState.targetState = true }
@@ -494,7 +505,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -517,7 +529,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -545,7 +558,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -573,7 +587,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -606,6 +621,9 @@ fun AboutScreen(
     onOpenSpecs: () -> Unit
 ) {
     val t = txt()
+    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
+    val liquid = LocalLiquid.current
     val context = LocalContext.current
     val internal = remember { FileOps.storageRoots(context).firstOrNull { it.kind == "internal" } }
     // r145: animasi masuk sama seperti FormatsScreen — geser
@@ -692,7 +710,8 @@ fun AboutScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
@@ -868,10 +887,14 @@ private fun SpecGroup(
     title: String,
     rows: List<Pair<String, String>>
 ) {
+    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
+    val liquid = LocalLiquid.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+        colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

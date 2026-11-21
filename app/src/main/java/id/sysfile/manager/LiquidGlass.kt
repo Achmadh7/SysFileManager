@@ -43,6 +43,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -143,6 +144,10 @@ val LightLiquid = LiquidColors(
 
 val LocalLiquid = staticCompositionLocalOf { DarkLiquid }
 
+/** true saat gaya Liquid aktif — dibaca layar/dialog yang tidak
+ *  menerima param isLiquid (Pengaturan pakai themeStyle langsung). */
+val LocalIsLiquid = staticCompositionLocalOf { false }
+
 /** Skema Material 3 yang diturunkan dari warna Liquid — supaya semua
  *  layar SysFile yang membaca peran skema ikut berubah warna tanpa
  *  diedit satu-satu saat gaya Liquid aktif. Peran wadah memakai
@@ -212,11 +217,18 @@ fun LiquidTheme(dark: Boolean, content: @Composable () -> Unit) {
     ) {
         CompositionLocalProvider(
             LocalLiquid provides colors,
+            LocalIsLiquid provides true,
             LocalContentColor provides colors.text,
             content = content
         )
     }
 }
+
+/** Warna wadah dialog: kaca saat gaya Liquid, bawaan M3 bila bukan.
+ *  Dipakai semua AlertDialog di Dialogs.kt — satu baris per dialog. */
+@Composable
+fun liquidDialogContainerColor(): Color =
+    if (LocalIsLiquid.current) LocalLiquid.current.glassTint else AlertDialogDefaults.containerColor
 
 /* ───────────── Komponen kaca ───────────── */
 

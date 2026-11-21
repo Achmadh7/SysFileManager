@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,6 +56,9 @@ fun WelcomeScreen(
     onTheme: (String) -> Unit
 ) {
     val t = txt()
+    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
+    val liquid = LocalLiquid.current
     // r165 WT1 Ikon Pojok (pilihannya): tombol ganti tema di pojok
     // kanan atas — memakai jalur onTheme yang sama dengan Pengaturan
     // (TM1 fade ikut jalan). Ikon mengikuti konvensi baris Tema di
@@ -118,8 +122,9 @@ fun WelcomeScreen(
                 }
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest
                     ),
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {

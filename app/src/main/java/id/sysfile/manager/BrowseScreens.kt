@@ -496,7 +496,8 @@ fun SelectionBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null,
             tonalElevation = 3.dp,
             shadowElevation = 6.dp
         ) {
@@ -611,7 +612,8 @@ fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.secondaryContainer
+            color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.secondaryContainer,
+            border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -665,7 +667,8 @@ fun MiniPlayerBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+            border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null,
             tonalElevation = 3.dp,
             shadowElevation = 6.dp
         ) {

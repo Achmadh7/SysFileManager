@@ -169,6 +169,7 @@ fun NameDialog(
     val t = txt()
     var text by remember(initial) { mutableStateOf(initial) }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
@@ -247,6 +248,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
         }
     }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = {
             // Kepala Properti (r23, pilihan Achmad 2026-11-18): pita
@@ -494,6 +496,7 @@ fun ExifDialog(entry: FEntry, onDismiss: () -> Unit) {
         done = true
     }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = {
             Box(
@@ -574,6 +577,7 @@ private fun PermissionsDialog(
         bits = if (on) bits or bit else bits and bit.inv()
     }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = { Text(t.propPerms) },
         text = {
@@ -813,6 +817,7 @@ fun SortDialog(
     var key by remember { mutableStateOf(sortKey) }
     var asc by remember { mutableStateOf(ascending) }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = { Text(t.sortBy) },
         text = {
@@ -859,6 +864,7 @@ fun CompressDialog(
     var password by remember { mutableStateOf("") }
     val kinds = listOf("zip" to "ZIP", "tar" to "TAR")
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = { Text(t.compress) },
         text = {
@@ -904,6 +910,7 @@ fun ArchivePasswordDialog(
     val t = txt()
     var password by remember { mutableStateOf("") }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Lock, null) },
         title = { Text(title) },
@@ -964,6 +971,7 @@ fun ArchiveActionsDialog(
 ) {
     val t = txt()
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = {
             // EA1 Daftar aksi (r112, pilihannya): kepala rata kiri —
@@ -1037,6 +1045,7 @@ fun FolderPickerDialog(
     }
     val parent = remember(current) { File(current).parent }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onCancel,
         title = { Text(title) },
         text = {
@@ -1103,6 +1112,7 @@ fun ApkActionsDialog(
         iconBmp = loaded.second
     }
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1192,6 +1202,7 @@ fun ArchiveContentsDialog(
 ) {
     val t = txt()
     AlertDialog(
+        containerColor = liquidDialogContainerColor(),
         onDismissRequest = onDismiss,
         title = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         text = {

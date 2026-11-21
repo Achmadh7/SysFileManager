@@ -150,7 +150,10 @@ fun SysFileTheme(themeMode: String, themeStyle: String = "material", content: @C
         // judul seksi, label petak kategori - jatuh ke hitam bawaan
         // CompositionLocal, seperti terlihat pada tangkapan layar
         // Beranda mode gelap 2026-11-11.
-        CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
+        CompositionLocalProvider(
+            LocalContentColor provides scheme.onSurface,
+            LocalIsLiquid provides false
+        ) {
             content()
         }
     }
