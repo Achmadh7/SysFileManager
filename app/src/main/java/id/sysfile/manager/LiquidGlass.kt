@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
@@ -385,7 +386,11 @@ fun Modifier.liquidGlass(backdrop: Backdrop, shape: Shape, surface: Color): Modi
     effects = {
         if (Build.VERSION.SDK_INT >= 33) vibrancy()
         if (Build.VERSION.SDK_INT >= 31) blur(8f.dp.toPx())
-        if (Build.VERSION.SDK_INT >= 33) lens(12f.dp.toPx(), 24f.dp.toPx())
+        // r232: lens() library Backdrop 1.0.0 HANYA mendukung CornerBasedShape —
+        // CircleShape (dan Shape lain) melempar UnsupportedOperationException ->
+        // FC saat tombol "+" Jelajah digambar dalam gaya Liquid (API 33+).
+        // Lewati lens untuk bentuk lain (blur + vibrancy tetap jalan).
+        if (Build.VERSION.SDK_INT >= 33 && shape is CornerBasedShape) lens(12f.dp.toPx(), 24f.dp.toPx())
     },
     onDrawSurface = { drawRect(surface) }
 )

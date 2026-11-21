@@ -549,7 +549,7 @@ fun BrowseScreen(
                     Box(
                         Modifier.align(Alignment.BottomEnd).padding(16.dp)
                             .size(56.dp).clip(CircleShape)
-                            .glassBlur(CircleShape, liquid.glassTint)
+                            .glassBlur(RoundedCornerShape(50), liquid.glassTint) // r232: 50% = lingkaran penuh; CircleShape tak bisa di-lens
                             .clickable { fabOpen = !fabOpen },
                         contentAlignment = Alignment.Center
                     ) {
