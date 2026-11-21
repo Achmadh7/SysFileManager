@@ -22,7 +22,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -151,6 +153,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
@@ -195,27 +198,53 @@ fun BrowseHeaderBar(
     val labels = listOf(currentRoot?.let { rootLabel(it, t) } ?: rootPath) + segments
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SearchBar(
-                inputField = {
-                    SearchBarDefaults.InputField(
-                        query = "",
-                        onQueryChange = {},
-                        onSearch = { onSearch() },
-                        expanded = false,
-                        onExpandedChange = { if (it) onSearch() },
-                        placeholder = { Text(t.searchInFolder) },
-                        leadingIcon = { Icon(Icons.Default.Search, null) }
-                    )
-                },
-                expanded = false,
-                onExpandedChange = {},
-                modifier = Modifier.weight(1f),
-                // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
-                // status bar di atas pil (windowInsets default), padahal
-                // ia duduk di bawah TopAppBar yang inset-nya sudah
-                // dikonsumsi Scaffold; tanpa ini pil terdorong ~36dp.
-                windowInsets = WindowInsets(0.dp)
-            ) {}
+            // r223 X3: pemicu cari palsu (query "" hardcoded) — di Liquid
+            // jadi pil kaca klikabel; Material tetap SearchBar M3.
+            if (isLiquid) {
+                Box(
+                    Modifier.weight(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .glassBlur(RoundedCornerShape(24.dp), liquid.glassTint)
+                        .clickable { onSearch() }
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Search, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            t.searchInFolder,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            } else {
+                SearchBar(
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = "",
+                            onQueryChange = {},
+                            onSearch = { onSearch() },
+                            expanded = false,
+                            onExpandedChange = { if (it) onSearch() },
+                            placeholder = { Text(t.searchInFolder) },
+                            leadingIcon = { Icon(Icons.Default.Search, null) }
+                        )
+                    },
+                    expanded = false,
+                    onExpandedChange = {},
+                    modifier = Modifier.weight(1f),
+                    // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
+                    // status bar di atas pil (windowInsets default), padahal
+                    // ia duduk di bawah TopAppBar yang inset-nya sudah
+                    // dikonsumsi Scaffold; tanpa ini pil terdorong ~36dp.
+                    windowInsets = WindowInsets(0.dp)
+                ) {}
+            }
             Spacer(Modifier.width(8.dp))
             // Tombol tunggal: ikon menunjukkan tampilan TUJUAN (bukan yang aktif).
             FilledTonalIconButton(onClick = onToggleView) {
@@ -320,6 +349,7 @@ fun BrowseScreen(
     isLiquid: Boolean = false
 ) {
     val t = txt()
+    val liquid = LocalLiquid.current
     Column(Modifier.fillMaxSize()) {
         if (canGoUp) {
             Row(
@@ -425,38 +455,124 @@ fun BrowseScreen(
             }
             if (selected.isEmpty()) {
                 var fabOpen by remember { mutableStateOf(false) }
-                if (fabOpen) {
-                    Box(
-                        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { fabOpen = false }
-                    )
-                }
-                FloatingActionButtonMenu(
-                    expanded = fabOpen,
-                    button = {
-                        // Berlabel saat tertutup ("Baru"/"New"); menciut jadi ikon X saat menu terbuka.
-                        ExtendedFloatingActionButton(
-                            onClick = { fabOpen = !fabOpen },
-                            expanded = !fabOpen,
-                            icon = { Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null) },
-                            text = { Text(t.newShort) }
+                if (isLiquid) {
+                    // r223 X4: tombol "+" kaca + action sheet iOS di dalam
+                    // Box yang sama — sheet berhenti di atas tab bar.
+                    if (fabOpen) {
+                        Box(
+                            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { fabOpen = false }
                         )
-                    },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-                ) {
-                    FloatingActionButtonMenuItem(
-                        onClick = { fabOpen = false; onNewFolder() },
-                        text = { Text(t.newFolder) },
-                        icon = { Icon(Icons.Default.CreateNewFolder, null) }
-                    )
-                    FloatingActionButtonMenuItem(
-                        onClick = { fabOpen = false; onNewFile() },
-                        text = { Text(t.newFile) },
-                        icon = { Icon(Icons.Default.NoteAdd, null) }
-                    )
+                    }
+                    Box(
+                        Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                            .size(56.dp).clip(CircleShape)
+                            .glassBlur(CircleShape, liquid.glassTint)
+                            .clickable { fabOpen = !fabOpen },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Add, null)
+                    }
+                    val motion = MaterialTheme.motionScheme
+                    AnimatedVisibility(
+                        visible = fabOpen,
+                        enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it },
+                        exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it },
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                Modifier.fillMaxWidth()
+                                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+                            ) {
+                                Column(Modifier.fillMaxWidth()) {
+                                    Box(
+                                        Modifier.fillMaxWidth()
+                                            .clickable { fabOpen = false; onNewFolder() }
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            t.newFolder,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    HorizontalDivider(color = liquid.separator)
+                                    Box(
+                                        Modifier.fillMaxWidth()
+                                            .clickable { fabOpen = false; onNewFile() }
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            t.newFile,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                            Box(
+                                Modifier.fillMaxWidth()
+                                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+                                    .clickable { fabOpen = false }
+                            ) {
+                                Box(
+                                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        t.cancel,
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    if (fabOpen) {
+                        Box(
+                            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { fabOpen = false }
+                        )
+                    }
+                    FloatingActionButtonMenu(
+                        expanded = fabOpen,
+                        button = {
+                            // Berlabel saat tertutup ("Baru"/"New"); menciut jadi ikon X saat menu terbuka.
+                            ExtendedFloatingActionButton(
+                                onClick = { fabOpen = !fabOpen },
+                                expanded = !fabOpen,
+                                icon = { Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null) },
+                                text = { Text(t.newShort) }
+                            )
+                        },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                    ) {
+                        FloatingActionButtonMenuItem(
+                            onClick = { fabOpen = false; onNewFolder() },
+                            text = { Text(t.newFolder) },
+                            icon = { Icon(Icons.Default.CreateNewFolder, null) }
+                        )
+                        FloatingActionButtonMenuItem(
+                            onClick = { fabOpen = false; onNewFile() },
+                            text = { Text(t.newFile) },
+                            icon = { Icon(Icons.Default.NoteAdd, null) }
+                        )
+                    }
                 }
             }
         }
