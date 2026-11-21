@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -1529,6 +1530,8 @@ fun AnalysisScreen(
     isLiquid: Boolean = false
 ) {
     val t = txt()
+    // r215: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val context = LocalContext.current
     val lockedFolders = remember {
         FileOps.canonicalizeLocked(
@@ -1640,7 +1643,8 @@ fun AnalysisScreen(
                         if (res == null) {
                             Card(
                                 shape = RoundedCornerShape(28.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                                colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                                border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
                             ) {
                                 Row(
                                     Modifier.padding(20.dp),
@@ -1667,7 +1671,8 @@ fun AnalysisScreen(
                                 entries.forEach { (cat, size) ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -1724,7 +1729,8 @@ fun AnalysisScreen(
                                 shownLargest.forEach { entry ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                                        colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth()

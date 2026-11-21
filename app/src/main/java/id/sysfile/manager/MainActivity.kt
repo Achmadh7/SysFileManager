@@ -1533,7 +1533,8 @@ fun SysFileApp() {
                 unlockedPaths = unlockedSession,
                 onRequestUnlock = { path, grant -> requestUnlock(path, grant) },
                 onExit = { safTreeUri = null; safBasePath = null },
-                notify = { notify(it) }
+                notify = { notify(it) },
+                isLiquid = themeStyle == "liquid"
             )
         } else if (showTrash) {
             TrashScreen(
@@ -1713,6 +1714,7 @@ fun SysFileApp() {
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
+                        isLiquid = themeStyle == "liquid"
                     )
                     is Overlay.VideoView -> VideoViewerScreen(
                         paths = ov.paths,
@@ -2110,7 +2112,8 @@ fun SysFileApp() {
                     )
                     is Overlay.DexView -> DexBrowseScreen(
                         path = ov.path,
-                        onBack = { overlay = overlayReturn; overlayReturn = null }
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        isLiquid = themeStyle == "liquid"
                     )
                     null -> {
                         Scaffold(

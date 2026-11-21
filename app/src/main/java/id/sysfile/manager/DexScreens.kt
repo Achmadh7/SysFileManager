@@ -1,7 +1,9 @@
 package id.sysfile.manager
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,7 +63,7 @@ import java.io.File
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun DexBrowseScreen(path: String, onBack: () -> Unit) {
+fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false) {
     val t = txt()
     var state by remember { mutableStateOf<DexLoadState>(DexLoadState.Loading) }
     var query by remember { mutableStateOf("") }
@@ -131,7 +133,8 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit) {
                             dex = dex,
                             query = query,
                             onQueryChange = { query = it },
-                            onClassClick = { selectedClass = it }
+                            onClassClick = { selectedClass = it },
+                            isLiquid = isLiquid
                         )
                     }
                 }
@@ -153,9 +156,12 @@ private fun DexClassListView(
     dex: DexFile,
     query: String,
     onQueryChange: (String) -> Unit,
-    onClassClick: (Int) -> Unit
+    onClassClick: (Int) -> Unit,
+    isLiquid: Boolean = false
 ) {
     val t = txt()
+    // r215: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val h = dex.header
     val filtered = remember(dex, query) {
         val q = query.trim().lowercase()
@@ -165,7 +171,8 @@ private fun DexClassListView(
     Column(Modifier.fillMaxSize()) {
         Card(
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+            colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
+            border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

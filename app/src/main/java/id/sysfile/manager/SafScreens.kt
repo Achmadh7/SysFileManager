@@ -171,9 +171,12 @@ fun SafBrowseScreen(
     basePath: String = "",
     lockedPaths: Set<String> = emptySet(),
     unlockedPaths: Set<String> = emptySet(),
-    onRequestUnlock: (String, () -> Unit) -> Unit = { _, grant -> grant() }
+    onRequestUnlock: (String, () -> Unit) -> Unit = { _, grant -> grant() },
+    isLiquid: Boolean = false
 ) {
     val t = txt()
+    // r215: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val root = remember(treeUri) { DocumentFile.fromTreeUri(context, Uri.parse(treeUri)) }
@@ -297,7 +300,8 @@ fun SafBrowseScreen(
                                     guarded(fsPathOf(current)) { openSafDoc(context, doc, t.openFailed, notify) }
                                 }
                             },
-                            onCopy = { copyDoc = doc }
+                            onCopy = { copyDoc = doc },
+                            isLiquid = isLiquid
                         )
                     }
                 }
@@ -324,8 +328,10 @@ fun SafBrowseScreen(
 }
 
 @Composable
-private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit) {
+private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit, isLiquid: Boolean = false) {
     val t = txt()
+    // r215: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val name = doc.name ?: "?"
     val isDir = doc.isDirectory
     val color = if (isDir) Color(0xFFFFA000) else categoryColor(FileOps.categoryOf(name))
@@ -372,7 +378,7 @@ private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit) {
                 }
             }
         },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        colors = ListItemDefaults.colors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
             .clickable { onClick() }
