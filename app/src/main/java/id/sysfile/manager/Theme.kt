@@ -123,14 +123,21 @@ private val SenjaDarkScheme: ColorScheme = ColorScheme(
     onTertiaryFixedVariant = Color(0xFF4F4061),
 )
 
-/** Tema aplikasi: mode "light" / "dark" / "system" dari preferensi. */
+/** Tema aplikasi: mode "light" / "dark" / "system" dari preferensi,
+ *  gaya "material" (Biru Senja) atau "liquid" (Liquid Glass, r210). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SysFileTheme(themeMode: String, content: @Composable () -> Unit) {
+fun SysFileTheme(themeMode: String, themeStyle: String = "material", content: @Composable () -> Unit) {
     val dark = when (themeMode) {
         "light" -> false
         "dark" -> true
         else -> isSystemInDarkTheme()
+    }
+    // r210: gaya Liquid Glass — warna + skema dari LiquidKit; semua
+    // layar membaca peran skema yang sama, jadi warnanya ikut sekali.
+    if (themeStyle == "liquid") {
+        LiquidTheme(dark) { content() }
+        return
     }
     val scheme = if (dark) SenjaDarkScheme else SenjaLightScheme
     MaterialExpressiveTheme(

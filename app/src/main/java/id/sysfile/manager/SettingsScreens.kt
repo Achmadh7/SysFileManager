@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -165,11 +166,13 @@ import java.io.File
 @Composable
 fun SettingsScreen(
     themeMode: String,
+    themeStyle: String,
     language: String,
     showHidden: Boolean,
     showRootEntry: Boolean,
     trashEnabled: Boolean,
     onTheme: (String) -> Unit,
+    onThemeStyle: (String) -> Unit,
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
@@ -246,6 +249,17 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         SettingsRow(
+                        SettingsRow(
+                            icon = Icons.Default.Palette,
+                            circleColor = Color(0xFF64D2FF),
+                            title = t.themeStyle,
+                            subtitle = if (themeStyle == "liquid") t.styleLiquid else t.styleMaterial,
+                            onClick = { onThemeStyle(if (themeStyle == "liquid") "material" else "liquid") }
+                        )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
                             icon = Icons.Default.Translate,
                             circleColor = Color(0xFF4DA3FF),
                             title = t.language,

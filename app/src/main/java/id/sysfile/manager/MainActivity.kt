@@ -304,6 +304,21 @@ fun SysFileApp() {
         prefs.edit().putString("theme_mode", mode).apply()
     }
 
+    // r210: gaya tema ("material" / "liquid") — tangkap layar lama
+    // seperti onThemeChange di atas supaya pergantian memudar (TM1).
+    var themeStyle by remember { mutableStateOf(prefs.getString("theme_style", "material") ?: "material") }
+    val onThemeStyleChange: (String) -> Unit = { style ->
+        if (themeShot == null) {
+            themeShot = try {
+                if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
+            } catch (_: Exception) {
+                null
+            }
+        }
+        themeStyle = style
+        prefs.edit().putString("theme_style", style).apply()
+    }
+
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
     AppLang.code = language
     val t = txt()
@@ -1506,7 +1521,7 @@ fun SysFileApp() {
     // r137 TM1: Box akar supaya tangkapan layar lama bisa menutupi
     // seluruh isi (semua cabang layar) saat memudar.
     Box(Modifier.fillMaxSize()) {
-    SysFileTheme(themeMode) {
+    SysFileTheme(themeMode, themeStyle) {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1555,11 +1570,13 @@ fun SysFileApp() {
         } else if (showSettings) {
             SettingsScreen(
                 themeMode = themeMode,
+                themeStyle = themeStyle,
                 language = language,
                 showHidden = showHidden,
                 showRootEntry = showRootEntry,
                 trashEnabled = trashEnabled,
                 onTheme = onThemeChange,
+                onThemeStyle = onThemeStyleChange,
                 onLanguage = { lang ->
                     language = lang
                     AppLang.code = lang
@@ -2445,7 +2462,11 @@ fun SysFileApp() {
                                             )
                                         }
                                     } else {
-                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                        if (themeStyle == "liquid") {
+                                            LiquidGlassTabBar(selected = homeTab, onSelect = { homeTab = it })
+                                        } else {
+                                            SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                        }
                                     }
                                     }
                                 }
