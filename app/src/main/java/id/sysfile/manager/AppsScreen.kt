@@ -269,7 +269,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
             }
             when {
                 apps == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    LoadingIndicator(Modifier.size(52.dp))
+                    if (isLiquid) LiquidSpinner(Modifier.size(52.dp)) else LoadingIndicator(Modifier.size(52.dp))
                 }
                 visible.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(

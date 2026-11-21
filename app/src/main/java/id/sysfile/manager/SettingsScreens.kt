@@ -123,6 +123,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -252,13 +253,37 @@ fun SettingsScreen(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
-                        SettingsRow(
-                            icon = Icons.Default.Palette,
-                            circleColor = Color(0xFF64D2FF),
-                            title = t.themeStyle,
-                            subtitle = if (themeStyle == "liquid") t.styleLiquid else t.styleMaterial,
-                            onClick = { onThemeStyle(if (themeStyle == "liquid") "material" else "liquid") }
-                        )
+                        if (isLiquid) {
+                            Column(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        Modifier.size(32.dp).clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF64D2FF).copy(alpha = 0.16f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Palette, null, tint = Color(0xFF64D2FF), modifier = Modifier.size(18.dp))
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(t.themeStyle, style = MaterialTheme.typography.titleMedium)
+                                }
+                                SegmentedControl(
+                                    options = listOf(t.styleMaterial, t.styleLiquid),
+                                    selected = if (themeStyle == "liquid") 1 else 0,
+                                    onSelect = { onThemeStyle(if (it == 1) "liquid" else "material") }
+                                )
+                            }
+                        } else {
+                            SettingsRow(
+                                icon = Icons.Default.Palette,
+                                circleColor = Color(0xFF64D2FF),
+                                title = t.themeStyle,
+                                subtitle = if (themeStyle == "liquid") t.styleLiquid else t.styleMaterial,
+                                onClick = { onThemeStyle(if (themeStyle == "liquid") "material" else "liquid") }
+                            )
+                        }
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -287,7 +312,24 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                             icon = Icons.Default.Folder,
                             circleColor = Color(0xFFF06292),
                             title = t.showHidden,
-                            trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
+                            trailing = {
+                                if (isLiquid) {
+                                    Switch(
+                                        checked = showHidden,
+                                        onCheckedChange = onHidden,
+                                        colors = SwitchDefaults.colors(
+                                            checkedTrackColor = Color(0xFF34C759),
+                                            checkedThumbColor = Color.White,
+                                            checkedBorderColor = Color.Transparent,
+                                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedBorderColor = Color.Transparent
+                                        )
+                                    )
+                                } else {
+                                    Switch(checked = showHidden, onCheckedChange = onHidden)
+                                }
+                            }
                         )
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -298,7 +340,24 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                             circleColor = Color(0xFFC62828),
                             title = t.rootAccessTitle,
                             subtitle = t.rootAccessDesc,
-                            trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
+                            trailing = {
+                                if (isLiquid) {
+                                    Switch(
+                                        checked = showRootEntry,
+                                        onCheckedChange = onRootEntry,
+                                        colors = SwitchDefaults.colors(
+                                            checkedTrackColor = Color(0xFF34C759),
+                                            checkedThumbColor = Color.White,
+                                            checkedBorderColor = Color.Transparent,
+                                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedBorderColor = Color.Transparent
+                                        )
+                                    )
+                                } else {
+                                    Switch(checked = showRootEntry, onCheckedChange = onRootEntry)
+                                }
+                            }
                         )
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -309,7 +368,24 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                             circleColor = Color(0xFF9AA8B5),
                             title = t.trash,
                             subtitle = if (trashEnabled) t.trashHintOn else t.trashHintOff,
-                            trailing = { Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled) }
+                            trailing = {
+                                if (isLiquid) {
+                                    Switch(
+                                        checked = trashEnabled,
+                                        onCheckedChange = onTrashEnabled,
+                                        colors = SwitchDefaults.colors(
+                                            checkedTrackColor = Color(0xFF34C759),
+                                            checkedThumbColor = Color.White,
+                                            checkedBorderColor = Color.Transparent,
+                                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedBorderColor = Color.Transparent
+                                        )
+                                    )
+                                } else {
+                                    Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled)
+                                }
+                            }
                         )
                     }
                 }

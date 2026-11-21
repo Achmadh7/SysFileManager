@@ -277,7 +277,9 @@ fun SafBrowseScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             when {
-                children == null -> LoadingIndicator(
+                children == null -> if (isLiquid) LiquidSpinner(
+                    Modifier.align(Alignment.Center).size(52.dp)
+                ) else LoadingIndicator(
                     Modifier.align(Alignment.Center).size(52.dp)
                 )
                 children!!.isEmpty() -> Text(

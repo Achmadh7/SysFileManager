@@ -62,6 +62,8 @@ import java.io.FileInputStream
 @Composable
 fun EpubReaderScreen(path: String, onBack: () -> Unit) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val context = LocalContext.current
     var book by remember { mutableStateOf<EpubBook?>(null) }
     var failed by remember { mutableStateOf(false) }
@@ -177,9 +179,9 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 failed -> Text(t.epubFailed, Modifier.align(Alignment.Center))
-                book == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                book == null -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 chapterFailed -> Text(t.readFailed, Modifier.align(Alignment.Center))
-                chapterHtml == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                chapterHtml == null -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 else -> key(index) {
                     AndroidView(
                         factory = { ctx ->

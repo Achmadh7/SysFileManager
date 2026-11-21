@@ -335,7 +335,7 @@ fun BrowseScreen(
         }
         Box(Modifier.fillMaxSize()) {
             when {
-                !loaded -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                !loaded -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 entries.isEmpty() -> Column(
                     Modifier.align(Alignment.Center).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally

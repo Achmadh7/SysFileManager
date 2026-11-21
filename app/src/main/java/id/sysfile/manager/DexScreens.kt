@@ -107,7 +107,9 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false)
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             when (val s = state) {
-                DexLoadState.Loading -> LoadingIndicator(
+                DexLoadState.Loading -> if (isLiquid) LiquidSpinner(
+                    Modifier.align(Alignment.Center).size(52.dp)
+                ) else LoadingIndicator(
                     Modifier.align(Alignment.Center).size(52.dp)
                 )
                 DexLoadState.TooLarge -> Text(
@@ -296,6 +298,8 @@ private fun DexClassDetailView(
     onMethodClick: (DexMethodInfo) -> Unit
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     var detail by remember(classIndex) { mutableStateOf<DexClassDetail?>(null) }
     var failed by remember(classIndex) { mutableStateOf(false) }
     LaunchedEffect(classIndex) {
@@ -308,7 +312,7 @@ private fun DexClassDetailView(
             Text(t.readFailed, modifier = Modifier.align(Alignment.Center))
         }
         d == null -> Box(Modifier.fillMaxSize()) {
-            LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+            if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
         }
         else -> LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             item {
@@ -416,6 +420,8 @@ private fun DexMemberRow(title: String, subtitle: String?, onClick: (() -> Unit)
 @Composable
 private fun DexSmaliView(dex: DexFile, method: DexMethodInfo) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     var smali by remember(method) { mutableStateOf<SmaliResult?>(null) }
     LaunchedEffect(method) {
         smali = withContext(Dispatchers.IO) { dex.methodSmali(method) }
@@ -436,7 +442,7 @@ private fun DexSmaliView(dex: DexFile, method: DexMethodInfo) {
         Spacer(Modifier.height(8.dp))
         if (s == null) {
             Box(Modifier.fillMaxSize()) {
-                LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
             }
             return@Column
         }

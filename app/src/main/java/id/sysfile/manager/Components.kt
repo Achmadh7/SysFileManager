@@ -361,7 +361,11 @@ fun FileRow(
                 )
             }
             if (selectionMode) {
-                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+                if (isLiquid) {
+                    IosCheckCircle(checked = isSelected, onClick = onClick)
+                } else {
+                    Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+                }
             } else if (!entry.isDir) {
                 Text(
                     FileOps.formatSize(entry.size),
@@ -468,7 +472,11 @@ fun FileCell(
             overflow = TextOverflow.Ellipsis
         )
         if (selectionMode) {
-            Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+            if (isLiquid) {
+                IosCheckCircle(checked = isSelected, onClick = onClick)
+            } else {
+                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+            }
         }
     }
 }

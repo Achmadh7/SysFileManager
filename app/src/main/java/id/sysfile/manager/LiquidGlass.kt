@@ -45,14 +45,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -301,6 +304,34 @@ fun LiquidProgressBar(progress: (() -> Float)?, modifier: Modifier = Modifier) {
             Box(Modifier.fillMaxHeight().fillMaxWidth(p).clip(RoundedCornerShape(2.5.dp)).background(c.progressFill))
         }
     }
+}
+
+/** Centang seleksi lingkaran ala iOS (r222 X5), hanya untuk gaya Liquid. */
+@Composable
+fun IosCheckCircle(checked: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier.size(24.dp).clip(CircleShape)
+            .then(
+                if (checked) Modifier.background(MaterialTheme.colorScheme.primary)
+                else Modifier.border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), CircleShape)
+            )
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (checked) {
+            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+        }
+    }
+}
+
+/** Spinner ala iOS (r222 X6d): lingkaran tipis, hanya untuk gaya Liquid. */
+@Composable
+fun LiquidSpinner(modifier: Modifier = Modifier) {
+    CircularProgressIndicator(
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        strokeWidth = 3.dp,
+        modifier = modifier
+    )
 }
 
 /* ───────────── Komponen kaca ───────────── */

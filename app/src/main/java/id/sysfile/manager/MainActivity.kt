@@ -124,6 +124,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -2290,10 +2291,28 @@ fun SysFileApp() {
                                                         text = { Text(t.showHidden) },
                                                         leadingIcon = { Icon(Icons.Default.VisibilityOff, null) },
                                                         trailingIcon = {
-                                                            Switch(checked = showHidden, onCheckedChange = { v ->
-                                                                showHidden = v
-                                                                prefs.edit().putBoolean("show_hidden", v).apply()
-                                                            })
+                                                            if (themeStyle == "liquid") {
+                                                                Switch(
+                                                                    checked = showHidden,
+                                                                    onCheckedChange = { v ->
+                                                                        showHidden = v
+                                                                        prefs.edit().putBoolean("show_hidden", v).apply()
+                                                                    },
+                                                                    colors = SwitchDefaults.colors(
+                                                                        checkedTrackColor = Color(0xFF34C759),
+                                                                        checkedThumbColor = Color.White,
+                                                                        checkedBorderColor = Color.Transparent,
+                                                                        uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                                                        uncheckedThumbColor = Color.White,
+                                                                        uncheckedBorderColor = Color.Transparent
+                                                                    )
+                                                                )
+                                                            } else {
+                                                                Switch(checked = showHidden, onCheckedChange = { v ->
+                                                                    showHidden = v
+                                                                    prefs.edit().putBoolean("show_hidden", v).apply()
+                                                                })
+                                                            }
                                                         },
                                                         onClick = {
                                                             showHidden = !showHidden
@@ -2933,7 +2952,7 @@ fun SysFileApp() {
                 text = {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            LoadingIndicator(Modifier.size(52.dp))
+                            if (LocalIsLiquid.current) LiquidSpinner(Modifier.size(52.dp)) else LoadingIndicator(Modifier.size(52.dp))
                             Spacer(Modifier.width(16.dp))
                             Text(workStage ?: t.working)
                         }

@@ -67,7 +67,7 @@ fun OfficeViewerScreen(path: String, onBack: () -> Unit, notify: (String) -> Uni
         ) { padding ->
             Box(Modifier.fillMaxSize().padding(padding)) {
                 if (failed) Text(t.readFailed, Modifier.align(Alignment.Center))
-                else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                else if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
             }
         }
     }

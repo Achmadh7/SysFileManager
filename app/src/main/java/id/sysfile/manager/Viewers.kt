@@ -74,6 +74,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -96,6 +97,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -700,7 +702,7 @@ fun TextViewerScreen(
             Box(Modifier.fillMaxSize().weight(1f)) {
                 when {
                     failed -> Text(t.readFailed, Modifier.align(Alignment.Center))
-                    content == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                    content == null -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                     preview && (isHtml || isMarkdown) -> key(previewTick) {
                         AndroidView(
                             factory = { ctx ->
@@ -886,6 +888,8 @@ fun TextViewerScreen(
 @Composable
 fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     var renderer by remember { mutableStateOf<PdfRenderer?>(null) }
     var openFailed by remember { mutableStateOf(false) }
     DisposableEffect(path) {
@@ -960,7 +964,7 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
                     }
                 }
                 renderer == null -> {
-                    LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                    if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 }
                 else -> {
                     HorizontalPager(
@@ -1064,7 +1068,7 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
                                             }
                                         }
                                 )
-                                else -> LoadingIndicator(Modifier.size(52.dp))
+                                else -> if (isLiquid) LiquidSpinner(Modifier.size(52.dp)) else LoadingIndicator(Modifier.size(52.dp))
                             }
                         }
                     }
@@ -1258,18 +1262,39 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                                     color = Color.White,
                                     style = MaterialTheme.typography.bodySmall
                                 )
-                                Slider(
-                                    value = (if (isSeeking) seekMs else positionMs).toFloat()
-                                        .coerceIn(0f, durationMs.toFloat().coerceAtLeast(1f)),
-                                    onValueChange = { isSeeking = true; seekMs = it.toInt() },
-                                    onValueChangeFinished = {
-                                        currentView()?.seekTo(seekMs)
-                                        positionMs = seekMs
-                                        isSeeking = false
-                                    },
-                                    valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
-                                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-                                )
+                                if (isLiquid) {
+                                    Slider(
+                                        value = (if (isSeeking) seekMs else positionMs).toFloat()
+                                            .coerceIn(0f, durationMs.toFloat().coerceAtLeast(1f)),
+                                        onValueChange = { isSeeking = true; seekMs = it.toInt() },
+                                        onValueChangeFinished = {
+                                            currentView()?.seekTo(seekMs)
+                                            positionMs = seekMs
+                                            isSeeking = false
+                                        },
+                                        valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                                        colors = SliderDefaults.colors(
+                                            activeTrackColor = Color.White,
+                                            inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                                            thumbColor = Color.White
+                                        ),
+                                        thumb = { Box(Modifier.size(12.dp).clip(CircleShape).background(Color.White)) }
+                                    )
+                                } else {
+                                    Slider(
+                                        value = (if (isSeeking) seekMs else positionMs).toFloat()
+                                            .coerceIn(0f, durationMs.toFloat().coerceAtLeast(1f)),
+                                        onValueChange = { isSeeking = true; seekMs = it.toInt() },
+                                        onValueChangeFinished = {
+                                            currentView()?.seekTo(seekMs)
+                                            positionMs = seekMs
+                                            isSeeking = false
+                                        },
+                                        valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
+                                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                                    )
+                                }
                                 Text(
                                     FileOps.formatDuration(durationMs),
                                     color = Color.White,

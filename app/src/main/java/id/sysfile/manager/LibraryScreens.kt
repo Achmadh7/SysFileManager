@@ -380,7 +380,7 @@ fun CategoryScreen(
                             Modifier.align(Alignment.Center),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            LoadingIndicator()
+                            if (isLiquid) LiquidSpinner() else LoadingIndicator()
                             Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
@@ -535,6 +535,8 @@ fun TrashScreen(
     onRequestUnlock: (String, () -> Unit) -> Unit = { _, grant -> grant() }
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<TrashItem>?>(null) }
     var hiddenCount by remember { mutableStateOf(0) }
@@ -589,7 +591,7 @@ fun TrashScreen(
         val loaded = items
         Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             when {
-                loaded == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                loaded == null -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 loaded.isEmpty() -> Text(
                     // M13: bila ada item tersembunyi, jangan klaim
                     // sampah kosong — hanya jumlahnya yang disebut.
@@ -722,6 +724,8 @@ fun PayloadScreen(
     onOpenPartition: (String) -> Unit
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val payloadFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var listing by remember(path) { mutableStateOf<PayloadOps.Listing?>(null) }
@@ -766,7 +770,7 @@ fun PayloadScreen(
                         Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        LoadingIndicator()
+                        if (isLiquid) LiquidSpinner() else LoadingIndicator()
                         Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                     }
                 }
@@ -818,6 +822,8 @@ fun ArchiveScreen(
     onOpenFile: (String) -> Unit
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val archiveFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var items by remember(path) { mutableStateOf<List<ArchiveItem>?>(null) }
@@ -873,7 +879,7 @@ fun ArchiveScreen(
                             Modifier.align(Alignment.Center),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            LoadingIndicator()
+                            if (isLiquid) LiquidSpinner() else LoadingIndicator()
                             Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
@@ -922,6 +928,8 @@ fun ImgBrowseScreen(
     onExtractOne: (String) -> Unit
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val imgFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var result by remember(path) { mutableStateOf<RamdiskResult?>(null) }
@@ -994,7 +1002,7 @@ fun ImgBrowseScreen(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        LoadingIndicator()
+                        if (isLiquid) LiquidSpinner() else LoadingIndicator()
                         Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         val bytes = ramdiskBytes
                         if (bytes != null) {
@@ -1072,6 +1080,8 @@ fun Ext4BrowseScreen(
     onExtractOne: (Ext4Entry) -> Unit
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val imgFile = remember(path) { File(path) }
     val scope = rememberCoroutineScope()
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -1134,7 +1144,7 @@ fun Ext4BrowseScreen(
                             Modifier.align(Alignment.Center),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            LoadingIndicator()
+                            if (isLiquid) LiquidSpinner() else LoadingIndicator()
                             Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
@@ -1207,6 +1217,8 @@ fun FatBrowseScreen(
     onExtractOne: (String) -> Unit
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val imgFile = remember(path) { File(path) }
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     var entries by remember(path) { mutableStateOf<List<FatEntry>?>(null) }
@@ -1265,7 +1277,7 @@ fun FatBrowseScreen(
                             Modifier.align(Alignment.Center),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            LoadingIndicator()
+                            if (isLiquid) LiquidSpinner() else LoadingIndicator()
                             Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
@@ -1319,6 +1331,8 @@ fun LpBrowseScreen(
     onExtractPartition: (LpPartition) -> Unit
 ) {
     val t = txt()
+    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
+    val isLiquid = LocalIsLiquid.current
     val imgFile = remember(path) { File(path) }
     val partitions = session?.reader?.partitions
     LaunchedEffect(session) {
@@ -1340,7 +1354,7 @@ fun LpBrowseScreen(
                         Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        LoadingIndicator()
+                        if (isLiquid) LiquidSpinner() else LoadingIndicator()
                         Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                     }
                 }
@@ -1461,7 +1475,7 @@ fun SearchScreen(
             }
             if (searching) {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LoadingIndicator(Modifier.size(30.dp))
+                    if (isLiquid) LiquidSpinner(Modifier.size(30.dp)) else LoadingIndicator(Modifier.size(30.dp))
                     Spacer(Modifier.width(10.dp))
                     Text(t.searching, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -1655,7 +1669,7 @@ fun AnalysisScreen(
                                     Modifier.padding(20.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    LoadingIndicator(Modifier.size(30.dp))
+                                    if (isLiquid) LiquidSpinner(Modifier.size(30.dp)) else LoadingIndicator(Modifier.size(30.dp))
                                     Spacer(Modifier.width(10.dp))
                                     Text(if (scanningPath == root.path) t.scanning else t.scanFailed)
                                 }
