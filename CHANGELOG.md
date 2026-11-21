@@ -74,7 +74,3 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The search bar on the browse screen no longer sits far below the header.
 - Media categories (Audio, Images, Video) no longer show empty when files are not in the MediaStore index (for example audio in `.nomedia` folders such as WhatsApp): an empty MediaStore result now falls back to a direct filesystem scan.
 - Editing a text file between 1 MB and 2 MB no longer truncates it on save: the viewer now reads up to 2 MB, matching the open limit.
-
-## [1.2.0]
-
-- Previous release. This changelog starts with 1.3.0.
