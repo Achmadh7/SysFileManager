@@ -39,7 +39,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -148,7 +147,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
@@ -163,7 +161,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.core.view.drawToBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -1640,10 +1637,6 @@ fun SysFileApp() {
             // r88: Box pembungkus supaya pill audio bisa melayang
             // di atas layar overlay (kategori/arsip/viewer).
             Box(Modifier.fillMaxSize()) {
-            // r219 LG2: backdrop kaca + nilai pilihan pertama — dibaca
-            // sekali di sini supaya dipakai Scaffold (body + bottomBar)
-            // dan overlay bar mengambang; material: backdrop null.
-            val glassBackdrop = LocalGlassBackdrop.current
             // r123: nilai pilihan pertama dihitung SEKALI di sini dengan
             // firstOrNull — isi AnimatedVisibility tetap terkomposisi
             // selama animasi keluar, dan selected sudah kosong saat itu;
@@ -2489,7 +2482,7 @@ fun SysFileApp() {
                                 }
                             }
                         ) { padding ->
-                            Box(Modifier.fillMaxSize().padding(padding).then(if (themeStyle == "liquid" && glassBackdrop != null) Modifier.layerBackdrop(glassBackdrop) else Modifier)) {
+                            Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
                                 AnimatedContent(
                                     targetState = currentPath,
                                     transitionSpec = {
@@ -2859,11 +2852,11 @@ fun SysFileApp() {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
                     shape = RoundedCornerShape(28.dp),
-                    color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null,
+                    color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    border = null,
                     tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

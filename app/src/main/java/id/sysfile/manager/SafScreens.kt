@@ -275,7 +275,7 @@ fun SafBrowseScreen(
             )
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             when {
                 children == null -> LoadingIndicator(
                     Modifier.align(Alignment.Center).size(52.dp)
@@ -378,9 +378,10 @@ private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit, i
                 }
             }
         },
-        colors = ListItemDefaults.colors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHigh),
+        colors = ListItemDefaults.colors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
+            .then(if (isLiquid) Modifier.clip(RoundedCornerShape(28.dp)).glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
             .clickable { onClick() }
     )
 }

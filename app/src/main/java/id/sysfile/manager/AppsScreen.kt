@@ -18,10 +18,9 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -231,7 +230,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -330,11 +329,11 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
                                     }
                                 }
                             },
-                            colors = ListItemDefaults.colors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHigh),
+                            colors = ListItemDefaults.colors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh),
                             modifier = Modifier.fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 5.dp)
                                 .clip(RoundedCornerShape(28.dp))
-                                .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
+                                .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                                 .clickable { actionApp = app }
                         )
                     }
@@ -385,7 +384,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (app.totalSize != null) {
-                            Surface(shape = RoundedCornerShape(50), color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest, border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null) {
+                            Surface(shape = RoundedCornerShape(50), color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest, border = null, modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), liquid.glassTint) else Modifier)) {
                                 Text(
                                     t.totalWord + " " + FileOps.formatSize(app.totalSize),
                                     style = MaterialTheme.typography.labelMedium,
@@ -393,7 +392,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
                                 )
                             }
                         }
-                        Surface(shape = RoundedCornerShape(50), color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest, border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null) {
+                        Surface(shape = RoundedCornerShape(50), color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest, border = null, modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), liquid.glassTint) else Modifier)) {
                             Text(
                                 "APK " + FileOps.formatSize(app.apkSize),
                                 style = MaterialTheme.typography.labelMedium,
@@ -542,10 +541,10 @@ private fun AppActionTile(
     val liquid = LocalLiquid.current
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier),
         shape = RoundedCornerShape(16.dp),
-        color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
+        color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = null
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Surface(

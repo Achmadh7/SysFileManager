@@ -55,7 +55,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
@@ -88,12 +87,13 @@ fun SectionCard(
     val liquid = LocalLiquid.current
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+            containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
-        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
+        border = null,
         shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth()
+            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -313,15 +313,16 @@ fun FileRow(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
             } else if (isLiquid) {
-                liquid.glassTint
+                Color.Transparent
             } else {
                 MaterialTheme.colorScheme.surfaceContainerHighest
             }
         ),
-        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
+        border = null,
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
+            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
     ) {
         Row(
             Modifier.fillMaxWidth()
@@ -441,8 +442,8 @@ fun FileCell(
     val liquid = LocalLiquid.current
     Column(
         Modifier.clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else if (isLiquid) liquid.glassTint else Color.Transparent)
-            .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(16.dp)) else Modifier)
+            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -510,8 +511,7 @@ fun StorageCard(
     val liquid = LocalLiquid.current
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(if (isLiquid) liquid.glassTint else scheme.secondaryContainer)
-            .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
+            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier.background(scheme.secondaryContainer))
             .clickable { onClick() }
     ) {
         StorageCardContent(

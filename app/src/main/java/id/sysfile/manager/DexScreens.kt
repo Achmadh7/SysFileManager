@@ -1,9 +1,8 @@
 package id.sysfile.manager
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -106,7 +105,7 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false)
             )
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             when (val s = state) {
                 DexLoadState.Loading -> LoadingIndicator(
                     Modifier.align(Alignment.Center).size(52.dp)
@@ -171,9 +170,9 @@ private fun DexClassListView(
     Column(Modifier.fillMaxSize()) {
         Card(
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
-            border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
+            border = null,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 DexInfoRow(t.version(h.version), FileOps.formatSize(h.fileSize))

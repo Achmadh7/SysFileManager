@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,7 +65,7 @@ fun WelcomeScreen(
     // r164: latar dari skema — tanpa ini, mode terang berlatar
     // #101418 (windowBackground di themes.xml) di layar sambutan.
     Box(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).liquidGlassBackground()
     ) {
         Column(
             Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -122,11 +121,11 @@ fun WelcomeScreen(
                 }
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest
+                        containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest
                     ),
-                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
+                    border = null,
                     shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(20.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(
                         Modifier.padding(20.dp),

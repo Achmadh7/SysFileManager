@@ -78,6 +78,7 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 
 /* ───────────── Animasi: pegas ala SwiftUI ─────────────
  * spring(duration, bounce) → dampingRatio = 1 - bounce, stiffness = (2π / duration)²
@@ -103,7 +104,8 @@ class LiquidColors(
     val track: Color, val barFill: Color, val separator: Color,
     val dangerTile: Color, val dangerChip: Color,
     val success: StatusColors, val warning: StatusColors, val danger: StatusColors,
-    val segmentColors: List<Color>
+    val segmentColors: List<Color>,
+    val washColors: List<Color>
 )
 
 val DarkLiquid = LiquidColors(
@@ -122,7 +124,8 @@ val DarkLiquid = LiquidColors(
     segmentColors = listOf(
         Color(0xFFBF5AF2), Color(0xFF0A84FF), Color(0xFF30D158), Color(0xFFFF9F0A),
         Color(0xFFFF375F), Color(0xFF64D2FF), Color(0xFF8E8E93), Color(0xFF636366)
-    )
+    ),
+    washColors = listOf(Color(0xFF101827), Color(0xFF161230), Color(0xFF0B2027))
 )
 
 val LightLiquid = LiquidColors(
@@ -141,7 +144,8 @@ val LightLiquid = LiquidColors(
     segmentColors = listOf(
         Color(0xFFAF52DE), Color(0xFF007AFF), Color(0xFF34C759), Color(0xFFFF9500),
         Color(0xFFFF2D55), Color(0xFF5AC8FA), Color(0xFF8E8E93), Color(0xFFC7C7CC)
-    )
+    ),
+    washColors = listOf(Color(0xFFE7EDF6), Color(0xFFEEE7F6), Color(0xFFE3F1EE))
 )
 
 val LocalLiquid = staticCompositionLocalOf { DarkLiquid }
@@ -254,9 +258,20 @@ fun Modifier.glassBlur(shape: Shape, tint: Color): Modifier {
     }
 }
 
+/** Latar wash gradasi halus (r220 A2): bila ada backdrop (gaya Liquid),
+ *  rekam wadah ke layer backdrop + gambar gradasi wash di atasnya,
+ *  supaya kaca punya sesuatu untuk dibiaskan; bila tidak ada (gaya
+ *  Material), kembalikan modifier apa adanya. */
+@Composable
+fun Modifier.liquidGlassBackground(): Modifier {
+    val backdrop = LocalGlassBackdrop.current
+    val c = LocalLiquid.current
+    return if (backdrop != null) this.layerBackdrop(backdrop).background(Brush.linearGradient(c.washColors)) else this
+}
+
 /* ───────────── Komponen kaca ───────────── */
 
-/** Permukaan kaca tanpa blur: tint tipis + tepi terang diagonal. Murah, cocok untuk kartu dan tile di latar polos. */
+/** Permukaan kaca: blur asli (r219) bila ada backdrop, tint + tepi terang bila tidak. */
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,

@@ -22,7 +22,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -133,7 +132,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -169,7 +167,7 @@ fun RecentScreen(
     val liquid = LocalLiquid.current
     val t = txt()
     if (!accessGranted) {
-        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().padding(32.dp).liquidGlassBackground(), contentAlignment = Alignment.Center) {
             Text(
                 t.permissionBody,
                 style = MaterialTheme.typography.bodyLarge,
@@ -180,7 +178,7 @@ fun RecentScreen(
         return
     }
     if (files.isEmpty()) {
-        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().padding(32.dp).liquidGlassBackground(), contentAlignment = Alignment.Center) {
             Text(
                 t.noRecent,
                 style = MaterialTheme.typography.bodyLarge,
@@ -194,7 +192,7 @@ fun RecentScreen(
     // hari berganti — tanpa kartu grup per folder.
     val sorted = remember(files) { files.sortedByDescending { it.modified } }
     LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp).liquidGlassBackground(),
         contentPadding = PaddingValues(bottom = if (isLiquid) 96.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -241,10 +239,10 @@ fun RecentScreen(
                         )
                     },
                     leadingContent = { FileThumbTile(entry, 48) },
-                    colors = ListItemDefaults.colors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerLowest),
+                    colors = ListItemDefaults.colors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLowest),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(28.dp))
-                        .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
+                        .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                         .clickable { onOpenEntry(entry) }
                 )
             }
@@ -360,7 +358,7 @@ fun CategoryScreen(
             )
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             val loaded = files
             val contentState = when {
                 loaded == null -> 0
@@ -589,7 +587,7 @@ fun TrashScreen(
         }
     ) { padding ->
         val loaded = items
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             when {
                 loaded == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 loaded.isEmpty() -> Text(
@@ -759,7 +757,7 @@ fun PayloadScreen(
                 fadeIn(animationSpec = fadeSpec) togetherWith
                     fadeOut(animationSpec = fadeSpec)
             },
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding).liquidGlassBackground(),
             label = "payloadContentFade"
         ) { state ->
             when (state) {
@@ -845,7 +843,7 @@ fun ArchiveScreen(
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             if (prefix.isNotEmpty()) {
                 Text(
                     "/" + prefix.removeSuffix("/"),
@@ -963,7 +961,7 @@ fun ImgBrowseScreen(
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             if (prefix.isNotEmpty()) {
                 Text(
                     "/" + prefix.removeSuffix("/"),
@@ -1102,7 +1100,7 @@ fun Ext4BrowseScreen(
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             if (prefix.isNotEmpty()) {
                 Text(
                     "/" + prefix.removeSuffix("/"),
@@ -1233,7 +1231,7 @@ fun FatBrowseScreen(
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             if (prefix.isNotEmpty()) {
                 Text(
                     "/" + prefix.removeSuffix("/"),
@@ -1330,7 +1328,7 @@ fun LpBrowseScreen(
             )
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             val list = partitions
             when {
                 list == null -> Box(Modifier.fillMaxSize()) {
@@ -1402,7 +1400,7 @@ fun SearchScreen(
     val fileResults = filtered.filter { !it.isDir }
 
     Scaffold { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -1560,7 +1558,7 @@ fun AnalysisScreen(
     val activeRootPath = selectedRootPath ?: roots.firstOrNull()?.path
     val displayRoots = if (roots.size > 1) roots.filter { it.path == activeRootPath } else roots
     LazyColumn(
-            Modifier.fillMaxSize().padding(16.dp),
+            Modifier.fillMaxSize().padding(16.dp).liquidGlassBackground(),
             contentPadding = PaddingValues(bottom = if (isLiquid) 96.dp else 0.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -1645,8 +1643,9 @@ fun AnalysisScreen(
                         if (res == null) {
                             Card(
                                 shape = RoundedCornerShape(28.dp),
-                                colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
-                                border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
+                                colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
+                                border = null,
+                                modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                             ) {
                                 Row(
                                     Modifier.padding(20.dp),
@@ -1673,9 +1672,9 @@ fun AnalysisScreen(
                                 entries.forEach { (cat, size) ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
-                                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
-                                        modifier = Modifier.fillMaxWidth()
+                                        colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        border = null,
+                                        modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1731,8 +1730,9 @@ fun AnalysisScreen(
                                 shownLargest.forEach { entry ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest),
-                                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
+                                        colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        border = null,
+                                        modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth()

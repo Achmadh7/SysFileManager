@@ -131,7 +131,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -224,7 +223,7 @@ fun HomeScreen(
     // r211: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
     val liquid = LocalLiquid.current
     LazyColumn(
-        Modifier.fillMaxSize().padding(16.dp),
+        Modifier.fillMaxSize().padding(16.dp).liquidGlassBackground(),
         contentPadding = PaddingValues(bottom = if (isLiquid) 96.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -322,8 +321,7 @@ fun HomeScreen(
                     roots.filter { it.total <= 0 }.forEach { root ->
                         Box(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                                .background(if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.secondaryContainer)
-                                .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
+                                .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier.background(MaterialTheme.colorScheme.secondaryContainer))
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -380,8 +378,7 @@ fun HomeScreen(
                             Column(
                                 Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isLiquid) liquid.glassTint else color.copy(alpha = 0.16f))
-                                    .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(16.dp)) else Modifier)
+                                    .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier.background(color.copy(alpha = 0.16f)))
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -410,8 +407,7 @@ fun HomeScreen(
                             Column(
                                 Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isLiquid) liquid.dangerTile else trashColor.copy(alpha = 0.16f))
-                                    .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(16.dp)) else Modifier)
+                                    .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.dangerTile) else Modifier.background(trashColor.copy(alpha = 0.16f)))
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,

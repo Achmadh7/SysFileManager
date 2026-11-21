@@ -1,7 +1,6 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -94,7 +93,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -621,8 +619,9 @@ fun TextViewerScreen(
                                 Surface(
                                     onClick = { wrapLines = !wrapLines },
                                     shape = RoundedCornerShape(4.dp),
-                                    color = if (wrapLines) (if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest) else Color.Transparent,
-                                    border = if (wrapLines && isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
+                                    color = if (wrapLines) (if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest) else Color.Transparent,
+                                    border = null,
+                                    modifier = Modifier.then(if (wrapLines && isLiquid) Modifier.glassBlur(RoundedCornerShape(4.dp), liquid.glassTint) else Modifier)
                                 ) {
                                     Text(
                                         text = if (wrapLines) "Wrap: ON" else "Wrap: OFF",
@@ -633,9 +632,10 @@ fun TextViewerScreen(
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Surface(
-                                    color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
-                                    shape = RoundedCornerShape(4.dp)
+                                    color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    border = null,
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(4.dp), liquid.glassTint) else Modifier)
                                 ) {
                                     Text(
                                         text = fileExt.uppercase().ifEmpty { "TXT" },
@@ -651,13 +651,13 @@ fun TextViewerScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
             // Bilah Pencarian Cepat (Expandable)
             AnimatedVisibility(visible = searchVisible && content != null) {
                 Surface(
-                    color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    border = null,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(12.dp), liquid.glassTint) else Modifier),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
@@ -1170,7 +1170,7 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
         },
         containerColor = Color.Black
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).background(Color.Black)) {
+        Box(Modifier.fillMaxSize().padding(padding).background(Color.Black).liquidGlassBackground()) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -1241,11 +1241,11 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                 ) {
                     Surface(
                         shape = RoundedCornerShape(28.dp),
-                        color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
+                        color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        border = null,
                         tonalElevation = 3.dp,
                         shadowElevation = 6.dp,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                     ) {
                         Column(
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1362,7 +1362,7 @@ fun FontViewerScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
+            Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()).liquidGlassBackground(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SectionCard(icon = Icons.Default.Info, title = t.properties, isLiquid = isLiquid) {

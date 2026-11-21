@@ -24,7 +24,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -145,7 +144,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
@@ -236,11 +234,12 @@ fun BrowseHeaderBar(
                 val active = index == labels.lastIndex
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (active) MaterialTheme.colorScheme.primaryContainer
+                    color = if (isLiquid) Color.Transparent else if (active) MaterialTheme.colorScheme.primaryContainer
                     else MaterialTheme.colorScheme.surfaceContainerHigh,
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active,
-                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
+                    border = null,
+                    modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh) else Modifier)
                 ) {
                     Text(
                         label,
@@ -392,7 +391,7 @@ fun BrowseScreen(
                 }
                 gridView -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).liquidGlassBackground(),
                     contentPadding = PaddingValues(bottom = 96.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -409,7 +408,7 @@ fun BrowseScreen(
                         )
                     }
                 }
-                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                else -> LazyColumn(Modifier.fillMaxSize().liquidGlassBackground(), contentPadding = PaddingValues(bottom = 96.dp)) {
                     items(entries, key = { it.path }) { entry ->
                         FileRow(
                             entry = entry,
