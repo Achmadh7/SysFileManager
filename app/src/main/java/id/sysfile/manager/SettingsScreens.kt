@@ -61,9 +61,7 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -124,13 +122,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.MutableTransitionState
@@ -169,13 +165,11 @@ import java.io.File
 @Composable
 fun SettingsScreen(
     themeMode: String,
-    themeStyle: String,
     language: String,
     showHidden: Boolean,
     showRootEntry: Boolean,
     trashEnabled: Boolean,
     onTheme: (String) -> Unit,
-    onThemeStyle: (String) -> Unit,
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
@@ -186,9 +180,6 @@ fun SettingsScreen(
     exiting: Boolean = false
 ) {
     val t = txt()
-    // r213: gaya Liquid dari param themeStyle (bukan local).
-    val isLiquid = themeStyle == "liquid"
-    val liquid = LocalLiquid.current
     val motion = MaterialTheme.motionScheme
     // Animasi perpindahan ke Pengaturan (S3, MotionScheme resmi): masuk geser dari kanan
     // + memudar; keluar (exiting) arah berlawanan. MainActivity menunda
@@ -205,18 +196,14 @@ fun SettingsScreen(
     ) {
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
-                    title = { Text(t.settings) },
-                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } }
-                )
-                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
-            }
+            TopAppBar(
+                title = { Text(t.settings) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
+            )
         }
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding).liquidWashBackground().padding(horizontal = 20.dp),
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 4.dp)
         ) {
@@ -228,25 +215,12 @@ fun SettingsScreen(
             // r166 DS1 Rapat Modern (pilihannya): baris lebih rapat —
             // ubin 40->32dp, sudut kartu 28->16dp, padding baris 10->6dp,
             // celah seksi 8->4dp + penutup versi di bawah.
-            if (isLiquid) {
-                item {
-                    Text(
-                        t.settings,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    )
-                }
-            }
             item { SettingsSectionLabel(t.tampilanSection) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -271,41 +245,6 @@ fun SettingsScreen(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
-                        if (isLiquid) {
-                            Column(
-                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        Modifier.size(32.dp).clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFF64D2FF).copy(alpha = 0.16f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.Palette, null, tint = Color(0xFF64D2FF), modifier = Modifier.size(18.dp))
-                                    }
-                                    Spacer(Modifier.width(12.dp))
-                                    Text(t.themeStyle, style = MaterialTheme.typography.titleMedium)
-                                }
-                                SegmentedControl(
-                                    options = listOf(t.styleMaterial, t.styleLiquid),
-                                    selected = if (themeStyle == "liquid") 1 else 0,
-                                    onSelect = { onThemeStyle(if (it == 1) "liquid" else "material") }
-                                )
-                            }
-                        } else {
-                            SettingsRow(
-                                icon = Icons.Default.Palette,
-                                circleColor = Color(0xFF64D2FF),
-                                title = t.themeStyle,
-                                subtitle = if (themeStyle == "liquid") t.styleLiquid else t.styleMaterial,
-                                onClick = { onThemeStyle(if (themeStyle == "liquid") "material" else "liquid") }
-                            )
-                        }
-                        HorizontalDivider(
-                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
                         SettingsRow(
                             icon = Icons.Default.Translate,
                             circleColor = Color(0xFF4DA3FF),
@@ -321,33 +260,15 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
                             icon = Icons.Default.Folder,
                             circleColor = Color(0xFFF06292),
                             title = t.showHidden,
-                            trailing = {
-                                if (isLiquid) {
-                                    Switch(
-                                        checked = showHidden,
-                                        onCheckedChange = onHidden,
-                                        colors = SwitchDefaults.colors(
-                                            checkedTrackColor = Color(0xFF34C759),
-                                            checkedThumbColor = Color.White,
-                                            checkedBorderColor = Color.Transparent,
-                                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                            uncheckedThumbColor = Color.White,
-                                            uncheckedBorderColor = Color.Transparent
-                                        )
-                                    )
-                                } else {
-                                    Switch(checked = showHidden, onCheckedChange = onHidden)
-                                }
-                            }
+                            trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
                         )
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -358,24 +279,7 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                             circleColor = Color(0xFFC62828),
                             title = t.rootAccessTitle,
                             subtitle = t.rootAccessDesc,
-                            trailing = {
-                                if (isLiquid) {
-                                    Switch(
-                                        checked = showRootEntry,
-                                        onCheckedChange = onRootEntry,
-                                        colors = SwitchDefaults.colors(
-                                            checkedTrackColor = Color(0xFF34C759),
-                                            checkedThumbColor = Color.White,
-                                            checkedBorderColor = Color.Transparent,
-                                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                            uncheckedThumbColor = Color.White,
-                                            uncheckedBorderColor = Color.Transparent
-                                        )
-                                    )
-                                } else {
-                                    Switch(checked = showRootEntry, onCheckedChange = onRootEntry)
-                                }
-                            }
+                            trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
                         )
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -386,24 +290,7 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                             circleColor = Color(0xFF9AA8B5),
                             title = t.trash,
                             subtitle = if (trashEnabled) t.trashHintOn else t.trashHintOff,
-                            trailing = {
-                                if (isLiquid) {
-                                    Switch(
-                                        checked = trashEnabled,
-                                        onCheckedChange = onTrashEnabled,
-                                        colors = SwitchDefaults.colors(
-                                            checkedTrackColor = Color(0xFF34C759),
-                                            checkedThumbColor = Color.White,
-                                            checkedBorderColor = Color.Transparent,
-                                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                            uncheckedThumbColor = Color.White,
-                                            uncheckedBorderColor = Color.Transparent
-                                        )
-                                    )
-                                } else {
-                                    Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled)
-                                }
-                            }
+                            trailing = { Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled) }
                         )
                     }
                 }
@@ -412,9 +299,8 @@ item { SettingsSectionLabel(t.aplikasiSection, topPadding = 4.dp) }
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -565,9 +451,6 @@ private fun FormatGroupHeader(icon: ImageVector, title: String) {
 @Composable
 fun FormatsScreen(onBack: () -> Unit) {
     val t = txt()
-    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
-    val isLiquid = LocalIsLiquid.current
-    val liquid = LocalLiquid.current
     val visState = remember { MutableTransitionState(false) }
     val motion = MaterialTheme.motionScheme
     LaunchedEffect(Unit) { visState.targetState = true }
@@ -578,43 +461,27 @@ fun FormatsScreen(onBack: () -> Unit) {
     ) {
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
-                    title = { Text(t.formatsTitle) },
-                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } }
-                )
-                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
-            }
+            TopAppBar(
+                title = { Text(t.formatsTitle) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .liquidWashBackground()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            if (isLiquid) {
-                item {
-                    Text(
-                        t.formatsTitle,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    )
-                }
-            }
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
@@ -636,9 +503,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
@@ -665,9 +531,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
@@ -694,9 +559,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
@@ -728,9 +592,6 @@ fun AboutScreen(
     onOpenSpecs: () -> Unit
 ) {
     val t = txt()
-    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
-    val isLiquid = LocalIsLiquid.current
-    val liquid = LocalLiquid.current
     val context = LocalContext.current
     val internal = remember { FileOps.storageRoots(context).firstOrNull { it.kind == "internal" } }
     // r145: animasi masuk sama seperti FormatsScreen — geser
@@ -745,21 +606,18 @@ fun AboutScreen(
     ) {
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
-                    title = { Text(t.about, fontWeight = FontWeight.ExtraBold) },
-                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } }
-                )
-                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
-            }
+            TopAppBar(
+                title = { Text(t.about, fontWeight = FontWeight.ExtraBold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .liquidWashBackground()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 24.dp)
@@ -820,9 +678,8 @@ fun AboutScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-                    border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -917,8 +774,6 @@ fun AboutScreen(
 @Composable
 fun SpecScreen(onBack: () -> Unit) {
     val t = txt()
-    val isLiquid = LocalIsLiquid.current
-    val liquid = LocalLiquid.current
     // r145: animasi masuk sama seperti FormatsScreen — geser
     // dari kanan 1/3 lebar + pudar (motionScheme).
     val visState = remember { MutableTransitionState(false) }
@@ -931,37 +786,22 @@ fun SpecScreen(onBack: () -> Unit) {
     ) {
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
-                    title = { Text(t.appSpecs, fontWeight = FontWeight.ExtraBold) },
-                    navigationIcon = { IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) } }
-                )
-                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
-            }
+            TopAppBar(
+                title = { Text(t.appSpecs, fontWeight = FontWeight.ExtraBold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .liquidWashBackground()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            if (isLiquid) {
-                item {
-                    Text(
-                        t.appSpecs,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    )
-                }
-            }
             item {
                 SpecGroup(
                     icon = Icons.Default.GridView,
@@ -1014,14 +854,10 @@ private fun SpecGroup(
     title: String,
     rows: List<Pair<String, String>>
 ) {
-    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
-    val isLiquid = LocalIsLiquid.current
-    val liquid = LocalLiquid.current
     Card(
-        modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-        border = null
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

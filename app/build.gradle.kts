@@ -105,8 +105,4 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-video:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
-    // r210: efek kaca Liquid Glass (blur + lensa + vibrancy) — 1.0.0
-    // adalah lini androidx (Kotlin 2.2.21, Compose 1.9.4), cocok
-    // dengan stack aplikasi; 2.x adalah Compose Multiplatform.
-    implementation("io.github.kyant0:backdrop:1.0.0")
 }

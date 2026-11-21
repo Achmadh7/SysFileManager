@@ -16,19 +16,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -115,7 +111,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedButton
@@ -150,15 +145,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
@@ -181,11 +173,8 @@ fun BrowseHeaderBar(
     onSearch: () -> Unit,
     onSortPick: (SortKey, Boolean) -> Unit,
     onToggleView: () -> Unit,
-    onNavigate: (List<String>) -> Unit,
-    isLiquid: Boolean = false
+    onNavigate: (List<String>) -> Unit
 ) {
-    // r212: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
-    val liquid = LocalLiquid.current
     val t = txt()
     val rootPath = currentRoot?.path ?: currentPath
     val relative = currentPath.removePrefix(rootPath).trim('/')
@@ -203,53 +192,27 @@ fun BrowseHeaderBar(
     val labels = listOf(currentRoot?.let { rootLabel(it, t) } ?: rootPath) + segments
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // r223 X3: pemicu cari palsu (query "" hardcoded) — di Liquid
-            // jadi pil kaca klikabel; Material tetap SearchBar M3.
-            if (isLiquid) {
-                Box(
-                    Modifier.weight(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .glassTint(RoundedCornerShape(24.dp), liquid.glassTint)
-                        .clickable { onSearch() }
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Search, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            t.searchInFolder,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            } else {
-                SearchBar(
-                    inputField = {
-                        SearchBarDefaults.InputField(
-                            query = "",
-                            onQueryChange = {},
-                            onSearch = { onSearch() },
-                            expanded = false,
-                            onExpandedChange = { if (it) onSearch() },
-                            placeholder = { Text(t.searchInFolder) },
-                            leadingIcon = { Icon(Icons.Default.Search, null) }
-                        )
-                    },
-                    expanded = false,
-                    onExpandedChange = {},
-                    modifier = Modifier.weight(1f),
-                    // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
-                    // status bar di atas pil (windowInsets default), padahal
-                    // ia duduk di bawah TopAppBar yang inset-nya sudah
-                    // dikonsumsi Scaffold; tanpa ini pil terdorong ~36dp.
-                    windowInsets = WindowInsets(0.dp)
-                ) {}
-            }
+            SearchBar(
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        query = "",
+                        onQueryChange = {},
+                        onSearch = { onSearch() },
+                        expanded = false,
+                        onExpandedChange = { if (it) onSearch() },
+                        placeholder = { Text(t.searchInFolder) },
+                        leadingIcon = { Icon(Icons.Default.Search, null) }
+                    )
+                },
+                expanded = false,
+                onExpandedChange = {},
+                modifier = Modifier.weight(1f),
+                // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
+                // status bar di atas pil (windowInsets default), padahal
+                // ia duduk di bawah TopAppBar yang inset-nya sudah
+                // dikonsumsi Scaffold; tanpa ini pil terdorong ~36dp.
+                windowInsets = WindowInsets(0.dp)
+            ) {}
             Spacer(Modifier.width(8.dp))
             // Tombol tunggal: ikon menunjukkan tampilan TUJUAN (bukan yang aktif).
             FilledTonalIconButton(onClick = onToggleView) {
@@ -268,12 +231,10 @@ fun BrowseHeaderBar(
                 val active = index == labels.lastIndex
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (isLiquid) Color.Transparent else if (active) MaterialTheme.colorScheme.primaryContainer
+                    color = if (active) MaterialTheme.colorScheme.primaryContainer
                     else MaterialTheme.colorScheme.surfaceContainerHigh,
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
-                    enabled = !active,
-                    border = null,
-                    modifier = Modifier.then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(50), if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh) else Modifier)
+                    enabled = !active
                 ) {
                     Text(
                         label,
@@ -350,11 +311,9 @@ fun BrowseScreen(
     lockedPaths: Set<String> = emptySet(),
     safHasGrant: Boolean = false,
     onSafAction: (() -> Unit)? = null,
-    safSubtreeBlocked: Boolean = false,
-    isLiquid: Boolean = false
+    safSubtreeBlocked: Boolean = false
 ) {
     val t = txt()
-    val liquid = LocalLiquid.current
     Column(Modifier.fillMaxSize()) {
         if (canGoUp) {
             Row(
@@ -370,7 +329,7 @@ fun BrowseScreen(
         }
         Box(Modifier.fillMaxSize()) {
             when {
-                !loaded -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                !loaded -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 entries.isEmpty() -> Column(
                     Modifier.align(Alignment.Center).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -426,7 +385,7 @@ fun BrowseScreen(
                 }
                 gridView -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).liquidWashBackground(),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                     contentPadding = PaddingValues(bottom = 96.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -438,12 +397,11 @@ fun BrowseScreen(
                             isSelected = selected.contains(entry.path),
                             onClick = { onOpenEntry(entry) },
                             onLongClick = { onLongPress(entry) },
-                            locked = FileOps.isLockedFolder(entry.path, lockedPaths),
-                            isLiquid = isLiquid
+                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
                         )
                     }
                 }
-                else -> LazyColumn(Modifier.fillMaxSize().liquidWashBackground(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
                     items(entries, key = { it.path }) { entry ->
                         FileRow(
                             entry = entry,
@@ -452,156 +410,44 @@ fun BrowseScreen(
                             itemCount = counts[entry.path],
                             onClick = { onOpenEntry(entry) },
                             onLongClick = { onLongPress(entry) },
-                            locked = FileOps.isLockedFolder(entry.path, lockedPaths),
-                            isLiquid = isLiquid
+                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
                         )
                     }
                 }
             }
             if (selected.isEmpty()) {
                 var fabOpen by remember { mutableStateOf(false) }
-                if (isLiquid) {
-                    // r223 X4: tombol "+" kaca + action sheet iOS di dalam
-                    // Box yang sama — sheet berhenti di atas tab bar.
-                    if (fabOpen) {
-                        Box(
-                            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { fabOpen = false }
-                        )
-                    }
-                    val fabRotation by animateFloatAsState(
-                        targetValue = if (fabOpen) 45f else 0f,
-                        animationSpec = iosSpring(0.4f, 0.15f),
-                        label = "fabRot"
+                if (fabOpen) {
+                    Box(
+                        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { fabOpen = false }
                     )
-                    Box(
-                        Modifier.align(Alignment.BottomEnd).padding(16.dp)
-                            .size(56.dp).clip(CircleShape)
-                            .glassTint(RoundedCornerShape(50), liquid.glassTint)
-                            .clickable { fabOpen = !fabOpen },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            null,
-                            modifier = Modifier.graphicsLayer { rotationZ = fabRotation }
-                        )
-                    }
-                    LiquidActionSheet(
-                        visible = fabOpen,
-                        onNewFolder = { fabOpen = false; onNewFolder() },
-                        onNewFile = { fabOpen = false; onNewFile() },
-                        onDismiss = { fabOpen = false },
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
-                    )
-                } else {
-                    if (fabOpen) {
-                        Box(
-                            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { fabOpen = false }
-                        )
-                    }
-                    FloatingActionButtonMenu(
-                        expanded = fabOpen,
-                        button = {
-                            // Berlabel saat tertutup ("Baru"/"New"); menciut jadi ikon X saat menu terbuka.
-                            ExtendedFloatingActionButton(
-                                onClick = { fabOpen = !fabOpen },
-                                expanded = !fabOpen,
-                                icon = { Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null) },
-                                text = { Text(t.newShort) }
-                            )
-                        },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-                    ) {
-                        FloatingActionButtonMenuItem(
-                            onClick = { fabOpen = false; onNewFolder() },
-                            text = { Text(t.newFolder) },
-                            icon = { Icon(Icons.Default.CreateNewFolder, null) }
-                        )
-                        FloatingActionButtonMenuItem(
-                            onClick = { fabOpen = false; onNewFile() },
-                            text = { Text(t.newFile) },
-                            icon = { Icon(Icons.Default.NoteAdd, null) }
-                        )
-                    }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LiquidActionSheet(
-    visible: Boolean,
-    onNewFolder: () -> Unit,
-    onNewFile: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val t = txt()
-    val liquid = LocalLiquid.current
-    AnimatedVisibility(
-        visible = visible,
-        enter = IosTransitions.sheetEnter(),
-        exit = IosTransitions.sheetExit(),
-        modifier = modifier
-    ) {
-        Column(
-            Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
-                Modifier.fillMaxWidth()
-                    .glassTint(RoundedCornerShape(28.dp), liquid.glassTint)
-            ) {
-                Column(Modifier.fillMaxWidth()) {
-                    Box(
-                        Modifier.fillMaxWidth()
-                            .clickable { onNewFolder() }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            t.newFolder,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
+                FloatingActionButtonMenu(
+                    expanded = fabOpen,
+                    button = {
+                        // Berlabel saat tertutup ("Baru"/"New"); menciut jadi ikon X saat menu terbuka.
+                        ExtendedFloatingActionButton(
+                            onClick = { fabOpen = !fabOpen },
+                            expanded = !fabOpen,
+                            icon = { Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null) },
+                            text = { Text(t.newShort) }
                         )
-                    }
-                    HorizontalDivider(color = liquid.separator)
-                    Box(
-                        Modifier.fillMaxWidth()
-                            .clickable { onNewFile() }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            t.newFile,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-            Box(
-                Modifier.fillMaxWidth()
-                    .glassTint(RoundedCornerShape(28.dp), liquid.glassTint)
-                    .clickable { onDismiss() }
-            ) {
-                Box(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                    contentAlignment = Alignment.Center
+                    },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
                 ) {
-                    Text(
-                        t.cancel,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary
+                    FloatingActionButtonMenuItem(
+                        onClick = { fabOpen = false; onNewFolder() },
+                        text = { Text(t.newFolder) },
+                        icon = { Icon(Icons.Default.CreateNewFolder, null) }
+                    )
+                    FloatingActionButtonMenuItem(
+                        onClick = { fabOpen = false; onNewFile() },
+                        text = { Text(t.newFile) },
+                        icon = { Icon(Icons.Default.NoteAdd, null) }
                     )
                 }
             }
@@ -634,8 +480,6 @@ fun SelectionBar(
     onToggleLock: () -> Unit = {}
 ) {
     val t = txt()
-    val isLiquid = LocalIsLiquid.current
-    val liquid = LocalLiquid.current
     var menuOpen by remember { mutableStateOf(false) }
     Box(
         Modifier.fillMaxWidth().padding(bottom = 10.dp),
@@ -643,11 +487,9 @@ fun SelectionBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh,
-            border = null,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 3.dp,
-            shadowElevation = 6.dp,
-            modifier = Modifier.then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier)
+            shadowElevation = 6.dp
         ) {
             Row(
                 Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -660,12 +502,7 @@ fun SelectionBar(
                 PillMicroAction(Icons.Default.Delete, t.delete, onDelete)
                 Box {
                     PillMicroAction(Icons.Default.MoreVert, t.more, { menuOpen = true })
-                    DropdownMenu(
-                        expanded = menuOpen,
-                        onDismissRequest = { menuOpen = false },
-                        containerColor = if (isLiquid) liquid.glassTint else MenuDefaults.containerColor,
-                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
-                    ) {
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text(t.cut) },
                             leadingIcon = { Icon(Icons.Default.ContentCut, null) },
@@ -763,11 +600,9 @@ fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                .then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = RoundedCornerShape(28.dp),
-            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.secondaryContainer,
-            border = null
+            color = MaterialTheme.colorScheme.secondaryContainer
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -821,11 +656,9 @@ fun MiniPlayerBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
-            border = null,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
             tonalElevation = 3.dp,
-            shadowElevation = 6.dp,
-            modifier = Modifier.then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier)
+            shadowElevation = 6.dp
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),

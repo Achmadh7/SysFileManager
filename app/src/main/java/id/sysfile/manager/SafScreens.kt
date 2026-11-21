@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,8 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,7 +51,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
@@ -175,12 +171,9 @@ fun SafBrowseScreen(
     basePath: String = "",
     lockedPaths: Set<String> = emptySet(),
     unlockedPaths: Set<String> = emptySet(),
-    onRequestUnlock: (String, () -> Unit) -> Unit = { _, grant -> grant() },
-    isLiquid: Boolean = false
+    onRequestUnlock: (String, () -> Unit) -> Unit = { _, grant -> grant() }
 ) {
     val t = txt()
-    // r215: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
-    val liquid = LocalLiquid.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val root = remember(treeUri) { DocumentFile.fromTreeUri(context, Uri.parse(treeUri)) }
@@ -263,31 +256,25 @@ fun SafBrowseScreen(
 
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
-                    title = {
-                        Text(
-                            current.name ?: "SAF",
-                            fontWeight = FontWeight.ExtraBold,
-                            maxLines = 1
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { goBack() }) {
-                            Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home)
-                        }
+            TopAppBar(
+                title = {
+                    Text(
+                        current.name ?: "SAF",
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { goBack() }) {
+                        Icon(Icons.Default.ArrowBack, t.home)
                     }
-                )
-                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
-            }
+                }
+            )
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).liquidWashBackground()) {
+        Box(Modifier.fillMaxSize().padding(padding)) {
             when {
-                children == null -> if (isLiquid) LiquidSpinner(
-                    Modifier.align(Alignment.Center).size(52.dp)
-                ) else LoadingIndicator(
+                children == null -> LoadingIndicator(
                     Modifier.align(Alignment.Center).size(52.dp)
                 )
                 children!!.isEmpty() -> Text(
@@ -300,18 +287,6 @@ fun SafBrowseScreen(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    if (isLiquid) {
-                        item {
-                            Text(
-                                current.name ?: "SAF",
-                                style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
-                        }
-                    }
                     items(children!!, key = { it.uri.toString() }) { doc ->
                         SafRow(
                             doc = doc,
@@ -322,8 +297,7 @@ fun SafBrowseScreen(
                                     guarded(fsPathOf(current)) { openSafDoc(context, doc, t.openFailed, notify) }
                                 }
                             },
-                            onCopy = { copyDoc = doc },
-                            isLiquid = isLiquid
+                            onCopy = { copyDoc = doc }
                         )
                     }
                 }
@@ -350,10 +324,8 @@ fun SafBrowseScreen(
 }
 
 @Composable
-private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit, isLiquid: Boolean = false) {
+private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit) {
     val t = txt()
-    // r215: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
-    val liquid = LocalLiquid.current
     val name = doc.name ?: "?"
     val isDir = doc.isDirectory
     val color = if (isDir) Color(0xFFFFA000) else categoryColor(FileOps.categoryOf(name))
@@ -400,10 +372,9 @@ private fun SafRow(doc: DocumentFile, onClick: () -> Unit, onCopy: () -> Unit, i
                 }
             }
         },
-        colors = ListItemDefaults.colors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
-            .then(if (isLiquid) Modifier.clip(RoundedCornerShape(28.dp)).glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
             .clickable { onClick() }
     )
 }

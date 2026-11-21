@@ -55,9 +55,6 @@ fun WelcomeScreen(
     onTheme: (String) -> Unit
 ) {
     val t = txt()
-    // r213: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
-    val isLiquid = LocalIsLiquid.current
-    val liquid = LocalLiquid.current
     // r165 WT1 Ikon Pojok (pilihannya): tombol ganti tema di pojok
     // kanan atas — memakai jalur onTheme yang sama dengan Pengaturan
     // (TM1 fade ikut jalan). Ikon mengikuti konvensi baris Tema di
@@ -65,7 +62,7 @@ fun WelcomeScreen(
     // r164: latar dari skema — tanpa ini, mode terang berlatar
     // #101418 (windowBackground di themes.xml) di layar sambutan.
     Box(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).liquidWashBackground()
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -121,11 +118,10 @@ fun WelcomeScreen(
                 }
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     ),
-                    border = null,
                     shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(20.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         Modifier.padding(20.dp),

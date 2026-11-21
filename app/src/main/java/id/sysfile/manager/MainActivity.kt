@@ -40,7 +40,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -72,7 +71,6 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -88,7 +86,6 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
@@ -112,7 +109,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedButton
@@ -128,13 +124,11 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -154,7 +148,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -309,25 +302,6 @@ fun SysFileApp() {
         }
         themeMode = mode
         prefs.edit().putString("theme_mode", mode).apply()
-    }
-
-    // r210: gaya tema ("material" / "liquid") — tangkap layar lama
-    // seperti onThemeChange di atas supaya pergantian memudar (TM1).
-    var themeStyle by remember { mutableStateOf(prefs.getString("theme_style", "material") ?: "material") }
-    val onThemeStyleChange: (String) -> Unit = { style ->
-        try {
-            if (themeShot == null) {
-                themeShot = try {
-                    if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
-                } catch (_: Exception) {
-                    null
-                }
-            }
-            themeStyle = style
-            prefs.edit().putString("theme_style", style).apply()
-        } catch (e: Exception) {
-            android.util.Log.e("SysFileApp", "Theme change crash", e)
-        }
     }
 
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -1532,11 +1506,7 @@ fun SysFileApp() {
     // r137 TM1: Box akar supaya tangkapan layar lama bisa menutupi
     // seluruh isi (semua cabang layar) saat memudar.
     Box(Modifier.fillMaxSize()) {
-    SysFileTheme(themeMode, themeStyle) {
-        // r224: warna kaca untuk TopAppBar utama; hanya dipakai di cabang liquid.
-        val liquid = LocalLiquid.current
-        val selFirst = selected.firstOrNull()
-        val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
+    SysFileTheme(themeMode) {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1546,8 +1516,7 @@ fun SysFileApp() {
                 unlockedPaths = unlockedSession,
                 onRequestUnlock = { path, grant -> requestUnlock(path, grant) },
                 onExit = { safTreeUri = null; safBasePath = null },
-                notify = { notify(it) },
-                isLiquid = themeStyle == "liquid"
+                notify = { notify(it) }
             )
         } else if (showTrash) {
             TrashScreen(
@@ -1558,7 +1527,7 @@ fun SysFileApp() {
                 onRequestUnlock = { path, grant -> requestUnlock(path, grant) }
             )
         } else if (showApps) {
-            AppsScreen(notify = { notify(it) }, onBack = { showApps = false }, isLiquid = themeStyle == "liquid")
+            AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
         } else if (showSpecs) {
             SpecScreen(onBack = { showSpecs = false })
         } else if (showFormats) {
@@ -1586,13 +1555,11 @@ fun SysFileApp() {
         } else if (showSettings) {
             SettingsScreen(
                 themeMode = themeMode,
-                themeStyle = themeStyle,
                 language = language,
                 showHidden = showHidden,
                 showRootEntry = showRootEntry,
                 trashEnabled = trashEnabled,
                 onTheme = onThemeChange,
-                onThemeStyle = onThemeStyleChange,
                 onLanguage = { lang ->
                     language = lang
                     AppLang.code = lang
@@ -1655,9 +1622,7 @@ fun SysFileApp() {
             AnimatedContent(
                 targetState = overlay,
                 transitionSpec = {
-                    if (themeStyle == "liquid") {
-                        IosTransitions.sheetEnter() togetherWith IosTransitions.sheetExit()
-                    } else if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
+                    if (initialState is Overlay.CategoryView || targetState is Overlay.CategoryView ||
                         initialState is Overlay.ArchiveView || targetState is Overlay.ArchiveView ||
                         initialState is Overlay.ImgView || targetState is Overlay.ImgView ||
                         initialState is Overlay.Ext4View || targetState is Overlay.Ext4View ||
@@ -1684,37 +1649,33 @@ fun SysFileApp() {
                         onDelete = { p -> dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(p)))) },
                         onPathChange = { viewingPath = it }
                     )
-                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, originalPath = ov.originalPath, isLiquid = themeStyle == "liquid")
-                    is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, isLiquid = themeStyle == "liquid")
+                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, originalPath = ov.originalPath)
+                    is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null })
                     is Overlay.ArchiveText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
                         extractedText = ov.content,
                         onSaveArchiveText = if (ov.canSave) { { newText -> ArchiveOps.replaceZipEntry(File(ov.archivePath), ov.name, newText) } } else null,
-                        onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) },
-                        isLiquid = themeStyle == "liquid"
+                        onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) }
                     )
                     is Overlay.RamdiskText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        extractedText = ov.content,
-                        isLiquid = themeStyle == "liquid"
+                        extractedText = ov.content
                     )
                     is Overlay.Ext4Text -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        extractedText = ov.content,
-                        isLiquid = themeStyle == "liquid"
+                        extractedText = ov.content
                     )
                     is Overlay.FatText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        extractedText = ov.content,
-                        isLiquid = themeStyle == "liquid"
+                        extractedText = ov.content
                     )
                     is Overlay.PdfView -> PdfViewerScreen(
                         path = ov.path,
@@ -1729,19 +1690,16 @@ fun SysFileApp() {
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        isLiquid = themeStyle == "liquid"
                     )
                     is Overlay.VideoView -> VideoViewerScreen(
                         paths = ov.paths,
                         startIndex = ov.startIndex,
                         onBack = { overlay = overlayReturn; overlayReturn = null; viewingPath = null },
                         onPathChange = { viewingPath = it },
-                        notify = { notify(it) },
-                        isLiquid = themeStyle == "liquid"
+                        notify = { notify(it) }
                     )
                     is Overlay.Search -> SearchScreen(
                         rootPath = ov.rootPath,
-                        isLiquid = themeStyle == "liquid",
                         onBack = { overlay = null; overlayReturn = null },
                         onOpenEntry = { entry ->
                             overlay = null
@@ -1767,7 +1725,6 @@ fun SysFileApp() {
                     )
                     is Overlay.CategoryView -> CategoryScreen(
                         category = ov.category,
-                        isLiquid = themeStyle == "liquid",
                         categoryCache = categoryCache,
                         categoryCacheAt = categoryCacheAt,
                         categoryCacheKey = categoryCacheKey,
@@ -2127,8 +2084,7 @@ fun SysFileApp() {
                     )
                     is Overlay.DexView -> DexBrowseScreen(
                         path = ov.path,
-                        onBack = { overlay = overlayReturn; overlayReturn = null },
-                        isLiquid = themeStyle == "liquid"
+                        onBack = { overlay = overlayReturn; overlayReturn = null }
                     )
                     null -> {
                         Scaffold(
@@ -2141,7 +2097,6 @@ fun SysFileApp() {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
-                                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (themeStyle == "liquid") liquid.glassTint else Color.Unspecified),
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
@@ -2150,19 +2105,19 @@ fun SysFileApp() {
                                                         // pita warna ubin di atas huruf (rotate
                                                         // 30° = diagonal "/"), lebih tinggi dari
                                                         // ubin (kelebihan terpotong clip ubin).
-                                                        .background(if (themeStyle == "liquid") liquid.chipBg else MaterialTheme.colorScheme.primaryContainer),
+                                                        .background(MaterialTheme.colorScheme.primaryContainer),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Text(
                                                         "SF",
-                                                        color = if (themeStyle == "liquid") liquid.chipFg else MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                         fontWeight = FontWeight.ExtraBold,
                                                         fontSize = 16.sp
                                                     )
                                                     Box(
                                                         Modifier.size(width = 2.dp, height = 64.dp)
                                                             .rotate(30f)
-                                                            .background(if (themeStyle == "liquid") liquid.chipFg.copy(alpha = 0.25f) else MaterialTheme.colorScheme.primaryContainer)
+                                                            .background(MaterialTheme.colorScheme.primaryContainer)
                                                     )
                                                 }
                                                 Spacer(Modifier.width(12.dp))
@@ -2191,7 +2146,6 @@ fun SysFileApp() {
                                     )
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
-                                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (themeStyle == "liquid") liquid.glassTint else Color.Unspecified),
                                         title = { Text(t.selected(selected.size)) },
                                         navigationIcon = {
                                             IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, t.cancel) }
@@ -2204,7 +2158,6 @@ fun SysFileApp() {
                                     )
                                 } else {
                                     TopAppBar(
-                                        colors = TopAppBarDefaults.topAppBarColors(containerColor = if (themeStyle == "liquid") liquid.glassTint else Color.Unspecified),
                                         title = {
                                             Column {
                                                 Text(
@@ -2243,18 +2196,13 @@ fun SysFileApp() {
                                         },
                                         navigationIcon = {
                                             IconButton(onClick = { browseStack = browseStack.dropLast(1) }) {
-                                                Icon(if (themeStyle == "liquid") Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home)
+                                                Icon(Icons.Default.ArrowBack, t.home)
                                             }
                                         },
                                         actions = {
                                             Box {
-                                                IconButton(onClick = { menuOpen = true }) { Icon(if (themeStyle == "liquid") Icons.Default.MoreHoriz else Icons.Default.MoreVert, null) }
-                                                DropdownMenu(
-                                                    expanded = menuOpen,
-                                                    onDismissRequest = { menuOpen = false },
-                                                    containerColor = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MenuDefaults.containerColor,
-                                                    border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null
-                                                ) {
+                                                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
+                                                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                                     DropdownMenuItem(
                                                         text = { Text(t.home) },
                                                         leadingIcon = { Icon(Icons.Default.Home, null) },
@@ -2309,28 +2257,10 @@ fun SysFileApp() {
                                                         text = { Text(t.showHidden) },
                                                         leadingIcon = { Icon(Icons.Default.VisibilityOff, null) },
                                                         trailingIcon = {
-                                                            if (themeStyle == "liquid") {
-                                                                Switch(
-                                                                    checked = showHidden,
-                                                                    onCheckedChange = { v ->
-                                                                        showHidden = v
-                                                                        prefs.edit().putBoolean("show_hidden", v).apply()
-                                                                    },
-                                                                    colors = SwitchDefaults.colors(
-                                                                        checkedTrackColor = Color(0xFF34C759),
-                                                                        checkedThumbColor = Color.White,
-                                                                        checkedBorderColor = Color.Transparent,
-                                                                        uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                                                        uncheckedThumbColor = Color.White,
-                                                                        uncheckedBorderColor = Color.Transparent
-                                                                    )
-                                                                )
-                                                            } else {
-                                                                Switch(checked = showHidden, onCheckedChange = { v ->
-                                                                    showHidden = v
-                                                                    prefs.edit().putBoolean("show_hidden", v).apply()
-                                                                })
-                                                            }
+                                                            Switch(checked = showHidden, onCheckedChange = { v ->
+                                                                showHidden = v
+                                                                prefs.edit().putBoolean("show_hidden", v).apply()
+                                                            })
                                                         },
                                                         onClick = {
                                                             showHidden = !showHidden
@@ -2345,7 +2275,6 @@ fun SysFileApp() {
                                 if (currentPath != null && selected.isEmpty()) {
                                     BrowseHeaderBar(
                                         currentPath = currentPath,
-                                        isLiquid = themeStyle == "liquid",
                                         currentRoot = currentRoot,
                                         gridView = gridView,
                                         sortKey = sortKey,
@@ -2364,7 +2293,6 @@ fun SysFileApp() {
                                         }
                                     )
                                 }
-                                if (themeStyle == "liquid") HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
                                 }
                             },
                             bottomBar = {
@@ -2374,7 +2302,7 @@ fun SysFileApp() {
                                     // r82: bar hanya tampil di layar asal audio
                                     // (folder/kategori/Recent tempat audio dimulai);
                                     // di Beranda dan layar lain disembunyikan.
-                                    if (themeStyle != "liquid" && audioOrigin == currentScreenId()) {
+                                    if (audioOrigin == currentScreenId()) {
                                         audioPath?.let { path ->
                                             MiniPlayerBar(
                                                 name = File(path).name,
@@ -2386,11 +2314,20 @@ fun SysFileApp() {
                                             )
                                         }
                                     }
+                                    // r123: nilai pilihan pertama dihitung
+                                    // SEKALI di sini dengan firstOrNull —
+                                    // isi AnimatedVisibility tetap terkomposisi
+                                    // selama animasi keluar, dan selected
+                                    // sudah kosong saat itu; first()
+                                    // di dalam bar melempar
+                                    // NoSuchElementException -> FC.
+                                    val selFirst = selected.firstOrNull()
+                                    val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
                                     // Bar aksi seleksi (r109): muncul/hilang dengan animasi
                                     // halus yang sama seperti kapsul kontrol video (r104) —
                                     // fade + geser dari bawah + kembang/susut vertikal.
                                     AnimatedVisibility(
-                                        visible = themeStyle != "liquid" && selected.isNotEmpty() && currentPath != null,
+                                        visible = selected.isNotEmpty() && currentPath != null,
                                         enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
                                             slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
                                             expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
@@ -2486,56 +2423,46 @@ fun SysFileApp() {
                                             }
                                         )
                                     }
-                                    if (themeStyle != "liquid") {
-                                        if (selected.isEmpty() || currentPath == null) {
-                                            if (currentPath != null) {
-                                            clipboard?.let { clip ->
-                                                ClipboardBar(
-                                                    count = clip.first.size,
-                                                    onPaste = {
-                                                        val (paths, mode) = clip
-                                                        val destDir = File(currentPath)
-                                                        runCardOp(
-                                                            name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
-                                                            successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
-                                                            onSuccess = { clipboard = null }
-                                                        ) {
-                                                            val files = paths.map { File(it) }
-                                                            if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
-                                                            else FileOps.moveInto(files, destDir) > 0
-                                                        }
-                                                    },
-                                                    onClear = { clipboard = null }
-                                                )
-                                            }
-                                        } else {
-                                            SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                    if (selected.isEmpty() || currentPath == null) {
+                                        if (currentPath != null) {
+                                        clipboard?.let { clip ->
+                                            ClipboardBar(
+                                                count = clip.first.size,
+                                                onPaste = {
+                                                    val (paths, mode) = clip
+                                                    val destDir = File(currentPath)
+                                                    runCardOp(
+                                                        name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
+                                                        successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
+                                                        onSuccess = { clipboard = null }
+                                                    ) {
+                                                        val files = paths.map { File(it) }
+                                                        if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
+                                                        else FileOps.moveInto(files, destDir) > 0
+                                                    }
+                                                },
+                                                onClear = { clipboard = null }
+                                            )
                                         }
-                                        }
+                                    } else {
+                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                    }
                                     }
                                 }
                             }
                         ) { padding ->
-                            Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
+                            Box(Modifier.fillMaxSize().padding(padding)) {
                                 AnimatedContent(
                                     targetState = currentPath,
                                     transitionSpec = {
                                         val fromDepth = initialState?.count { it == '/' } ?: -1
                                         val toDepth = targetState?.count { it == '/' } ?: -1
-                                        if (themeStyle == "liquid") {
-                                            if (toDepth >= fromDepth) {
-                                                IosTransitions.pushEnter() togetherWith IosTransitions.pushExit()
-                                            } else {
-                                                IosTransitions.popEnter() togetherWith IosTransitions.popExit()
-                                            }
+                                        if (toDepth >= fromDepth) {
+                                            (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
+                                                (slideOutHorizontally { w -> -w / 3 } + fadeOut())
                                         } else {
-                                            if (toDepth >= fromDepth) {
-                                                (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
-                                                    (slideOutHorizontally { w -> -w / 3 } + fadeOut())
-                                            } else {
-                                                (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
-                                                    (slideOutHorizontally { w -> w / 3 } + fadeOut())
-                                            }
+                                            (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
+                                                (slideOutHorizontally { w -> w / 3 } + fadeOut())
                                         }
                                     },
                                     label = "folderAnim"
@@ -2544,19 +2471,14 @@ fun SysFileApp() {
                                         AnimatedContent(
                                             targetState = homeTab,
                                             transitionSpec = {
-                                                if (themeStyle == "liquid") {
-                                                    IosTransitions.tabTransition()
-                                                } else {
-                                                    fadeIn(animationSpec = fadeSpec) togetherWith
-                                                        fadeOut(animationSpec = fadeSpec)
-                                                }
+                                                fadeIn(animationSpec = fadeSpec) togetherWith
+                                                    fadeOut(animationSpec = fadeSpec)
                                             },
                                             label = "tabAnim"
                                         ) { tab ->
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
-                                                    isLiquid = themeStyle == "liquid",
                                                     accessGranted = accessGranted,
                                                     onOpenEntry = { entry ->
                                                         if (entry.isDir) {
@@ -2568,7 +2490,6 @@ fun SysFileApp() {
                                                 )
                                                 2 -> AnalysisScreen(
                                                     roots = roots,
-                                                    isLiquid = themeStyle == "liquid",
                                                     onOpenFolder = { path -> homeTab = 0; openFolderGuarded(path) { browseStack = listOf(path) } },
                                                     onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                                 )
@@ -2577,7 +2498,6 @@ fun SysFileApp() {
                                                     roots = if (showRootEntry) allRoots else roots,
                                                     rootActive = rootActive,
                                                     trashEnabled = trashEnabled,
-                                                    isLiquid = themeStyle == "liquid",
                                                     onRequestAccess = { requestAccess() },
                                                     onOpenRoot = { browseStack = listOf(it) },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
@@ -2588,7 +2508,6 @@ fun SysFileApp() {
                                     } else {
                                         BrowseScreen(
                                         currentPath = animatedPath,
-                                        isLiquid = themeStyle == "liquid",
                                         entries = entries,
                                         loaded = entriesLoaded,
                                         gridView = gridView,
@@ -2680,31 +2599,19 @@ fun SysFileApp() {
                 ) {
                     AnimatedVisibility(
                         visible = pillVisible,
-                        enter = if (themeStyle == "liquid") {
-                            IosTransitions.topPillEnter() +
-                                expandVertically(animationSpec = IosTransitions.sizeSpring, expandFrom = Alignment.Top)
-                        } else {
-                            fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                                slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
-                                expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Top)
-                        },
-                        exit = if (themeStyle == "liquid") {
-                            IosTransitions.topPillExit() +
-                                shrinkVertically(animationSpec = IosTransitions.sizeSpring, shrinkTowards = Alignment.Top)
-                        } else {
-                            fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                                slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
-                                shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
-                        }
+                        enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                            expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Top),
+                        exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
+                            shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
                     ) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            border = null,
-                            tonalElevation = if (LocalIsLiquid.current) 0.dp else 3.dp,
-                            shadowElevation = if (LocalIsLiquid.current) 0.dp else 6.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            tonalElevation = 3.dp,
+                            shadowElevation = 6.dp,
                             modifier = Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(20.dp)).clickable { pillVisible = false }
-                                .then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(20.dp), LocalLiquid.current.glassTint) else Modifier)
                         ) {
                             Row(
                                 Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -2714,13 +2621,13 @@ fun SysFileApp() {
                                     Modifier
                                         .size(22.dp)
                                         .clip(RoundedCornerShape(11.dp))
-                                        .background(if (LocalIsLiquid.current) (if (pillOk) LocalLiquid.current.pillDotOk else LocalLiquid.current.pillDotError) else (if (pillOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)),
+                                        .background(if (pillOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (pillOk) {
-                                        Icon(Icons.Default.Check, null, tint = if (LocalIsLiquid.current) Color.White else MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
                                     } else {
-                                        Icon(Icons.Default.Close, null, tint = if (LocalIsLiquid.current) Color.White else MaterialTheme.colorScheme.onError, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(14.dp))
                                     }
                                 }
                                 Spacer(Modifier.width(8.dp))
@@ -2737,153 +2644,6 @@ fun SysFileApp() {
                     }
                 }
             }
-                // r219 LG2: bar mengambang kaca (liquid saja) — pengganti
-                // bottomBar Scaffold: MiniPlayer, SelectionBar,
-                // ClipboardBar, lalu tab bar; konten bergulir di bawahnya.
-                if (overlay == null && themeStyle == "liquid") {
-                    Column(
-                        Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (audioOrigin == currentScreenId()) {
-                            audioPath?.let { path ->
-                                MiniPlayerBar(
-                                    name = File(path).name,
-                                    positionMs = audioPositionMs,
-                                    durationMs = audioDurationMs,
-                                    playing = audioPlaying,
-                                    onToggle = { toggleAudio() },
-                                    onClose = { stopAudio() }
-                                )
-                            }
-                        }
-                        AnimatedVisibility(
-                            visible = selected.isNotEmpty() && currentPath != null,
-                            enter = IosTransitions.sheetEnter() +
-                                expandVertically(animationSpec = IosTransitions.sizeSpring, expandFrom = Alignment.Bottom),
-                            exit = IosTransitions.sheetExit() +
-                                shrinkVertically(animationSpec = IosTransitions.sizeSpring, shrinkTowards = Alignment.Bottom)
-                        ) {
-                            SelectionBar(
-                                single = selected.size == 1,
-                                singleEntry = selEntry,
-                                canExtract = entries.any { selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null },
-                                onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
-                                onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
-                                onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
-                                onShare = { selEntry?.let { shareFile(it.file) } },
-                                onRename = { selEntry?.let { dialog = DialogKind.Rename(it) } },
-                                onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
-                                onProperties = { selEntry?.let { dialog = DialogKind.Properties(it) } },
-                                onExtract = {
-                                    val targets = entries.filter {
-                                        selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null
-                                    }
-                                    val only = targets.singleOrNull()
-                                    if (only != null && ArchiveOps.kindOf(only.name) == "zip") {
-                                        working = true
-                                        scope.launch {
-                                            val enc = withContext(Dispatchers.IO) { ArchiveOps.isZipEncrypted(only.file) }
-                                            working = false
-                                            if (enc) {
-                                                dialog = DialogKind.ZipPassword(only)
-                                            } else {
-                                                dialog = DialogKind.ArchiveActions(only)
-                                            }
-                                        }
-                                    } else if (only != null && ArchiveOps.kindOf(only.name) == "rar") {
-                                        working = true
-                                        scope.launch {
-                                            val enc = withContext(Dispatchers.IO) { ArchiveOps.isRarEncrypted(only.file) }
-                                            working = false
-                                            if (enc) {
-                                                dialog = DialogKind.RarPassword(only)
-                                            } else {
-                                                dialog = DialogKind.ArchiveActions(only)
-                                            }
-                                        }
-                                    } else if (only != null) {
-                                        dialog = DialogKind.ArchiveActions(only)
-                                    } else if (targets.isNotEmpty()) {
-                                        runExtractOp(
-                                            name = if (targets.size == 1) targets.first().name else t.items(targets.size),
-                                            format = { done, total -> t.extractProgress(done, total) }
-                                        ) { _, onProgress ->
-                                            var done = 0L
-                                            targets.count {
-                                                val r = ArchiveOps.extractToFolder(it.file, it.file.parentFile ?: it.file)
-                                                done++
-                                                onProgress(done, targets.size.toLong())
-                                                r
-                                            } > 0
-                                        }
-                                    }
-                                },
-                                onSelectAll = { selected = entries.map { it.path }.toSet() },
-                                singleIsDir = selEntry?.isDir == true,
-                                singleLocked = selected.singleOrNull()?.let { FileOps.isLockedFolder(it, lockedFolders) } == true,
-                                onToggleLock = {
-                                    selEntry?.let { entry ->
-                                        // r175 H4: identitas kunci
-                                        // per folder (mentah atau
-                                        // kanonis), bukan anaknya.
-                                        val canon = FileOps.canonicalOrNull(entry.path)
-                                        if (FileOps.isLockedFolder(entry.path, lockedFolders)) {
-                                            requestUnlock(entry.path) {
-                                                val updated = lockedFolders.filterNot {
-                                                    it == entry.path || (canon != null && it == canon)
-                                                }.toSet()
-                                                lockedFolders = updated
-                                                prefs.edit().putStringSet("locked_folders", updated).apply()
-                                                unlockedSession = unlockedSession.filterNot {
-                                                    it == entry.path || (canon != null && it == canon)
-                                                }.toSet()
-                                                selected = emptySet()
-                                                notify(t.folderUnlockedDone)
-                                            }
-                                        } else if (entry.name != FileOps.TRASH_DIR_NAME) {
-                                            val updated = FileOps.canonicalizeLocked(lockedFolders + entry.path)
-                                            lockedFolders = updated
-                                            prefs.edit().putStringSet("locked_folders", updated).apply()
-                                            selected = emptySet()
-                                            notify(t.folderLockedDone)
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                        AnimatedVisibility(
-                            visible = selected.isEmpty() && currentPath != null && clipboard != null,
-                            enter = IosTransitions.sheetEnter() +
-                                expandVertically(animationSpec = IosTransitions.sizeSpring, expandFrom = Alignment.Bottom),
-                            exit = IosTransitions.sheetExit() +
-                                shrinkVertically(animationSpec = IosTransitions.sizeSpring, shrinkTowards = Alignment.Bottom)
-                        ) {
-                            clipboard?.let { clip ->
-                                ClipboardBar(
-                                    count = clip.first.size,
-                                    onPaste = {
-                                        val (paths, mode) = clip
-                                        val destDir = File(currentPath)
-                                        runCardOp(
-                                            name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
-                                            successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
-                                            onSuccess = { clipboard = null }
-                                        ) {
-                                            val files = paths.map { File(it) }
-                                            if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
-                                            else FileOps.moveInto(files, destDir) > 0
-                                        }
-                                    },
-                                    onClear = { clipboard = null }
-                                )
-                            }
-                        }
-                        if (currentPath == null) {
-                            LiquidGlassTabBar(selected = homeTab, onSelect = { homeTab = it })
-                        }
-                    }
-                }
         }
         themeShot?.let { shot ->
             Image(
@@ -2912,11 +2672,10 @@ fun SysFileApp() {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
                     shape = RoundedCornerShape(28.dp),
-                    color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    border = null,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2934,33 +2693,19 @@ fun SysFileApp() {
                                     "${(extractCardProg * 100).toInt()}%",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (LocalIsLiquid.current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
                         if (extractCardProg != null) {
-                            if (LocalIsLiquid.current) {
-                                LiquidProgressBar(
-                                    progress = { extractCardProg },
-                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                                )
-                            } else {
-                                LinearWavyProgressIndicator(
-                                    progress = { extractCardProg },
-                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                                )
-                            }
+                            LinearWavyProgressIndicator(
+                                progress = { extractCardProg },
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                            )
                         } else {
-                            if (LocalIsLiquid.current) {
-                                LiquidProgressBar(
-                                    progress = null,
-                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                                )
-                            } else {
-                                LinearWavyProgressIndicator(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                                )
-                            }
+                            LinearWavyProgressIndicator(
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                            )
                         }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2993,23 +2738,16 @@ fun SysFileApp() {
                 text = {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (LocalIsLiquid.current) LiquidSpinner(Modifier.size(52.dp)) else LoadingIndicator(Modifier.size(52.dp))
+                            LoadingIndicator(Modifier.size(52.dp))
                             Spacer(Modifier.width(16.dp))
                             Text(workStage ?: t.working)
                         }
                         val prog = workProgress
                         if (prog != null) {
-                            if (LocalIsLiquid.current) {
-                                LiquidProgressBar(
-                                    progress = { prog },
-                                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
-                                )
-                            } else {
-                                LinearWavyProgressIndicator(
-                                    progress = { prog },
-                                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
-                                )
-                            }
+                            LinearWavyProgressIndicator(
+                                progress = { prog },
+                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
+                            )
                             Text(
                                 workProgressText ?: "${(prog * 100).toInt()}%",
                                 style = MaterialTheme.typography.bodySmall,
@@ -3030,33 +2768,20 @@ fun SysFileApp() {
         }
 
         if (showAccessDialog) {
-            if (LocalIsLiquid.current) {
-                IosAlertDialog(
-                    title = t.permissionTitle,
-                    text = t.permissionBody,
-                    buttons = listOf(
-                        IosAlertButton(t.later) { showAccessDialog = false },
-                        IosAlertButton(t.permissionButton) { showAccessDialog = false; requestAccess() }
-                    ),
-                    onDismissRequest = { showAccessDialog = false },
-                    twoColumn = true
-                )
-            } else {
-                AlertDialog(
-                    onDismissRequest = { showAccessDialog = false },
-                    title = { Text(t.permissionTitle) },
-                    text = { Text(t.permissionBody) },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showAccessDialog = false
-                            requestAccess()
-                        }) { Text(t.permissionButton) }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showAccessDialog = false }) { Text(t.later) }
-                    }
-                )
-            }
+            AlertDialog(
+                onDismissRequest = { showAccessDialog = false },
+                title = { Text(t.permissionTitle) },
+                text = { Text(t.permissionBody) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showAccessDialog = false
+                        requestAccess()
+                    }) { Text(t.permissionButton) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAccessDialog = false }) { Text(t.later) }
+                }
+            )
         }
 
         when (val d = dialog) {
@@ -3129,268 +2854,132 @@ fun SysFileApp() {
                     }
                 }
             )
-            is DialogKind.Delete -> {
-                val deleteName = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
-                if (LocalIsLiquid.current) {
-                    IosAlertDialog(
-                        title = if (trashEnabled) t.delete else t.deleteForever,
-                        text = if (trashEnabled) t.deleteConfirm(deleteName) else t.deleteForeverConfirm(deleteName),
-                        buttons = listOf(
-                            IosAlertButton(t.cancel) { dialog = null },
-                            IosAlertButton(if (trashEnabled) t.delete else t.deleteForever, destructive = true) {
-                                dialog = null
-                                // M13: memindahkan folder terkunci ke sampah
-                                // butuh biometrik dulu — bila beberapa folder
-                                // terkunci dipilih, minta satu per satu.
-                                fun doDelete() {
-                                    val stillLocked = d.entries.firstOrNull {
-                                        FileOps.isLockedFolder(it.path, lockedFolders) &&
-                                            !FileOps.isUnlockedPath(it.path, unlockedSession)
-                                    }
-                                    if (stillLocked != null) {
-                                        requestUnlock(stillLocked.path, ::doDelete)
-                                    } else {
-                                        runCardOp(
-                                            name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
-                                            successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
-                                        ) {
-                                            var allOk = true
-                                            d.entries.forEach {
-                                                val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
-                                                else FileOps.deleteRecursively(it.file)
-                                                if (!ok) allOk = false
-                                            }
-                                            allOk
-                                        }
-                                        val viewing = viewingPath
-                                        if (viewing != null && d.entries.any { it.path == viewing }) {
-                                            overlay = null
-                                            overlayReturn = null
-                                            viewingPath = null
-                                        }
-                                    }
-                                }
-                                doDelete()
+            is DialogKind.Delete -> AlertDialog(
+                onDismissRequest = { dialog = null },
+                title = { Text(if (trashEnabled) t.delete else t.deleteForever) },
+                text = {
+                    val name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
+                    Text(if (trashEnabled) t.deleteConfirm(name) else t.deleteForeverConfirm(name))
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        dialog = null
+                        // M13: memindahkan folder terkunci ke sampah
+                        // butuh biometrik dulu — bila beberapa folder
+                        // terkunci dipilih, minta satu per satu.
+                        fun doDelete() {
+                            val stillLocked = d.entries.firstOrNull {
+                                FileOps.isLockedFolder(it.path, lockedFolders) &&
+                                    !FileOps.isUnlockedPath(it.path, unlockedSession)
                             }
-                        ),
-                        onDismissRequest = { dialog = null },
-                        twoColumn = true
-                    )
-                } else {
-                    AlertDialog(
-                        onDismissRequest = { dialog = null },
-                        title = { Text(if (trashEnabled) t.delete else t.deleteForever) },
-                        text = {
-                            val name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
-                            Text(if (trashEnabled) t.deleteConfirm(name) else t.deleteForeverConfirm(name))
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                dialog = null
-                                // M13: memindahkan folder terkunci ke sampah
-                                // butuh biometrik dulu — bila beberapa folder
-                                // terkunci dipilih, minta satu per satu.
-                                fun doDelete() {
-                                    val stillLocked = d.entries.firstOrNull {
-                                        FileOps.isLockedFolder(it.path, lockedFolders) &&
-                                            !FileOps.isUnlockedPath(it.path, unlockedSession)
+                            if (stillLocked != null) {
+                                requestUnlock(stillLocked.path, ::doDelete)
+                            } else {
+                                runCardOp(
+                                    name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
+                                    successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
+                                ) {
+                                    var allOk = true
+                                    d.entries.forEach {
+                                        val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
+                                        else FileOps.deleteRecursively(it.file)
+                                        if (!ok) allOk = false
                                     }
-                                    if (stillLocked != null) {
-                                        requestUnlock(stillLocked.path, ::doDelete)
-                                    } else {
-                                        runCardOp(
-                                            name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
-                                            successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
-                                        ) {
-                                            var allOk = true
-                                            d.entries.forEach {
-                                                val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
-                                                else FileOps.deleteRecursively(it.file)
-                                                if (!ok) allOk = false
-                                            }
-                                            allOk
-                                        }
-                                        val viewing = viewingPath
-                                        if (viewing != null && d.entries.any { it.path == viewing }) {
-                                            overlay = null
-                                            overlayReturn = null
-                                            viewingPath = null
-                                        }
-                                    }
+                                    allOk
                                 }
-                                doDelete()
-                            }) { Text(if (trashEnabled) t.delete else t.deleteForever) }
-                        },
-                        dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
-                    )
-                }
-            }
-            is DialogKind.PayloadExtract -> {
-                if (LocalIsLiquid.current) {
-                    IosAlertDialog(
-                        title = if (d.partition == null) t.extractAll else "${d.partition}.img",
-                        text = if (d.partition == null) t.payloadExtractAllConfirm else t.payloadExtractOneConfirm(d.partition),
-                        buttons = listOf(
-                            IosAlertButton(t.cancel) { dialog = null },
-                            IosAlertButton(if (d.partition == null) t.extractAll else t.extract) {
-                                dialog = null
-                                val payloadFile = File(d.path)
-                                val part = d.partition
-                                if (part == null) {
+                                val viewing = viewingPath
+                                if (viewing != null && d.entries.any { it.path == viewing }) {
                                     overlay = null
                                     overlayReturn = null
-                                    val flag = AtomicBoolean(false)
-                                    workCancelFlag = flag
-                                    workProgress = 0f
-                                    working = true
-                                    scope.launch {
-                                        val outcome = withContext(Dispatchers.IO) {
-                                            PayloadOps.extract(
-                                                payloadFile, payloadFile.parentFile ?: payloadFile,
-                                                onProgress = { done, total ->
-                                                    if (total > 0L) {
-                                                        workProgress =
-                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                                                    }
-                                                },
-                                                cancelFlag = flag
-                                            )
-                                        }
-                                        working = false
-                                        workProgress = null
-                                        workCancelFlag = null
-                                        when {
-                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                            outcome.error != null -> notify(t.payloadInvalid)
-                                            else -> {
-                                                notify(t.payloadDone(outcome.partitions))
-                                                reloadKey++
+                                    viewingPath = null
+                                }
+                            }
+                        }
+                        doDelete()
+                    }) { Text(if (trashEnabled) t.delete else t.deleteForever) }
+                },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
+            )
+            is DialogKind.PayloadExtract -> AlertDialog(
+                onDismissRequest = { dialog = null },
+                title = { Text(if (d.partition == null) t.extractAll else "${d.partition}.img") },
+                text = { Text(if (d.partition == null) t.payloadExtractAllConfirm else t.payloadExtractOneConfirm(d.partition)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        dialog = null
+                        val payloadFile = File(d.path)
+                        val part = d.partition
+                        if (part == null) {
+                            overlay = null
+                            overlayReturn = null
+                            val flag = AtomicBoolean(false)
+                            workCancelFlag = flag
+                            workProgress = 0f
+                            working = true
+                            scope.launch {
+                                val outcome = withContext(Dispatchers.IO) {
+                                    PayloadOps.extract(
+                                        payloadFile, payloadFile.parentFile ?: payloadFile,
+                                        onProgress = { done, total ->
+                                            if (total > 0L) {
+                                                workProgress =
+                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
                                             }
-                                        }
-                                    }
-                                } else {
-                                    val flag = AtomicBoolean(false)
-                                    workCancelFlag = flag
-                                    workProgress = 0f
-                                    working = true
-                                    scope.launch {
-                                        val outcome = withContext(Dispatchers.IO) {
-                                            PayloadOps.extractOne(
-                                                payloadFile, part, payloadFile.parentFile ?: payloadFile,
-                                                onProgress = { done, total ->
-                                                    if (total > 0L) {
-                                                        workProgress =
-                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                                                    }
-                                                },
-                                                cancelFlag = flag
-                                            )
-                                        }
-                                        working = false
-                                        workProgress = null
-                                        workCancelFlag = null
-                                        when {
-                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                            outcome.error != null -> notify(t.opFailed)
-                                            outcome.file != null -> {
-                                                overlay = null
-                                                openEntry(FileOps.entryOf(outcome.file))
-                                            }
-                                        }
+                                        },
+                                        cancelFlag = flag
+                                    )
+                                }
+                                working = false
+                                workProgress = null
+                                workCancelFlag = null
+                                when {
+                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                    outcome.error != null -> notify(t.payloadInvalid)
+                                    else -> {
+                                        notify(t.payloadDone(outcome.partitions))
+                                        reloadKey++
                                     }
                                 }
                             }
-                        ),
-                        onDismissRequest = { dialog = null },
-                        twoColumn = true
-                    )
-                } else {
-                    AlertDialog(
-                        onDismissRequest = { dialog = null },
-                        title = { Text(if (d.partition == null) t.extractAll else "${d.partition}.img") },
-                        text = { Text(if (d.partition == null) t.payloadExtractAllConfirm else t.payloadExtractOneConfirm(d.partition)) },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                dialog = null
-                                val payloadFile = File(d.path)
-                                val part = d.partition
-                                if (part == null) {
-                                    overlay = null
-                                    overlayReturn = null
-                                    val flag = AtomicBoolean(false)
-                                    workCancelFlag = flag
-                                    workProgress = 0f
-                                    working = true
-                                    scope.launch {
-                                        val outcome = withContext(Dispatchers.IO) {
-                                            PayloadOps.extract(
-                                                payloadFile, payloadFile.parentFile ?: payloadFile,
-                                                onProgress = { done, total ->
-                                                    if (total > 0L) {
-                                                        workProgress =
-                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                                                    }
-                                                },
-                                                cancelFlag = flag
-                                            )
-                                        }
-                                        working = false
-                                        workProgress = null
-                                        workCancelFlag = null
-                                        when {
-                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                            outcome.error != null -> notify(t.payloadInvalid)
-                                            else -> {
-                                                notify(t.payloadDone(outcome.partitions))
-                                                reloadKey++
+                        } else {
+                            val flag = AtomicBoolean(false)
+                            workCancelFlag = flag
+                            workProgress = 0f
+                            working = true
+                            scope.launch {
+                                val outcome = withContext(Dispatchers.IO) {
+                                    PayloadOps.extractOne(
+                                        payloadFile, part, payloadFile.parentFile ?: payloadFile,
+                                        onProgress = { done, total ->
+                                            if (total > 0L) {
+                                                workProgress =
+                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
                                             }
-                                        }
-                                    }
-                                } else {
-                                    val flag = AtomicBoolean(false)
-                                    workCancelFlag = flag
-                                    workProgress = 0f
-                                    working = true
-                                    scope.launch {
-                                        val outcome = withContext(Dispatchers.IO) {
-                                            PayloadOps.extractOne(
-                                                payloadFile, part, payloadFile.parentFile ?: payloadFile,
-                                                onProgress = { done, total ->
-                                                    if (total > 0L) {
-                                                        workProgress =
-                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                                                    }
-                                                },
-                                                cancelFlag = flag
-                                            )
-                                        }
-                                        working = false
-                                        workProgress = null
-                                        workCancelFlag = null
-                                        when {
-                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                            outcome.error != null -> notify(t.opFailed)
-                                            outcome.file != null -> {
-                                                overlay = null
-                                                openEntry(FileOps.entryOf(outcome.file))
-                                            }
-                                        }
+                                        },
+                                        cancelFlag = flag
+                                    )
+                                }
+                                working = false
+                                workProgress = null
+                                workCancelFlag = null
+                                when {
+                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                    outcome.error != null -> notify(t.opFailed)
+                                    outcome.file != null -> {
+                                        overlay = null
+                                        openEntry(FileOps.entryOf(outcome.file))
                                     }
                                 }
-                            }) { Text(if (d.partition == null) t.extractAll else t.extract) }
-                        },
-                        dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
-                    )
-                }
-            }
+                            }
+                        }
+                    }) { Text(if (d.partition == null) t.extractAll else t.extract) }
+                },
+                dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
+            )
             is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) })
             is DialogKind.Exif -> ExifDialog(entry = d.entry, onDismiss = { dialog = null })
             is DialogKind.Sort -> SortDialog(

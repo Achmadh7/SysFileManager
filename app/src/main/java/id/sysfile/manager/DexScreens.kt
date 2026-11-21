@@ -2,7 +2,6 @@ package id.sysfile.manager
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -38,7 +36,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,10 +61,8 @@ import java.io.File
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false) {
+fun DexBrowseScreen(path: String, onBack: () -> Unit) {
     val t = txt()
-    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
-    val liquid = LocalLiquid.current
     var state by remember { mutableStateOf<DexLoadState>(DexLoadState.Loading) }
     var query by remember { mutableStateOf("") }
     var selectedClass by remember { mutableStateOf<Int?>(null) }
@@ -101,23 +96,17 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false)
 
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
-                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = {
-                        IconButton(onClick = back) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
-                    }
-                )
-                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
-            }
+            TopAppBar(
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, t.home) }
+                }
+            )
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).liquidWashBackground()) {
+        Box(Modifier.fillMaxSize().padding(padding)) {
             when (val s = state) {
-                DexLoadState.Loading -> if (isLiquid) LiquidSpinner(
-                    Modifier.align(Alignment.Center).size(52.dp)
-                ) else LoadingIndicator(
+                DexLoadState.Loading -> LoadingIndicator(
                     Modifier.align(Alignment.Center).size(52.dp)
                 )
                 DexLoadState.TooLarge -> Text(
@@ -142,8 +131,7 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false)
                             dex = dex,
                             query = query,
                             onQueryChange = { query = it },
-                            onClassClick = { selectedClass = it },
-                            isLiquid = isLiquid
+                            onClassClick = { selectedClass = it }
                         )
                     }
                 }
@@ -165,12 +153,9 @@ private fun DexClassListView(
     dex: DexFile,
     query: String,
     onQueryChange: (String) -> Unit,
-    onClassClick: (Int) -> Unit,
-    isLiquid: Boolean = false
+    onClassClick: (Int) -> Unit
 ) {
     val t = txt()
-    // r215: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
-    val liquid = LocalLiquid.current
     val h = dex.header
     val filtered = remember(dex, query) {
         val q = query.trim().lowercase()
@@ -180,9 +165,8 @@ private fun DexClassListView(
     Column(Modifier.fillMaxSize()) {
         Card(
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
-            border = null,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 DexInfoRow(t.version(h.version), FileOps.formatSize(h.fileSize))
@@ -306,8 +290,6 @@ private fun DexClassDetailView(
     onMethodClick: (DexMethodInfo) -> Unit
 ) {
     val t = txt()
-    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
-    val isLiquid = LocalIsLiquid.current
     var detail by remember(classIndex) { mutableStateOf<DexClassDetail?>(null) }
     var failed by remember(classIndex) { mutableStateOf(false) }
     LaunchedEffect(classIndex) {
@@ -320,7 +302,7 @@ private fun DexClassDetailView(
             Text(t.readFailed, modifier = Modifier.align(Alignment.Center))
         }
         d == null -> Box(Modifier.fillMaxSize()) {
-            if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+            LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
         }
         else -> LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             item {
@@ -428,8 +410,6 @@ private fun DexMemberRow(title: String, subtitle: String?, onClick: (() -> Unit)
 @Composable
 private fun DexSmaliView(dex: DexFile, method: DexMethodInfo) {
     val t = txt()
-    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
-    val isLiquid = LocalIsLiquid.current
     var smali by remember(method) { mutableStateOf<SmaliResult?>(null) }
     LaunchedEffect(method) {
         smali = withContext(Dispatchers.IO) { dex.methodSmali(method) }
@@ -450,7 +430,7 @@ private fun DexSmaliView(dex: DexFile, method: DexMethodInfo) {
         Spacer(Modifier.height(8.dp))
         if (s == null) {
             Box(Modifier.fillMaxSize()) {
-                if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
             }
             return@Column
         }

@@ -22,12 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Storage
@@ -39,7 +34,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ListItem
@@ -86,20 +80,15 @@ import java.util.Date
 fun SectionCard(
     icon: ImageVector,
     title: String,
-    isLiquid: Boolean = false,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
-    // r212: kaca saat gaya Liquid.
-    val liquid = LocalLiquid.current
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
-        border = null,
         shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth()
-            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -114,19 +103,8 @@ fun SectionCard(
     }
 }
 
-/** Warna + ikon per kategori berkas (gaya iOS SF Symbol saat isLiquid). */
-fun categoryIcon(category: Category, name: String = "", isLiquid: Boolean = false): ImageVector {
-    if (isLiquid) {
-        return when (category) {
-            Category.IMAGE -> Icons.Default.Photo
-            Category.VIDEO -> Icons.Default.Videocam
-            Category.AUDIO -> Icons.Default.Headphones
-            Category.DOCUMENT -> if (FileOps.extOf(name) == "pdf") Icons.Default.PictureAsPdf else Icons.Default.Article
-            Category.APP -> Icons.Default.Apps
-            Category.ARCHIVE -> Icons.Default.Inventory2
-            Category.OTHER -> Icons.Default.Folder
-        }
-    }
+/** Warna + ikon per kategori berkas. */
+fun categoryIcon(category: Category, name: String): ImageVector {
     return when (category) {
         Category.IMAGE -> Icons.Default.Image
         Category.VIDEO -> Icons.Default.Movie
@@ -310,12 +288,9 @@ fun FileRow(
     itemCount: Int?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    locked: Boolean = false,
-    isLiquid: Boolean = false
+    locked: Boolean = false
 ) {
     val t = txt()
-    // r212: kaca saat gaya Liquid.
-    val liquid = LocalLiquid.current
     val emptyDir = entry.isDir && itemCount == 0
     val sub = if (entry.isDir) {
         if (emptyDir) t.emptyShort
@@ -329,17 +304,13 @@ fun FileRow(
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
-            } else if (isLiquid) {
-                Color.Transparent
             } else {
                 MaterialTheme.colorScheme.surfaceContainerHighest
             }
         ),
-        border = null,
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
-            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
     ) {
         Row(
             Modifier.fillMaxWidth()
@@ -378,11 +349,7 @@ fun FileRow(
                 )
             }
             if (selectionMode) {
-                if (isLiquid) {
-                    IosCheckCircle(checked = isSelected, onClick = onClick)
-                } else {
-                    Checkbox(checked = isSelected, onCheckedChange = { onClick() })
-                }
+                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
             } else if (!entry.isDir) {
                 Text(
                     FileOps.formatSize(entry.size),
@@ -456,15 +423,11 @@ fun FileCell(
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    locked: Boolean = false,
-    isLiquid: Boolean = false
+    locked: Boolean = false
 ) {
-    // r212: kaca saat gaya Liquid.
-    val liquid = LocalLiquid.current
     Column(
         Modifier.clip(RoundedCornerShape(16.dp))
             .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -489,11 +452,7 @@ fun FileCell(
             overflow = TextOverflow.Ellipsis
         )
         if (selectionMode) {
-            if (isLiquid) {
-                IosCheckCircle(checked = isSelected, onClick = onClick)
-            } else {
-                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
-            }
+            Checkbox(checked = isSelected, onCheckedChange = { onClick() })
         }
     }
 }
@@ -528,15 +487,12 @@ fun StorageCard(
     statusDot: Color,
     icon: ImageVector = Icons.Default.Storage,
     usedFraction: Float = 0f,
-    isLiquid: Boolean = false,
     onClick: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
-    // r211: kaca saat gaya Liquid — tint + tepi terang seperti GlassSurface.
-    val liquid = LocalLiquid.current
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier.background(scheme.secondaryContainer))
+            .background(scheme.secondaryContainer)
             .clickable { onClick() }
     ) {
         StorageCardContent(
@@ -611,19 +567,12 @@ fun StorageCardContent(
                 Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (LocalIsLiquid.current) {
-                    LiquidProgressBar(
-                        progress = { usedFraction.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    LinearWavyProgressIndicator(
-                        progress = { usedFraction.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = scheme.primary,
-                        trackColor = scheme.surfaceContainerHighest
-                    )
-                }
+                LinearWavyProgressIndicator(
+                    progress = { usedFraction.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = scheme.primary,
+                    trackColor = scheme.surfaceContainerHighest
+                )
                 Text(
                     percentText + " " + usedWord,
                     style = MaterialTheme.typography.labelLarge,

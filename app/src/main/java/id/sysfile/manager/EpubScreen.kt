@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -34,8 +32,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,7 +41,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -67,10 +62,6 @@ import java.io.FileInputStream
 @Composable
 fun EpubReaderScreen(path: String, onBack: () -> Unit) {
     val t = txt()
-    // r222: gaya Liquid dibaca dari local (layar ini tak terima param gaya).
-    val isLiquid = LocalIsLiquid.current
-    // r224: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
-    val liquid = LocalLiquid.current
     val context = LocalContext.current
     var book by remember { mutableStateOf<EpubBook?>(null) }
     var failed by remember { mutableStateOf(false) }
@@ -132,36 +123,32 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
     BackHandler { onBack() }
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = if (isLiquid) liquid.glassTint else Color.Unspecified),
-                    title = {
-                        Column {
-                            Text(File(path).name, maxLines = 1)
-                            val b = book
-                            if (b != null && chapter != null) {
-                                Text(
-                                    "${index + 1} / ${b.chapters.size} — ${chapter.title}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) { Icon(if (isLiquid) Icons.AutoMirrored.Filled.ArrowBackIos else Icons.Default.ArrowBack, t.home) }
-                    },
-                    actions = {
-                        if (book != null) {
-                            IconButton(onClick = { showToc = true }) {
-                                Icon(Icons.Default.List, t.chapters)
-                            }
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(File(path).name, maxLines = 1)
+                        val b = book
+                        if (b != null && chapter != null) {
+                            Text(
+                                "${index + 1} / ${b.chapters.size} — ${chapter.title}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
                         }
                     }
-                )
-                if (isLiquid) HorizontalDivider(thickness = 0.5.dp, color = liquid.separator)
-            }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
+                },
+                actions = {
+                    if (book != null) {
+                        IconButton(onClick = { showToc = true }) {
+                            Icon(Icons.Default.List, t.chapters)
+                        }
+                    }
+                }
+            )
         },
         bottomBar = {
             val b = book
@@ -190,9 +177,9 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 failed -> Text(t.epubFailed, Modifier.align(Alignment.Center))
-                book == null -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                book == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 chapterFailed -> Text(t.readFailed, Modifier.align(Alignment.Center))
-                chapterHtml == null -> if (isLiquid) LiquidSpinner(Modifier.align(Alignment.Center).size(52.dp)) else LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
+                chapterHtml == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 else -> key(index) {
                     AndroidView(
                         factory = { ctx ->
@@ -282,49 +269,26 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
 
     val b = book
     if (showToc && b != null) {
-        if (isLiquid) {
-            IosAlertDialog(
-                title = t.chapters,
-                text = null,
-                buttons = listOf(IosAlertButton(t.cancel) { showToc = false }),
-                content = {
-                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
-                        itemsIndexed(b.chapters) { i, ch ->
-                            TextButton(onClick = { index = i; showToc = false }) {
-                                Text(
-                                    ch.title,
-                                    maxLines = 1,
-                                    color = if (i == index) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+        AlertDialog(
+            onDismissRequest = { showToc = false },
+            title = { Text(t.chapters) },
+            text = {
+                LazyColumn {
+                    itemsIndexed(b.chapters) { i, ch ->
+                        TextButton(onClick = { index = i; showToc = false }) {
+                            Text(
+                                ch.title,
+                                maxLines = 1,
+                                color = if (i == index) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
-                },
-                onDismissRequest = { showToc = false }
-            )
-        } else {
-            AlertDialog(
-                onDismissRequest = { showToc = false },
-                title = { Text(t.chapters) },
-                text = {
-                    LazyColumn {
-                        itemsIndexed(b.chapters) { i, ch ->
-                            TextButton(onClick = { index = i; showToc = false }) {
-                                Text(
-                                    ch.title,
-                                    maxLines = 1,
-                                    color = if (i == index) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showToc = false }) { Text(t.cancel) }
                 }
-            )
-        }
+            },
+            confirmButton = {
+                TextButton(onClick = { showToc = false }) { Text(t.cancel) }
+            }
+        )
     }
 }
