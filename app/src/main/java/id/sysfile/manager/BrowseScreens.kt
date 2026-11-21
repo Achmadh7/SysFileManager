@@ -27,6 +27,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -113,6 +114,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedButton
@@ -147,6 +149,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -604,6 +607,8 @@ fun SelectionBar(
     onToggleLock: () -> Unit = {}
 ) {
     val t = txt()
+    val isLiquid = LocalIsLiquid.current
+    val liquid = LocalLiquid.current
     var menuOpen by remember { mutableStateOf(false) }
     Box(
         Modifier.fillMaxWidth().padding(bottom = 10.dp),
@@ -628,7 +633,12 @@ fun SelectionBar(
                 PillMicroAction(Icons.Default.Delete, t.delete, onDelete)
                 Box {
                     PillMicroAction(Icons.Default.MoreVert, t.more, { menuOpen = true })
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                        containerColor = if (isLiquid) liquid.glassTint else MenuDefaults.containerColor,
+                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
+                    ) {
                         DropdownMenuItem(
                             text = { Text(t.cut) },
                             leadingIcon = { Icon(Icons.Default.ContentCut, null) },

@@ -40,6 +40,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -110,6 +111,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedButton
@@ -151,6 +153,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -2243,7 +2246,12 @@ fun SysFileApp() {
                                         actions = {
                                             Box {
                                                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, null) }
-                                                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                                DropdownMenu(
+                                                    expanded = menuOpen,
+                                                    onDismissRequest = { menuOpen = false },
+                                                    containerColor = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MenuDefaults.containerColor,
+                                                    border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null
+                                                ) {
                                                     DropdownMenuItem(
                                                         text = { Text(t.home) },
                                                         leadingIcon = { Icon(Icons.Default.Home, null) },
@@ -2997,20 +3005,33 @@ fun SysFileApp() {
         }
 
         if (showAccessDialog) {
-            AlertDialog(
-                onDismissRequest = { showAccessDialog = false },
-                title = { Text(t.permissionTitle) },
-                text = { Text(t.permissionBody) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showAccessDialog = false
-                        requestAccess()
-                    }) { Text(t.permissionButton) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showAccessDialog = false }) { Text(t.later) }
-                }
-            )
+            if (LocalIsLiquid.current) {
+                IosAlertDialog(
+                    title = t.permissionTitle,
+                    text = t.permissionBody,
+                    buttons = listOf(
+                        IosAlertButton(t.later) { showAccessDialog = false },
+                        IosAlertButton(t.permissionButton) { showAccessDialog = false; requestAccess() }
+                    ),
+                    onDismissRequest = { showAccessDialog = false },
+                    twoColumn = true
+                )
+            } else {
+                AlertDialog(
+                    onDismissRequest = { showAccessDialog = false },
+                    title = { Text(t.permissionTitle) },
+                    text = { Text(t.permissionBody) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showAccessDialog = false
+                            requestAccess()
+                        }) { Text(t.permissionButton) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showAccessDialog = false }) { Text(t.later) }
+                    }
+                )
+            }
         }
 
         when (val d = dialog) {
@@ -3083,132 +3104,268 @@ fun SysFileApp() {
                     }
                 }
             )
-            is DialogKind.Delete -> AlertDialog(
-                onDismissRequest = { dialog = null },
-                title = { Text(if (trashEnabled) t.delete else t.deleteForever) },
-                text = {
-                    val name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
-                    Text(if (trashEnabled) t.deleteConfirm(name) else t.deleteForeverConfirm(name))
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        dialog = null
-                        // M13: memindahkan folder terkunci ke sampah
-                        // butuh biometrik dulu — bila beberapa folder
-                        // terkunci dipilih, minta satu per satu.
-                        fun doDelete() {
-                            val stillLocked = d.entries.firstOrNull {
-                                FileOps.isLockedFolder(it.path, lockedFolders) &&
-                                    !FileOps.isUnlockedPath(it.path, unlockedSession)
-                            }
-                            if (stillLocked != null) {
-                                requestUnlock(stillLocked.path, ::doDelete)
-                            } else {
-                                runCardOp(
-                                    name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
-                                    successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
-                                ) {
-                                    var allOk = true
-                                    d.entries.forEach {
-                                        val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
-                                        else FileOps.deleteRecursively(it.file)
-                                        if (!ok) allOk = false
+            is DialogKind.Delete -> {
+                val deleteName = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
+                if (LocalIsLiquid.current) {
+                    IosAlertDialog(
+                        title = if (trashEnabled) t.delete else t.deleteForever,
+                        text = if (trashEnabled) t.deleteConfirm(deleteName) else t.deleteForeverConfirm(deleteName),
+                        buttons = listOf(
+                            IosAlertButton(t.cancel) { dialog = null },
+                            IosAlertButton(if (trashEnabled) t.delete else t.deleteForever, destructive = true) {
+                                dialog = null
+                                // M13: memindahkan folder terkunci ke sampah
+                                // butuh biometrik dulu — bila beberapa folder
+                                // terkunci dipilih, minta satu per satu.
+                                fun doDelete() {
+                                    val stillLocked = d.entries.firstOrNull {
+                                        FileOps.isLockedFolder(it.path, lockedFolders) &&
+                                            !FileOps.isUnlockedPath(it.path, unlockedSession)
                                     }
-                                    allOk
+                                    if (stillLocked != null) {
+                                        requestUnlock(stillLocked.path, ::doDelete)
+                                    } else {
+                                        runCardOp(
+                                            name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
+                                            successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
+                                        ) {
+                                            var allOk = true
+                                            d.entries.forEach {
+                                                val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
+                                                else FileOps.deleteRecursively(it.file)
+                                                if (!ok) allOk = false
+                                            }
+                                            allOk
+                                        }
+                                        val viewing = viewingPath
+                                        if (viewing != null && d.entries.any { it.path == viewing }) {
+                                            overlay = null
+                                            overlayReturn = null
+                                            viewingPath = null
+                                        }
+                                    }
                                 }
-                                val viewing = viewingPath
-                                if (viewing != null && d.entries.any { it.path == viewing }) {
+                                doDelete()
+                            }
+                        ),
+                        onDismissRequest = { dialog = null },
+                        twoColumn = true
+                    )
+                } else {
+                    AlertDialog(
+                        onDismissRequest = { dialog = null },
+                        title = { Text(if (trashEnabled) t.delete else t.deleteForever) },
+                        text = {
+                            val name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
+                            Text(if (trashEnabled) t.deleteConfirm(name) else t.deleteForeverConfirm(name))
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                dialog = null
+                                // M13: memindahkan folder terkunci ke sampah
+                                // butuh biometrik dulu — bila beberapa folder
+                                // terkunci dipilih, minta satu per satu.
+                                fun doDelete() {
+                                    val stillLocked = d.entries.firstOrNull {
+                                        FileOps.isLockedFolder(it.path, lockedFolders) &&
+                                            !FileOps.isUnlockedPath(it.path, unlockedSession)
+                                    }
+                                    if (stillLocked != null) {
+                                        requestUnlock(stillLocked.path, ::doDelete)
+                                    } else {
+                                        runCardOp(
+                                            name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
+                                            successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
+                                        ) {
+                                            var allOk = true
+                                            d.entries.forEach {
+                                                val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
+                                                else FileOps.deleteRecursively(it.file)
+                                                if (!ok) allOk = false
+                                            }
+                                            allOk
+                                        }
+                                        val viewing = viewingPath
+                                        if (viewing != null && d.entries.any { it.path == viewing }) {
+                                            overlay = null
+                                            overlayReturn = null
+                                            viewingPath = null
+                                        }
+                                    }
+                                }
+                                doDelete()
+                            }) { Text(if (trashEnabled) t.delete else t.deleteForever) }
+                        },
+                        dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
+                    )
+                }
+            }
+            is DialogKind.PayloadExtract -> {
+                if (LocalIsLiquid.current) {
+                    IosAlertDialog(
+                        title = if (d.partition == null) t.extractAll else "${d.partition}.img",
+                        text = if (d.partition == null) t.payloadExtractAllConfirm else t.payloadExtractOneConfirm(d.partition),
+                        buttons = listOf(
+                            IosAlertButton(t.cancel) { dialog = null },
+                            IosAlertButton(if (d.partition == null) t.extractAll else t.extract) {
+                                dialog = null
+                                val payloadFile = File(d.path)
+                                val part = d.partition
+                                if (part == null) {
                                     overlay = null
                                     overlayReturn = null
-                                    viewingPath = null
-                                }
-                            }
-                        }
-                        doDelete()
-                    }) { Text(if (trashEnabled) t.delete else t.deleteForever) }
-                },
-                dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
-            )
-            is DialogKind.PayloadExtract -> AlertDialog(
-                onDismissRequest = { dialog = null },
-                title = { Text(if (d.partition == null) t.extractAll else "${d.partition}.img") },
-                text = { Text(if (d.partition == null) t.payloadExtractAllConfirm else t.payloadExtractOneConfirm(d.partition)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        dialog = null
-                        val payloadFile = File(d.path)
-                        val part = d.partition
-                        if (part == null) {
-                            overlay = null
-                            overlayReturn = null
-                            val flag = AtomicBoolean(false)
-                            workCancelFlag = flag
-                            workProgress = 0f
-                            working = true
-                            scope.launch {
-                                val outcome = withContext(Dispatchers.IO) {
-                                    PayloadOps.extract(
-                                        payloadFile, payloadFile.parentFile ?: payloadFile,
-                                        onProgress = { done, total ->
-                                            if (total > 0L) {
-                                                workProgress =
-                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                    val flag = AtomicBoolean(false)
+                                    workCancelFlag = flag
+                                    workProgress = 0f
+                                    working = true
+                                    scope.launch {
+                                        val outcome = withContext(Dispatchers.IO) {
+                                            PayloadOps.extract(
+                                                payloadFile, payloadFile.parentFile ?: payloadFile,
+                                                onProgress = { done, total ->
+                                                    if (total > 0L) {
+                                                        workProgress =
+                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                                    }
+                                                },
+                                                cancelFlag = flag
+                                            )
+                                        }
+                                        working = false
+                                        workProgress = null
+                                        workCancelFlag = null
+                                        when {
+                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                            outcome.error != null -> notify(t.payloadInvalid)
+                                            else -> {
+                                                notify(t.payloadDone(outcome.partitions))
+                                                reloadKey++
                                             }
-                                        },
-                                        cancelFlag = flag
-                                    )
-                                }
-                                working = false
-                                workProgress = null
-                                workCancelFlag = null
-                                when {
-                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                    outcome.error != null -> notify(t.payloadInvalid)
-                                    else -> {
-                                        notify(t.payloadDone(outcome.partitions))
-                                        reloadKey++
+                                        }
+                                    }
+                                } else {
+                                    val flag = AtomicBoolean(false)
+                                    workCancelFlag = flag
+                                    workProgress = 0f
+                                    working = true
+                                    scope.launch {
+                                        val outcome = withContext(Dispatchers.IO) {
+                                            PayloadOps.extractOne(
+                                                payloadFile, part, payloadFile.parentFile ?: payloadFile,
+                                                onProgress = { done, total ->
+                                                    if (total > 0L) {
+                                                        workProgress =
+                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                                    }
+                                                },
+                                                cancelFlag = flag
+                                            )
+                                        }
+                                        working = false
+                                        workProgress = null
+                                        workCancelFlag = null
+                                        when {
+                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                            outcome.error != null -> notify(t.opFailed)
+                                            outcome.file != null -> {
+                                                overlay = null
+                                                openEntry(FileOps.entryOf(outcome.file))
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        } else {
-                            val flag = AtomicBoolean(false)
-                            workCancelFlag = flag
-                            workProgress = 0f
-                            working = true
-                            scope.launch {
-                                val outcome = withContext(Dispatchers.IO) {
-                                    PayloadOps.extractOne(
-                                        payloadFile, part, payloadFile.parentFile ?: payloadFile,
-                                        onProgress = { done, total ->
-                                            if (total > 0L) {
-                                                workProgress =
-                                                    (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                        ),
+                        onDismissRequest = { dialog = null },
+                        twoColumn = true
+                    )
+                } else {
+                    AlertDialog(
+                        onDismissRequest = { dialog = null },
+                        title = { Text(if (d.partition == null) t.extractAll else "${d.partition}.img") },
+                        text = { Text(if (d.partition == null) t.payloadExtractAllConfirm else t.payloadExtractOneConfirm(d.partition)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                dialog = null
+                                val payloadFile = File(d.path)
+                                val part = d.partition
+                                if (part == null) {
+                                    overlay = null
+                                    overlayReturn = null
+                                    val flag = AtomicBoolean(false)
+                                    workCancelFlag = flag
+                                    workProgress = 0f
+                                    working = true
+                                    scope.launch {
+                                        val outcome = withContext(Dispatchers.IO) {
+                                            PayloadOps.extract(
+                                                payloadFile, payloadFile.parentFile ?: payloadFile,
+                                                onProgress = { done, total ->
+                                                    if (total > 0L) {
+                                                        workProgress =
+                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                                    }
+                                                },
+                                                cancelFlag = flag
+                                            )
+                                        }
+                                        working = false
+                                        workProgress = null
+                                        workCancelFlag = null
+                                        when {
+                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                            outcome.error != null -> notify(t.payloadInvalid)
+                                            else -> {
+                                                notify(t.payloadDone(outcome.partitions))
+                                                reloadKey++
                                             }
-                                        },
-                                        cancelFlag = flag
-                                    )
-                                }
-                                working = false
-                                workProgress = null
-                                workCancelFlag = null
-                                when {
-                                    outcome.error == "unsupported" -> notify(t.payloadUnsupported)
-                                    outcome.error == "cancelled" -> notify(t.payloadCancelled)
-                                    outcome.error == "hash" -> notify(t.payloadHashMismatch)
-                                    outcome.error != null -> notify(t.opFailed)
-                                    outcome.file != null -> {
-                                        overlay = null
-                                        openEntry(FileOps.entryOf(outcome.file))
+                                        }
+                                    }
+                                } else {
+                                    val flag = AtomicBoolean(false)
+                                    workCancelFlag = flag
+                                    workProgress = 0f
+                                    working = true
+                                    scope.launch {
+                                        val outcome = withContext(Dispatchers.IO) {
+                                            PayloadOps.extractOne(
+                                                payloadFile, part, payloadFile.parentFile ?: payloadFile,
+                                                onProgress = { done, total ->
+                                                    if (total > 0L) {
+                                                        workProgress =
+                                                            (done.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                                    }
+                                                },
+                                                cancelFlag = flag
+                                            )
+                                        }
+                                        working = false
+                                        workProgress = null
+                                        workCancelFlag = null
+                                        when {
+                                            outcome.error == "unsupported" -> notify(t.payloadUnsupported)
+                                            outcome.error == "cancelled" -> notify(t.payloadCancelled)
+                                            outcome.error == "hash" -> notify(t.payloadHashMismatch)
+                                            outcome.error != null -> notify(t.opFailed)
+                                            outcome.file != null -> {
+                                                overlay = null
+                                                openEntry(FileOps.entryOf(outcome.file))
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    }) { Text(if (d.partition == null) t.extractAll else t.extract) }
-                },
-                dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
-            )
+                            }) { Text(if (d.partition == null) t.extractAll else t.extract) }
+                        },
+                        dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
+                    )
+                }
+            }
             is DialogKind.Properties -> PropertiesDialog(entry = d.entry, onDismiss = { dialog = null }, onNotify = { notify(it) })
             is DialogKind.Exif -> ExifDialog(entry = d.entry, onDismiss = { dialog = null })
             is DialogKind.Sort -> SortDialog(
