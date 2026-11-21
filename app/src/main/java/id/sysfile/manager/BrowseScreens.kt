@@ -496,10 +496,11 @@ fun SelectionBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHigh,
-            border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null,
+            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = null,
             tonalElevation = 3.dp,
-            shadowElevation = 6.dp
+            shadowElevation = 6.dp,
+            modifier = Modifier.then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier)
         ) {
             Row(
                 Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -610,10 +611,11 @@ fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                .then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier),
             shape = RoundedCornerShape(28.dp),
-            color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.secondaryContainer,
-            border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null
+            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.secondaryContainer,
+            border = null
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -667,10 +669,11 @@ fun MiniPlayerBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
-            border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null,
+            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+            border = null,
             tonalElevation = 3.dp,
-            shadowElevation = 6.dp
+            shadowElevation = 6.dp,
+            modifier = Modifier.then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(28.dp), LocalLiquid.current.glassTint) else Modifier)
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),

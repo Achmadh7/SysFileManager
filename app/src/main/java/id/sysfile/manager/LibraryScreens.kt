@@ -195,6 +195,7 @@ fun RecentScreen(
     val sorted = remember(files) { files.sortedByDescending { it.modified } }
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(bottom = if (isLiquid) 96.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         itemsIndexed(sorted, key = { _, entry -> entry.path }) { index, entry ->
@@ -1560,6 +1561,7 @@ fun AnalysisScreen(
     val displayRoots = if (roots.size > 1) roots.filter { it.path == activeRootPath } else roots
     LazyColumn(
             Modifier.fillMaxSize().padding(16.dp),
+            contentPadding = PaddingValues(bottom = if (isLiquid) 96.dp else 0.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             val done = roots.mapNotNull { results[it.path] }

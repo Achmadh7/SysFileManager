@@ -225,6 +225,7 @@ fun HomeScreen(
     val liquid = LocalLiquid.current
     LazyColumn(
         Modifier.fillMaxSize().padding(16.dp),
+        contentPadding = PaddingValues(bottom = if (isLiquid) 96.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (!accessGranted) {

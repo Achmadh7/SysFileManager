@@ -76,6 +76,8 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 /* ───────────── Animasi: pegas ala SwiftUI ─────────────
  * spring(duration, bounce) → dampingRatio = 1 - bounce, stiffness = (2π / duration)²
@@ -148,6 +150,10 @@ val LocalLiquid = staticCompositionLocalOf { DarkLiquid }
  *  menerima param isLiquid (Pengaturan pakai themeStyle langsung). */
 val LocalIsLiquid = staticCompositionLocalOf { false }
 
+/** Backdrop kaca (r219 LG2): layer berisi konten di balik elemen kaca,
+ *  disediakan LiquidTheme; null saat gaya Material (tanpa blur). */
+val LocalGlassBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
+
 /** Skema Material 3 yang diturunkan dari warna Liquid — supaya semua
  *  layar SysFile yang membaca peran skema ikut berubah warna tanpa
  *  diedit satu-satu saat gaya Liquid aktif. Peran wadah memakai
@@ -211,6 +217,8 @@ fun liquidColorScheme(dark: Boolean): ColorScheme {
 @Composable
 fun LiquidTheme(dark: Boolean, content: @Composable () -> Unit) {
     val colors = if (dark) DarkLiquid else LightLiquid
+    // r219 LG2: perekam layer untuk blur kaca — hanya dibuat saat liquid.
+    val backdrop = rememberLayerBackdrop()
     MaterialExpressiveTheme(
         colorScheme = liquidColorScheme(dark),
         motionScheme = MotionScheme.expressive()
@@ -218,6 +226,7 @@ fun LiquidTheme(dark: Boolean, content: @Composable () -> Unit) {
         CompositionLocalProvider(
             LocalLiquid provides colors,
             LocalIsLiquid provides true,
+            LocalGlassBackdrop provides backdrop,
             LocalContentColor provides colors.text,
             content = content
         )
@@ -230,6 +239,21 @@ fun LiquidTheme(dark: Boolean, content: @Composable () -> Unit) {
 fun liquidDialogContainerColor(): Color =
     if (LocalIsLiquid.current) LocalLiquid.current.glassTint else AlertDialogDefaults.containerColor
 
+/** Kaca blur asli (r219 LG2): bila ada backdrop (gaya Liquid), gambar
+ *  latar yang nge-blur + tint + tepi terang; bila tidak ada (gaya
+ *  Material / fallback), tint + tepi seperti kaca murah sekarang. */
+@Composable
+fun Modifier.glassBlur(shape: Shape, tint: Color): Modifier {
+    val backdrop = LocalGlassBackdrop.current
+    val c = LocalLiquid.current
+    val rim = Brush.linearGradient(listOf(c.rimStart, c.rimEnd))
+    return if (backdrop != null) {
+        this.liquidGlass(backdrop, shape, tint).border(1.dp, rim, shape)
+    } else {
+        this.clip(shape).background(tint).border(1.dp, rim, shape)
+    }
+}
+
 /* ───────────── Komponen kaca ───────────── */
 
 /** Permukaan kaca tanpa blur: tint tipis + tepi terang diagonal. Murah, cocok untuk kartu dan tile di latar polos. */
@@ -240,12 +264,8 @@ fun GlassSurface(
     tint: Color = LocalLiquid.current.glassTint,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val c = LocalLiquid.current
     Box(
-        modifier
-            .clip(shape)
-            .background(tint)
-            .border(1.dp, Brush.linearGradient(listOf(c.rimStart, c.rimEnd)), shape),
+        modifier.glassBlur(shape, tint),
         content = content
     )
 }
@@ -277,7 +297,7 @@ fun Modifier.iosPressable(onClick: () -> Unit, pressedScale: Float = 1.04f): Mod
         .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
 }
 
-/** Efek Liquid Glass (vibrancy + blur + lensa) dengan degradasi per versi Android. Dipakai tab bar dan action sheet. */
+/** Efek Liquid Glass (vibrancy + blur + lensa) dengan degradasi per versi Android. Dipakai tab bar, bar mengambang, dan pill (lewat glassBlur). */
 fun Modifier.liquidGlass(backdrop: Backdrop, shape: Shape, surface: Color): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = { shape },
@@ -293,9 +313,9 @@ fun Modifier.liquidGlass(backdrop: Backdrop, shape: Shape, surface: Color): Modi
 
 /**
  * Tab bar kapsul kaca untuk gaya Liquid — pengganti SysFileNavBar
- * saat themeStyle == "liquid". r210: kaca murah (tint + tepi
- * terang) tanpa Backdrop; blur asli menyusul bersama layout tab
- * mengambang (konten bergulir di bawah bar) di revisi layar.
+ * saat themeStyle == "liquid". r219 LG2: blur asli via glassBlur;
+ * bar mengambang di overlay (MainActivity) supaya konten bergulir
+ * di bawahnya dan blur-nya terlihat.
  */
 @Composable
 fun LiquidGlassTabBar(
@@ -316,9 +336,7 @@ fun LiquidGlassTabBar(
             .fillMaxWidth()
             .padding(start = 22.dp, end = 22.dp, bottom = 16.dp)
             .height(64.dp)
-            .clip(barShape)
-            .background(c.barTint)
-            .border(1.dp, Brush.linearGradient(listOf(c.rimStart, c.rimEnd)), barShape)
+            .glassBlur(barShape, c.barTint)
             .padding(4.dp)
     ) {
         val tabWidth = maxWidth / tabs.size

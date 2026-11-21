@@ -163,6 +163,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.core.view.drawToBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -1639,6 +1640,16 @@ fun SysFileApp() {
             // r88: Box pembungkus supaya pill audio bisa melayang
             // di atas layar overlay (kategori/arsip/viewer).
             Box(Modifier.fillMaxSize()) {
+            // r219 LG2: backdrop kaca + nilai pilihan pertama — dibaca
+            // sekali di sini supaya dipakai Scaffold (body + bottomBar)
+            // dan overlay bar mengambang; material: backdrop null.
+            val glassBackdrop = LocalGlassBackdrop.current
+            // r123: nilai pilihan pertama dihitung SEKALI di sini dengan
+            // firstOrNull — isi AnimatedVisibility tetap terkomposisi
+            // selama animasi keluar, dan selected sudah kosong saat itu;
+            // first() di dalam bar melempar NoSuchElementException -> FC.
+            val selFirst = selected.firstOrNull()
+            val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
             AnimatedContent(
                 targetState = overlay,
                 transitionSpec = {
@@ -2332,7 +2343,7 @@ fun SysFileApp() {
                                     // r82: bar hanya tampil di layar asal audio
                                     // (folder/kategori/Recent tempat audio dimulai);
                                     // di Beranda dan layar lain disembunyikan.
-                                    if (audioOrigin == currentScreenId()) {
+                                    if (themeStyle != "liquid" && audioOrigin == currentScreenId()) {
                                         audioPath?.let { path ->
                                             MiniPlayerBar(
                                                 name = File(path).name,
@@ -2344,20 +2355,11 @@ fun SysFileApp() {
                                             )
                                         }
                                     }
-                                    // r123: nilai pilihan pertama dihitung
-                                    // SEKALI di sini dengan firstOrNull —
-                                    // isi AnimatedVisibility tetap terkomposisi
-                                    // selama animasi keluar, dan selected
-                                    // sudah kosong saat itu; first()
-                                    // di dalam bar melempar
-                                    // NoSuchElementException -> FC.
-                                    val selFirst = selected.firstOrNull()
-                                    val selEntry = selFirst?.let { f -> entries.firstOrNull { it.path == f } }
                                     // Bar aksi seleksi (r109): muncul/hilang dengan animasi
                                     // halus yang sama seperti kapsul kontrol video (r104) —
                                     // fade + geser dari bawah + kembang/susut vertikal.
                                     AnimatedVisibility(
-                                        visible = selected.isNotEmpty() && currentPath != null,
+                                        visible = themeStyle != "liquid" && selected.isNotEmpty() && currentPath != null,
                                         enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
                                             slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
                                             expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
@@ -2453,39 +2455,41 @@ fun SysFileApp() {
                                             }
                                         )
                                     }
-                                    if (selected.isEmpty() || currentPath == null) {
-                                        if (currentPath != null) {
-                                        clipboard?.let { clip ->
-                                            ClipboardBar(
-                                                count = clip.first.size,
-                                                onPaste = {
-                                                    val (paths, mode) = clip
-                                                    val destDir = File(currentPath)
-                                                    runCardOp(
-                                                        name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
-                                                        successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
-                                                        onSuccess = { clipboard = null }
-                                                    ) {
-                                                        val files = paths.map { File(it) }
-                                                        if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
-                                                        else FileOps.moveInto(files, destDir) > 0
-                                                    }
-                                                },
-                                                onClear = { clipboard = null }
-                                            )
-                                        }
-                                    } else {
-                                        if (themeStyle == "liquid") {
-                                            LiquidGlassTabBar(selected = homeTab, onSelect = { homeTab = it })
+                                    if (themeStyle != "liquid") {
+                                        if (selected.isEmpty() || currentPath == null) {
+                                            if (currentPath != null) {
+                                            clipboard?.let { clip ->
+                                                ClipboardBar(
+                                                    count = clip.first.size,
+                                                    onPaste = {
+                                                        val (paths, mode) = clip
+                                                        val destDir = File(currentPath)
+                                                        runCardOp(
+                                                            name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
+                                                            successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
+                                                            onSuccess = { clipboard = null }
+                                                        ) {
+                                                            val files = paths.map { File(it) }
+                                                            if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
+                                                            else FileOps.moveInto(files, destDir) > 0
+                                                        }
+                                                    },
+                                                    onClear = { clipboard = null }
+                                                )
+                                            }
                                         } else {
-                                            SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                            if (themeStyle == "liquid") {
+                                                LiquidGlassTabBar(selected = homeTab, onSelect = { homeTab = it })
+                                            } else {
+                                                SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                            }
                                         }
-                                    }
+                                        }
                                     }
                                 }
                             }
                         ) { padding ->
-                            Box(Modifier.fillMaxSize().padding(padding)) {
+                            Box(Modifier.fillMaxSize().padding(padding).then(if (themeStyle == "liquid" && glassBackdrop != null) Modifier.layerBackdrop(glassBackdrop) else Modifier)) {
                                 AnimatedContent(
                                     targetState = currentPath,
                                     transitionSpec = {
@@ -2646,11 +2650,12 @@ fun SysFileApp() {
                     ) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (LocalIsLiquid.current) LocalLiquid.current.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            border = if (LocalIsLiquid.current) BorderStroke(1.dp, Brush.linearGradient(listOf(LocalLiquid.current.rimStart, LocalLiquid.current.rimEnd))) else null,
+                            color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                            border = null,
                             tonalElevation = 3.dp,
                             shadowElevation = 6.dp,
                             modifier = Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(20.dp)).clickable { pillVisible = false }
+                                .then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(20.dp), LocalLiquid.current.glassTint) else Modifier)
                         ) {
                             Row(
                                 Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -2683,6 +2688,149 @@ fun SysFileApp() {
                     }
                 }
             }
+                // r219 LG2: bar mengambang kaca (liquid saja) — pengganti
+                // bottomBar Scaffold: MiniPlayer, SelectionBar,
+                // ClipboardBar, lalu tab bar; konten bergulir di bawahnya.
+                if (overlay == null && themeStyle == "liquid") {
+                    Column(
+                        Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (audioOrigin == currentScreenId()) {
+                            audioPath?.let { path ->
+                                MiniPlayerBar(
+                                    name = File(path).name,
+                                    positionMs = audioPositionMs,
+                                    durationMs = audioDurationMs,
+                                    playing = audioPlaying,
+                                    onToggle = { toggleAudio() },
+                                    onClose = { stopAudio() }
+                                )
+                            }
+                        }
+                        AnimatedVisibility(
+                            visible = selected.isNotEmpty() && currentPath != null,
+                            enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                                expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
+                            exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                                shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Bottom)
+                        ) {
+                            SelectionBar(
+                                single = selected.size == 1,
+                                singleEntry = selEntry,
+                                canExtract = entries.any { selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null },
+                                onCopy = { clipboard = selected.toList() to ClipMode.COPY; selected = emptySet() },
+                                onCut = { clipboard = selected.toList() to ClipMode.CUT; selected = emptySet() },
+                                onDelete = { dialog = DialogKind.Delete(entries.filter { selected.contains(it.path) }) },
+                                onShare = { selEntry?.let { shareFile(it.file) } },
+                                onRename = { selEntry?.let { dialog = DialogKind.Rename(it) } },
+                                onCompress = { dialog = DialogKind.Compress(entries.filter { selected.contains(it.path) }) },
+                                onProperties = { selEntry?.let { dialog = DialogKind.Properties(it) } },
+                                onExtract = {
+                                    val targets = entries.filter {
+                                        selected.contains(it.path) && !it.isDir && ArchiveOps.kindOf(it.name) != null
+                                    }
+                                    val only = targets.singleOrNull()
+                                    if (only != null && ArchiveOps.kindOf(only.name) == "zip") {
+                                        working = true
+                                        scope.launch {
+                                            val enc = withContext(Dispatchers.IO) { ArchiveOps.isZipEncrypted(only.file) }
+                                            working = false
+                                            if (enc) {
+                                                dialog = DialogKind.ZipPassword(only)
+                                            } else {
+                                                dialog = DialogKind.ArchiveActions(only)
+                                            }
+                                        }
+                                    } else if (only != null && ArchiveOps.kindOf(only.name) == "rar") {
+                                        working = true
+                                        scope.launch {
+                                            val enc = withContext(Dispatchers.IO) { ArchiveOps.isRarEncrypted(only.file) }
+                                            working = false
+                                            if (enc) {
+                                                dialog = DialogKind.RarPassword(only)
+                                            } else {
+                                                dialog = DialogKind.ArchiveActions(only)
+                                            }
+                                        }
+                                    } else if (only != null) {
+                                        dialog = DialogKind.ArchiveActions(only)
+                                    } else if (targets.isNotEmpty()) {
+                                        runExtractOp(
+                                            name = if (targets.size == 1) targets.first().name else t.items(targets.size),
+                                            format = { done, total -> t.extractProgress(done, total) }
+                                        ) { _, onProgress ->
+                                            var done = 0L
+                                            targets.count {
+                                                val r = ArchiveOps.extractToFolder(it.file, it.file.parentFile ?: it.file)
+                                                done++
+                                                onProgress(done, targets.size.toLong())
+                                                r
+                                            } > 0
+                                        }
+                                    }
+                                },
+                                onSelectAll = { selected = entries.map { it.path }.toSet() },
+                                singleIsDir = selEntry?.isDir == true,
+                                singleLocked = selected.singleOrNull()?.let { FileOps.isLockedFolder(it, lockedFolders) } == true,
+                                onToggleLock = {
+                                    selEntry?.let { entry ->
+                                        // r175 H4: identitas kunci
+                                        // per folder (mentah atau
+                                        // kanonis), bukan anaknya.
+                                        val canon = FileOps.canonicalOrNull(entry.path)
+                                        if (FileOps.isLockedFolder(entry.path, lockedFolders)) {
+                                            requestUnlock(entry.path) {
+                                                val updated = lockedFolders.filterNot {
+                                                    it == entry.path || (canon != null && it == canon)
+                                                }.toSet()
+                                                lockedFolders = updated
+                                                prefs.edit().putStringSet("locked_folders", updated).apply()
+                                                unlockedSession = unlockedSession.filterNot {
+                                                    it == entry.path || (canon != null && it == canon)
+                                                }.toSet()
+                                                selected = emptySet()
+                                                notify(t.folderUnlockedDone)
+                                            }
+                                        } else if (entry.name != FileOps.TRASH_DIR_NAME) {
+                                            val updated = FileOps.canonicalizeLocked(lockedFolders + entry.path)
+                                            lockedFolders = updated
+                                            prefs.edit().putStringSet("locked_folders", updated).apply()
+                                            selected = emptySet()
+                                            notify(t.folderLockedDone)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        if (selected.isEmpty() && currentPath != null) {
+                            clipboard?.let { clip ->
+                                ClipboardBar(
+                                    count = clip.first.size,
+                                    onPaste = {
+                                        val (paths, mode) = clip
+                                        val destDir = File(currentPath)
+                                        runCardOp(
+                                            name = if (paths.size == 1) File(paths[0]).name else t.items(paths.size),
+                                            successMsg = if (mode == ClipMode.COPY) t.copiedDone else t.movedDone,
+                                            onSuccess = { clipboard = null }
+                                        ) {
+                                            val files = paths.map { File(it) }
+                                            if (mode == ClipMode.COPY) FileOps.copyInto(files, destDir) > 0
+                                            else FileOps.moveInto(files, destDir) > 0
+                                        }
+                                    },
+                                    onClear = { clipboard = null }
+                                )
+                            }
+                        }
+                        if (currentPath == null) {
+                            LiquidGlassTabBar(selected = homeTab, onSelect = { homeTab = it })
+                        }
+                    }
+                }
         }
         themeShot?.let { shot ->
             Image(
