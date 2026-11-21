@@ -586,12 +586,19 @@ fun StorageCardContent(
                 Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LinearWavyProgressIndicator(
-                    progress = { usedFraction.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = scheme.primary,
-                    trackColor = scheme.surfaceContainerHighest
-                )
+                if (LocalIsLiquid.current) {
+                    LiquidProgressBar(
+                        progress = { usedFraction.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    LinearWavyProgressIndicator(
+                        progress = { usedFraction.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = scheme.primary,
+                        trackColor = scheme.surfaceContainerHighest
+                    )
+                }
                 Text(
                     percentText + " " + usedWord,
                     style = MaterialTheme.typography.labelLarge,

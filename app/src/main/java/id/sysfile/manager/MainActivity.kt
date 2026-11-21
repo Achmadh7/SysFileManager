@@ -2645,8 +2645,8 @@ fun SysFileApp() {
                             shape = RoundedCornerShape(20.dp),
                             color = if (LocalIsLiquid.current) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
                             border = null,
-                            tonalElevation = 3.dp,
-                            shadowElevation = 6.dp,
+                            tonalElevation = if (LocalIsLiquid.current) 0.dp else 3.dp,
+                            shadowElevation = if (LocalIsLiquid.current) 0.dp else 6.dp,
                             modifier = Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(20.dp)).clickable { pillVisible = false }
                                 .then(if (LocalIsLiquid.current) Modifier.glassBlur(RoundedCornerShape(20.dp), LocalLiquid.current.glassTint) else Modifier)
                         ) {
@@ -2658,13 +2658,13 @@ fun SysFileApp() {
                                     Modifier
                                         .size(22.dp)
                                         .clip(RoundedCornerShape(11.dp))
-                                        .background(if (pillOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error),
+                                        .background(if (LocalIsLiquid.current) (if (pillOk) LocalLiquid.current.pillDotOk else LocalLiquid.current.pillDotError) else (if (pillOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (pillOk) {
-                                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Check, null, tint = if (LocalIsLiquid.current) Color.White else MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
                                     } else {
-                                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Close, null, tint = if (LocalIsLiquid.current) Color.White else MaterialTheme.colorScheme.onError, modifier = Modifier.size(14.dp))
                                     }
                                 }
                                 Spacer(Modifier.width(8.dp))
@@ -2874,19 +2874,33 @@ fun SysFileApp() {
                                     "${(extractCardProg * 100).toInt()}%",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = if (LocalIsLiquid.current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
                         if (extractCardProg != null) {
-                            LinearWavyProgressIndicator(
-                                progress = { extractCardProg },
-                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                            )
+                            if (LocalIsLiquid.current) {
+                                LiquidProgressBar(
+                                    progress = { extractCardProg },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                                )
+                            } else {
+                                LinearWavyProgressIndicator(
+                                    progress = { extractCardProg },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                                )
+                            }
                         } else {
-                            LinearWavyProgressIndicator(
-                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                            )
+                            if (LocalIsLiquid.current) {
+                                LiquidProgressBar(
+                                    progress = null,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                                )
+                            } else {
+                                LinearWavyProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                                )
+                            }
                         }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -2925,10 +2939,17 @@ fun SysFileApp() {
                         }
                         val prog = workProgress
                         if (prog != null) {
-                            LinearWavyProgressIndicator(
-                                progress = { prog },
-                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
-                            )
+                            if (LocalIsLiquid.current) {
+                                LiquidProgressBar(
+                                    progress = { prog },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
+                                )
+                            } else {
+                                LinearWavyProgressIndicator(
+                                    progress = { prog },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
+                                )
+                            }
                             Text(
                                 workProgressText ?: "${(prog * 100).toInt()}%",
                                 style = MaterialTheme.typography.bodySmall,

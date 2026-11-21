@@ -16,6 +16,10 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -105,7 +109,9 @@ class LiquidColors(
     val dangerTile: Color, val dangerChip: Color,
     val success: StatusColors, val warning: StatusColors, val danger: StatusColors,
     val segmentColors: List<Color>,
-    val washColors: List<Color>
+    val washColors: List<Color>,
+    val progressTrack: Color, val progressFill: Color,
+    val pillDotOk: Color, val pillDotError: Color
 )
 
 val DarkLiquid = LiquidColors(
@@ -125,7 +131,9 @@ val DarkLiquid = LiquidColors(
         Color(0xFFBF5AF2), Color(0xFF0A84FF), Color(0xFF30D158), Color(0xFFFF9F0A),
         Color(0xFFFF375F), Color(0xFF64D2FF), Color(0xFF8E8E93), Color(0xFF636366)
     ),
-    washColors = listOf(Color(0xFF101827), Color(0xFF161230), Color(0xFF0B2027))
+    washColors = listOf(Color(0xFF101827), Color(0xFF161230), Color(0xFF0B2027)),
+    progressTrack = Color.White.copy(alpha = 0.18f), progressFill = Color.White.copy(alpha = 0.85f),
+    pillDotOk = Color.White.copy(alpha = 0.25f), pillDotError = Color(0xFFFF3B30).copy(alpha = 0.85f)
 )
 
 val LightLiquid = LiquidColors(
@@ -145,7 +153,9 @@ val LightLiquid = LiquidColors(
         Color(0xFFAF52DE), Color(0xFF007AFF), Color(0xFF34C759), Color(0xFFFF9500),
         Color(0xFFFF2D55), Color(0xFF5AC8FA), Color(0xFF8E8E93), Color(0xFFC7C7CC)
     ),
-    washColors = listOf(Color(0xFFE7EDF6), Color(0xFFEEE7F6), Color(0xFFE3F1EE))
+    washColors = listOf(Color(0xFFE7EDF6), Color(0xFFEEE7F6), Color(0xFFE3F1EE)),
+    progressTrack = Color.Black.copy(alpha = 0.12f), progressFill = Color.Black.copy(alpha = 0.70f),
+    pillDotOk = Color.Black.copy(alpha = 0.40f), pillDotError = Color(0xFFFF3B30).copy(alpha = 0.85f)
 )
 
 val LocalLiquid = staticCompositionLocalOf { DarkLiquid }
@@ -267,6 +277,30 @@ fun Modifier.liquidGlassBackground(): Modifier {
     val backdrop = LocalGlassBackdrop.current
     val c = LocalLiquid.current
     return if (backdrop != null) this.layerBackdrop(backdrop).background(Brush.linearGradient(c.washColors)) else this
+}
+
+/** Bar progres datar ala iOS (r221 P2), hanya untuk gaya Liquid.
+ *  progress null = indeterminate (pil geser 40% lebar track). */
+@Composable
+fun LiquidProgressBar(progress: (() -> Float)?, modifier: Modifier = Modifier) {
+    val c = LocalLiquid.current
+    Box(modifier.height(5.dp).clip(RoundedCornerShape(2.5.dp)).background(c.progressTrack)) {
+        if (progress == null) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val pillW = maxWidth * 0.4f
+                val frac by rememberInfiniteTransition(label = "liquidProgress").animateFloat(
+                    initialValue = 0f, targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
+                    label = "liquidProgressFrac"
+                )
+                val off = (maxWidth + pillW) * frac - pillW
+                Box(Modifier.offset(x = off).width(pillW).fillMaxHeight().clip(RoundedCornerShape(2.5.dp)).background(c.progressFill))
+            }
+        } else {
+            val p = progress().coerceIn(0f, 1f)
+            Box(Modifier.fillMaxHeight().fillMaxWidth(p).clip(RoundedCornerShape(2.5.dp)).background(c.progressFill))
+        }
+    }
 }
 
 /* ───────────── Komponen kaca ───────────── */

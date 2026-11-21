@@ -998,7 +998,11 @@ fun ImgBrowseScreen(
                         Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         val bytes = ramdiskBytes
                         if (bytes != null) {
-                            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+                            if (LocalIsLiquid.current) {
+                                LiquidProgressBar(progress = null, modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+                            } else {
+                                LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+                            }
                             Text(
                                 t.ramdiskProgress(FileOps.formatSize(bytes)),
                                 style = MaterialTheme.typography.bodySmall,
@@ -1708,12 +1712,19 @@ fun AnalysisScreen(
                                                     )
                                                 }
                                                 Spacer(Modifier.height(7.dp))
-                                                LinearWavyProgressIndicator(
-                                                    progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                                )
+                                                if (LocalIsLiquid.current) {
+                                                    LiquidProgressBar(
+                                                        progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                } else {
+                                                    LinearWavyProgressIndicator(
+                                                        progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                                    )
+                                                }
                                             }
                                         }
                                     }
