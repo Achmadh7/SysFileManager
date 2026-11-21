@@ -99,7 +99,7 @@ fun SectionCard(
         border = null,
         shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth()
-            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -339,7 +339,7 @@ fun FileRow(
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
-            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
+            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
     ) {
         Row(
             Modifier.fillMaxWidth()
@@ -464,7 +464,7 @@ fun FileCell(
     Column(
         Modifier.clip(RoundedCornerShape(16.dp))
             .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
+            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), if (isSelected) MaterialTheme.colorScheme.primaryContainer else liquid.glassTint) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -536,7 +536,7 @@ fun StorageCard(
     val liquid = LocalLiquid.current
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier.background(scheme.secondaryContainer))
+            .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier.background(scheme.secondaryContainer))
             .clickable { onClick() }
     ) {
         StorageCardContent(

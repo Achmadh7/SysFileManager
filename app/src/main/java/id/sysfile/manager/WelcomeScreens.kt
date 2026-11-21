@@ -65,7 +65,7 @@ fun WelcomeScreen(
     // r164: latar dari skema — tanpa ini, mode terang berlatar
     // #101418 (windowBackground di themes.xml) di layar sambutan.
     Box(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).liquidGlassBackground()
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).liquidWashBackground()
     ) {
         Column(
             Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -125,7 +125,7 @@ fun WelcomeScreen(
                     ),
                     border = null,
                     shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(20.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(20.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(
                         Modifier.padding(20.dp),

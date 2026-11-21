@@ -337,6 +337,22 @@ fun Modifier.glassBlur(shape: Shape, tint: Color): Modifier {
         this.clip(shape).background(tint).border(1.dp, rim, shape)
     }
 }
+/** Kaca tint saja, tanpa blur (r233): sama seperti cabang fallback glassBlur -
+ *  clip + tint + tepi terang, tanpa drawBackdrop. Dipakai SEMUA permukaan kaca
+ *  yang berada di dalam subtree layerBackdrop (kartu, baris, pil cari, hero,
+ *  ubin, layar) - kaca di dalam subtree layer merekam dirinya sendiri ke layer
+ *  yang ia gambar, sehingga RenderNode prepareTree berulang tanpa henti
+ *  sampai RenderThread stack overflow (tombstone 2026-11-21, Lunaris AOSP
+ *  3.13). Blur asli hanya untuk UI mengambang DI LUAR subtree layer
+ *  (tab bar, bar pemutar/seleksi/papan klip, pill, kartu progres) lewat
+ *  glassBlur. */
+@Composable
+fun Modifier.glassTint(shape: Shape, tint: Color): Modifier {
+    val c = LocalLiquid.current
+    val rim = Brush.verticalGradient(listOf(c.rimStart, c.rimEnd))
+    return this.clip(shape).background(tint).border(1.dp, rim, shape)
+}
+
 
 /** Latar wash gradasi halus (r220 A2): bila ada backdrop (gaya Liquid),
  *  rekam wadah ke layer backdrop + gambar gradasi wash di atasnya,
@@ -348,6 +364,18 @@ fun Modifier.liquidGlassBackground(): Modifier {
     val c = LocalLiquid.current
     return if (backdrop != null) this.layerBackdrop(backdrop).background(Brush.linearGradient(c.washColors)) else this
 }
+/** Latar wash gradasi halus TANPA layer (r233): gradasi wash yang sama
+ *  seperti liquidGlassBackground, tapi tanpa layerBackdrop. Dipakai semua
+ *  akar wash KECUALI body utama (MainActivity) - hanya body yang merekam
+ *  layer backdrop; layer bersarang pada backdrop yang sama menimpa satu
+ *  sama lain dan ikut memicu siklus prepareTree (lihat glassTint). */
+@Composable
+fun Modifier.liquidWashBackground(): Modifier {
+    val backdrop = LocalGlassBackdrop.current
+    val c = LocalLiquid.current
+    return if (backdrop != null) this.background(Brush.linearGradient(c.washColors)) else this
+}
+
 
 /** Bar progres datar ala iOS (r221 P2), hanya untuk gaya Liquid.
  *  progress null = indeterminate (pil geser 40% lebar track). */

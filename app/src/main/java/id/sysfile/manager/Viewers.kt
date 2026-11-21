@@ -637,7 +637,7 @@ fun TextViewerScreen(
                                     shape = RoundedCornerShape(4.dp),
                                     color = if (wrapLines) (if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest) else Color.Transparent,
                                     border = null,
-                                    modifier = Modifier.then(if (wrapLines && isLiquid) Modifier.glassBlur(RoundedCornerShape(4.dp), liquid.glassTint) else Modifier)
+                                    modifier = Modifier.then(if (wrapLines && isLiquid) Modifier.glassTint(RoundedCornerShape(4.dp), liquid.glassTint) else Modifier)
                                 ) {
                                     Text(
                                         text = if (wrapLines) "Wrap: ON" else "Wrap: OFF",
@@ -651,7 +651,7 @@ fun TextViewerScreen(
                                     color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
                                     border = null,
                                     shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(4.dp), liquid.glassTint) else Modifier)
+                                    modifier = Modifier.then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(4.dp), liquid.glassTint) else Modifier)
                                 ) {
                                     Text(
                                         text = fileExt.uppercase().ifEmpty { "TXT" },
@@ -667,13 +667,13 @@ fun TextViewerScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
+        Column(Modifier.fillMaxSize().padding(padding).liquidWashBackground()) {
             // Bilah Pencarian Cepat (Expandable)
             AnimatedVisibility(visible = searchVisible && content != null) {
                 Surface(
                     color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
                     border = null,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(12.dp), liquid.glassTint) else Modifier),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(12.dp), liquid.glassTint) else Modifier),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
@@ -1197,7 +1197,7 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
         },
         containerColor = Color.Black
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).background(Color.Black).liquidGlassBackground()) {
+        Box(Modifier.fillMaxSize().padding(padding).background(Color.Black).liquidWashBackground()) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -1272,7 +1272,7 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                         border = null,
                         tonalElevation = 3.dp,
                         shadowElevation = 6.dp,
-                        modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                        modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                     ) {
                         Column(
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1416,7 +1416,7 @@ fun FontViewerScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()).liquidGlassBackground(),
+            Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()).liquidWashBackground(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SectionCard(icon = Icons.Default.Info, title = t.properties, isLiquid = isLiquid) {

@@ -216,7 +216,7 @@ fun SettingsScreen(
         }
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding).liquidGlassBackground().padding(horizontal = 20.dp),
+            Modifier.fillMaxSize().padding(padding).liquidWashBackground().padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 4.dp)
         ) {
@@ -246,7 +246,7 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -323,7 +323,7 @@ item { SettingsSectionLabel(t.fileSection, topPadding = 4.dp) }
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -414,7 +414,7 @@ item { SettingsSectionLabel(t.aplikasiSection, topPadding = 4.dp) }
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -592,7 +592,7 @@ fun FormatsScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .liquidGlassBackground()
+                .liquidWashBackground()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
@@ -614,7 +614,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
@@ -638,7 +638,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
@@ -667,7 +667,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
@@ -696,7 +696,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
@@ -759,7 +759,7 @@ fun AboutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .liquidGlassBackground()
+                .liquidWashBackground()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp),
             contentPadding = PaddingValues(vertical = 24.dp)
@@ -822,7 +822,7 @@ fun AboutScreen(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
                     border = null,
-                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+                    modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -945,7 +945,7 @@ fun SpecScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .liquidGlassBackground()
+                .liquidWashBackground()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
@@ -1018,7 +1018,7 @@ private fun SpecGroup(
     val isLiquid = LocalIsLiquid.current
     val liquid = LocalLiquid.current
     Card(
-        modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier),
+        modifier = Modifier.fillMaxWidth().then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
         border = null

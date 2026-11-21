@@ -209,7 +209,7 @@ fun BrowseHeaderBar(
                 Box(
                     Modifier.weight(1f)
                         .clip(RoundedCornerShape(24.dp))
-                        .glassBlur(RoundedCornerShape(24.dp), liquid.glassTint)
+                        .glassTint(RoundedCornerShape(24.dp), liquid.glassTint)
                         .clickable { onSearch() }
                 ) {
                     Row(
@@ -273,7 +273,7 @@ fun BrowseHeaderBar(
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active,
                     border = null,
-                    modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh) else Modifier)
+                    modifier = Modifier.then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(50), if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh) else Modifier)
                 ) {
                     Text(
                         label,
@@ -426,7 +426,7 @@ fun BrowseScreen(
                 }
                 gridView -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).liquidGlassBackground(),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).liquidWashBackground(),
                     contentPadding = PaddingValues(bottom = 96.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -443,7 +443,7 @@ fun BrowseScreen(
                         )
                     }
                 }
-                else -> LazyColumn(Modifier.fillMaxSize().liquidGlassBackground(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                else -> LazyColumn(Modifier.fillMaxSize().liquidWashBackground(), contentPadding = PaddingValues(bottom = 96.dp)) {
                     items(entries, key = { it.path }) { entry ->
                         FileRow(
                             entry = entry,
@@ -480,7 +480,7 @@ fun BrowseScreen(
                     Box(
                         Modifier.align(Alignment.BottomEnd).padding(16.dp)
                             .size(56.dp).clip(CircleShape)
-                            .glassBlur(RoundedCornerShape(50), liquid.glassTint)
+                            .glassTint(RoundedCornerShape(50), liquid.glassTint)
                             .clickable { fabOpen = !fabOpen },
                         contentAlignment = Alignment.Center
                     ) {
@@ -559,7 +559,7 @@ private fun LiquidActionSheet(
         ) {
             Box(
                 Modifier.fillMaxWidth()
-                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+                    .glassTint(RoundedCornerShape(28.dp), liquid.glassTint)
             ) {
                 Column(Modifier.fillMaxWidth()) {
                     Box(
@@ -591,7 +591,7 @@ private fun LiquidActionSheet(
             }
             Box(
                 Modifier.fillMaxWidth()
-                    .glassBlur(RoundedCornerShape(28.dp), liquid.glassTint)
+                    .glassTint(RoundedCornerShape(28.dp), liquid.glassTint)
                     .clickable { onDismiss() }
             ) {
                 Box(

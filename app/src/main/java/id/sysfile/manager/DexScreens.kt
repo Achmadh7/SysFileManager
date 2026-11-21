@@ -113,7 +113,7 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false)
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).liquidGlassBackground()) {
+        Box(Modifier.fillMaxSize().padding(padding).liquidWashBackground()) {
             when (val s = state) {
                 DexLoadState.Loading -> if (isLiquid) LiquidSpinner(
                     Modifier.align(Alignment.Center).size(52.dp)
@@ -182,7 +182,7 @@ private fun DexClassListView(
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest),
             border = null,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 DexInfoRow(t.version(h.version), FileOps.formatSize(h.fileSize))

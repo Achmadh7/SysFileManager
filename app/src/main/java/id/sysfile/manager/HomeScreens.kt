@@ -223,7 +223,7 @@ fun HomeScreen(
     // r211: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
     val liquid = LocalLiquid.current
     LazyColumn(
-        Modifier.fillMaxSize().padding(16.dp).liquidGlassBackground(),
+        Modifier.fillMaxSize().padding(16.dp).liquidWashBackground(),
         contentPadding = PaddingValues(bottom = if (isLiquid) 96.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -322,7 +322,7 @@ fun HomeScreen(
                     roots.filter { it.total <= 0 }.forEach { root ->
                         Box(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                                .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier.background(MaterialTheme.colorScheme.secondaryContainer))
+                                .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(28.dp), liquid.glassTint) else Modifier.background(MaterialTheme.colorScheme.secondaryContainer))
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -379,7 +379,7 @@ fun HomeScreen(
                             Column(
                                 Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier.background(color.copy(alpha = 0.16f)))
+                                    .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.glassTint) else Modifier.background(color.copy(alpha = 0.16f)))
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -408,7 +408,7 @@ fun HomeScreen(
                             Column(
                                 Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(16.dp), liquid.dangerTile) else Modifier.background(trashColor.copy(alpha = 0.16f)))
+                                    .then(if (isLiquid) Modifier.glassTint(RoundedCornerShape(16.dp), liquid.dangerTile) else Modifier.background(trashColor.copy(alpha = 0.16f)))
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
