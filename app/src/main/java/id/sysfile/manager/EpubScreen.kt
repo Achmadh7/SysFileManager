@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -281,26 +282,49 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
 
     val b = book
     if (showToc && b != null) {
-        AlertDialog(
-            onDismissRequest = { showToc = false },
-            title = { Text(t.chapters) },
-            text = {
-                LazyColumn {
-                    itemsIndexed(b.chapters) { i, ch ->
-                        TextButton(onClick = { index = i; showToc = false }) {
-                            Text(
-                                ch.title,
-                                maxLines = 1,
-                                color = if (i == index) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
+        if (isLiquid) {
+            IosAlertDialog(
+                title = t.chapters,
+                text = null,
+                buttons = listOf(IosAlertButton(t.cancel) { showToc = false }),
+                content = {
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
+                        itemsIndexed(b.chapters) { i, ch ->
+                            TextButton(onClick = { index = i; showToc = false }) {
+                                Text(
+                                    ch.title,
+                                    maxLines = 1,
+                                    color = if (i == index) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
+                },
+                onDismissRequest = { showToc = false }
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { showToc = false },
+                title = { Text(t.chapters) },
+                text = {
+                    LazyColumn {
+                        itemsIndexed(b.chapters) { i, ch ->
+                            TextButton(onClick = { index = i; showToc = false }) {
+                                Text(
+                                    ch.title,
+                                    maxLines = 1,
+                                    color = if (i == index) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showToc = false }) { Text(t.cancel) }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showToc = false }) { Text(t.cancel) }
-            }
-        )
+            )
+        }
     }
 }

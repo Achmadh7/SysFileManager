@@ -676,39 +676,73 @@ fun TrashScreen(
         }
     }
     if (confirmEmpty) {
-        AlertDialog(
-            onDismissRequest = { confirmEmpty = false },
-            title = { Text(t.emptyTrash) },
-            text = {
-                Text(
-                    if (hiddenCount > 0) t.emptyTrashConfirm + "\n" + t.trashLockedHidden(hiddenCount)
-                    else t.emptyTrashConfirm
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmEmpty = false
-                    runAction(t.deletedDone) { TrashOps.emptyTrash(lockedPaths, unlockedPaths) }
-                }) { Text(t.deleteForever) }
-            },
-            dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text(t.cancel) } }
-        )
+        if (isLiquid) {
+            IosAlertDialog(
+                title = t.emptyTrash,
+                text = if (hiddenCount > 0) t.emptyTrashConfirm + "\n" + t.trashLockedHidden(hiddenCount) else t.emptyTrashConfirm,
+                buttons = listOf(
+                    IosAlertButton(t.cancel) { confirmEmpty = false },
+                    IosAlertButton(t.deleteForever, destructive = true) {
+                        confirmEmpty = false
+                        runAction(t.deletedDone) { TrashOps.emptyTrash(lockedPaths, unlockedPaths) }
+                    }
+                ),
+                onDismissRequest = { confirmEmpty = false },
+                twoColumn = true
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { confirmEmpty = false },
+                title = { Text(t.emptyTrash) },
+                text = {
+                    Text(
+                        if (hiddenCount > 0) t.emptyTrashConfirm + "\n" + t.trashLockedHidden(hiddenCount)
+                        else t.emptyTrashConfirm
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmEmpty = false
+                        runAction(t.deletedDone) { TrashOps.emptyTrash(lockedPaths, unlockedPaths) }
+                    }) { Text(t.deleteForever) }
+                },
+                dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text(t.cancel) } }
+            )
+        }
     }
     confirmDelete?.let { item ->
-        AlertDialog(
-            onDismissRequest = { confirmDelete = null },
-            title = { Text(t.deleteForever) },
-            text = { Text(t.deleteForeverConfirm(item.name)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = null
-                    guardedTrashAction(item) {
-                        runAction(t.deletedDone) { TrashOps.deleteForever(item) }
+        if (isLiquid) {
+            IosAlertDialog(
+                title = t.deleteForever,
+                text = t.deleteForeverConfirm(item.name),
+                buttons = listOf(
+                    IosAlertButton(t.cancel) { confirmDelete = null },
+                    IosAlertButton(t.deleteForever, destructive = true) {
+                        confirmDelete = null
+                        guardedTrashAction(item) {
+                            runAction(t.deletedDone) { TrashOps.deleteForever(item) }
+                        }
                     }
-                }) { Text(t.deleteForever) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(t.cancel) } }
-        )
+                ),
+                onDismissRequest = { confirmDelete = null },
+                twoColumn = true
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { confirmDelete = null },
+                title = { Text(t.deleteForever) },
+                text = { Text(t.deleteForeverConfirm(item.name)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmDelete = null
+                        guardedTrashAction(item) {
+                            runAction(t.deletedDone) { TrashOps.deleteForever(item) }
+                        }
+                    }) { Text(t.deleteForever) }
+                },
+                dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(t.cancel) } }
+            )
+        }
     }
 }
 

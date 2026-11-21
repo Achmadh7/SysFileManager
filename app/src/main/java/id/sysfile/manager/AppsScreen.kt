@@ -363,172 +363,341 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean =
     }
 
     actionApp?.let { app ->
-        AlertDialog(
-            onDismissRequest = { actionApp = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val bmp = app.icon
-                    if (bmp != null) {
-                        Image(
-                            bitmap = bmp.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Android, null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
+        if (isLiquid) {
+            IosAlertDialog(
+                title = null,
+                text = null,
+                buttons = listOf(IosAlertButton(t.close) { actionApp = null }),
+                content = {
                     Column {
-                        Text(app.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text(
-                            "v" + app.versionName,
+                            app.packageName,
                             style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                }
-            },
-            text = {
-                Column {
-                    Text(
-                        app.packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (app.totalSize != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (app.totalSize != null) {
+                                Surface(shape = RoundedCornerShape(50), color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest, border = null, modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), liquid.glassTint) else Modifier)) {
+                                    Text(
+                                        t.totalWord + " " + FileOps.formatSize(app.totalSize),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
                             Surface(shape = RoundedCornerShape(50), color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest, border = null, modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), liquid.glassTint) else Modifier)) {
                                 Text(
-                                    t.totalWord + " " + FileOps.formatSize(app.totalSize),
+                                    "APK " + FileOps.formatSize(app.apkSize),
                                     style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }
                         }
-                        Surface(shape = RoundedCornerShape(50), color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest, border = null, modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), liquid.glassTint) else Modifier)) {
-                            Text(
-                                "APK " + FileOps.formatSize(app.apkSize),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            AppActionTile(
-                                icon = Icons.Default.PlayArrow,
-                                label = t.appOpen,
-                                desc = t.appOpenDesc,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                isLiquid = isLiquid,
-                                onClick = {
-                                    actionApp = null
-                                    val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
-                                    if (intent != null) {
-                                        try {
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            notify(t.opFailed)
-                                        }
-                                    } else {
-                                        notify(t.opFailed)
-                                    }
-                                }
-                            )
-                            AppActionTile(
-                                icon = Icons.Default.ContentCopy,
-                                label = t.appCopyApk,
-                                desc = t.appCopyDesc,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                isLiquid = isLiquid,
-                                onClick = {
-                                    actionApp = null
-                                    copyTarget = app
-                                }
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            AppActionTile(
-                                icon = Icons.Default.Share,
-                                label = t.appShareApk,
-                                desc = t.appShareDesc,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                isLiquid = isLiquid,
-                                onClick = {
-                                    actionApp = null
-                                    scope.launch {
-                                        val staged = withContext(Dispatchers.IO) {
+                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AppActionTile(
+                                    icon = Icons.Default.PlayArrow,
+                                    label = t.appOpen,
+                                    desc = t.appOpenDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
+                                        if (intent != null) {
                                             try {
-                                                val dir = File(context.cacheDir, "apkshare").apply { FileOps.evictStaleCache(this); mkdirs() }
-                                                val out = File(dir, app.packageName + ".apk")
-                                                File(app.apkPath).copyTo(out, overwrite = true)
-                                                out
-                                            } catch (e: Exception) {
-                                                null
-                                            }
-                                        }
-                                        if (staged == null) {
-                                            notify(t.opFailed)
-                                        } else {
-                                            try {
-                                                val uri = FileProvider.getUriForFile(
-                                                    context, context.packageName + ".fileprovider", staged
-                                                )
-                                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                                    type = "application/vnd.android.package-archive"
-                                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                }
-                                                context.startActivity(Intent.createChooser(intent, t.share))
+                                                context.startActivity(intent)
                                             } catch (e: Exception) {
                                                 notify(t.opFailed)
                                             }
+                                        } else {
+                                            notify(t.opFailed)
                                         }
                                     }
-                                }
-                            )
-                            AppActionTile(
-                                icon = Icons.Default.Info,
-                                label = t.appInfo,
-                                desc = t.appInfoDesc,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                isLiquid = isLiquid,
-                                onClick = {
-                                    actionApp = null
-                                    try {
-                                        context.startActivity(
-                                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                data = Uri.parse("package:" + app.packageName)
-                                            }
-                                        )
-                                    } catch (e: Exception) {
-                                        notify(t.opFailed)
+                                )
+                                AppActionTile(
+                                    icon = Icons.Default.ContentCopy,
+                                    label = t.appCopyApk,
+                                    desc = t.appCopyDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        copyTarget = app
                                     }
-                                }
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AppActionTile(
+                                    icon = Icons.Default.Share,
+                                    label = t.appShareApk,
+                                    desc = t.appShareDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        scope.launch {
+                                            val staged = withContext(Dispatchers.IO) {
+                                                try {
+                                                    val dir = File(context.cacheDir, "apkshare").apply { FileOps.evictStaleCache(this); mkdirs() }
+                                                    val out = File(dir, app.packageName + ".apk")
+                                                    File(app.apkPath).copyTo(out, overwrite = true)
+                                                    out
+                                                } catch (e: Exception) {
+                                                    null
+                                                }
+                                            }
+                                            if (staged == null) {
+                                                notify(t.opFailed)
+                                            } else {
+                                                try {
+                                                    val uri = FileProvider.getUriForFile(
+                                                        context, context.packageName + ".fileprovider", staged
+                                                    )
+                                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                                        type = "application/vnd.android.package-archive"
+                                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    }
+                                                    context.startActivity(Intent.createChooser(intent, t.share))
+                                                } catch (e: Exception) {
+                                                    notify(t.opFailed)
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
+                                AppActionTile(
+                                    icon = Icons.Default.Info,
+                                    label = t.appInfo,
+                                    desc = t.appInfoDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        try {
+                                            context.startActivity(
+                                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                    data = Uri.parse("package:" + app.packageName)
+                                                }
+                                            )
+                                        } catch (e: Exception) {
+                                            notify(t.opFailed)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                },
+                onDismissRequest = { actionApp = null },
+                titleContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val bmp = app.icon
+                        if (bmp != null) {
+                            Image(
+                                bitmap = bmp.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Android, null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(app.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                "v" + app.versionName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { actionApp = null }) { Text(t.close) }
-            }
-        )
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { actionApp = null },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val bmp = app.icon
+                        if (bmp != null) {
+                            Image(
+                                bitmap = bmp.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Android, null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(app.name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                "v" + app.versionName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                text = {
+                    Column {
+                        Text(
+                            app.packageName,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (app.totalSize != null) {
+                                Surface(shape = RoundedCornerShape(50), color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest, border = null, modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), liquid.glassTint) else Modifier)) {
+                                    Text(
+                                        t.totalWord + " " + FileOps.formatSize(app.totalSize),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                            Surface(shape = RoundedCornerShape(50), color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest, border = null, modifier = Modifier.then(if (isLiquid) Modifier.glassBlur(RoundedCornerShape(50), liquid.glassTint) else Modifier)) {
+                                Text(
+                                    "APK " + FileOps.formatSize(app.apkSize),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AppActionTile(
+                                    icon = Icons.Default.PlayArrow,
+                                    label = t.appOpen,
+                                    desc = t.appOpenDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
+                                        if (intent != null) {
+                                            try {
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                notify(t.opFailed)
+                                            }
+                                        } else {
+                                            notify(t.opFailed)
+                                        }
+                                    }
+                                )
+                                AppActionTile(
+                                    icon = Icons.Default.ContentCopy,
+                                    label = t.appCopyApk,
+                                    desc = t.appCopyDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        copyTarget = app
+                                    }
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AppActionTile(
+                                    icon = Icons.Default.Share,
+                                    label = t.appShareApk,
+                                    desc = t.appShareDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        scope.launch {
+                                            val staged = withContext(Dispatchers.IO) {
+                                                try {
+                                                    val dir = File(context.cacheDir, "apkshare").apply { FileOps.evictStaleCache(this); mkdirs() }
+                                                    val out = File(dir, app.packageName + ".apk")
+                                                    File(app.apkPath).copyTo(out, overwrite = true)
+                                                    out
+                                                } catch (e: Exception) {
+                                                    null
+                                                }
+                                            }
+                                            if (staged == null) {
+                                                notify(t.opFailed)
+                                            } else {
+                                                try {
+                                                    val uri = FileProvider.getUriForFile(
+                                                        context, context.packageName + ".fileprovider", staged
+                                                    )
+                                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                                        type = "application/vnd.android.package-archive"
+                                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    }
+                                                    context.startActivity(Intent.createChooser(intent, t.share))
+                                                } catch (e: Exception) {
+                                                    notify(t.opFailed)
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
+                                AppActionTile(
+                                    icon = Icons.Default.Info,
+                                    label = t.appInfo,
+                                    desc = t.appInfoDesc,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    isLiquid = isLiquid,
+                                    onClick = {
+                                        actionApp = null
+                                        try {
+                                            context.startActivity(
+                                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                    data = Uri.parse("package:" + app.packageName)
+                                                }
+                                            )
+                                        } catch (e: Exception) {
+                                            notify(t.opFailed)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { actionApp = null }) { Text(t.close) }
+                }
+            )
+        }
     }
 
     copyTarget?.let { app ->
