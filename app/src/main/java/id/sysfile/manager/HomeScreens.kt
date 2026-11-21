@@ -19,6 +19,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -130,6 +131,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -138,6 +140,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -172,6 +175,7 @@ fun rootLabel(root: RootInfo, t: Txt): String {
 fun StorageHeroCard(
     root: RootInfo,
     rootActive: Boolean,
+    isLiquid: Boolean = false,
     onOpenRoot: (String) -> Unit,
 ) {
     val t = txt()
@@ -180,6 +184,7 @@ fun StorageHeroCard(
         if (data.totalBytes > 0) data.freeBytes.toFloat() / data.totalBytes.toFloat() else 0f
     val (healthText, healthDot) = storageStatus(freeFraction)
     StorageCard(
+        isLiquid = isLiquid,
         label = rootLabel(root, t),
         usedText = FileOps.formatSize(data.usedBytes),
         detailText = t.ofTotal(FileOps.formatSize(data.totalBytes)) + " \u00b7 " + t.freeOf(FileOps.formatSize(data.freeBytes)),
@@ -209,12 +214,15 @@ fun HomeScreen(
     roots: List<RootInfo>,
     rootActive: Boolean,
     trashEnabled: Boolean,
+    isLiquid: Boolean = false,
     onRequestAccess: () -> Unit,
     onOpenRoot: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
     onOpenTrash: () -> Unit,
 ) {
     val t = txt()
+    // r211: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     LazyColumn(
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -239,10 +247,15 @@ fun HomeScreen(
                 val pagerState = rememberPagerState(pageCount = { heroes.size })
                 val scope = rememberCoroutineScope()
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                        Spacer(Modifier.width(10.dp))
-                        Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    // r211: judul besar ala iOS saat gaya Liquid.
+                    if (isLiquid) {
+                        Text(t.storage, fontSize = 30.sp, fontWeight = FontWeight.Medium)
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        }
                     }
                     // BR4 Hero Geser (r161, pilihannya): kartu hero
                     // Internal/Root/SD/USB (D1, r53) jadi satu pager yang
@@ -308,7 +321,8 @@ fun HomeScreen(
                     roots.filter { it.total <= 0 }.forEach { root ->
                         Box(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .background(if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.secondaryContainer)
+                                .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -365,17 +379,18 @@ fun HomeScreen(
                             Column(
                                 Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(color.copy(alpha = 0.16f))
+                                    .background(if (isLiquid) liquid.glassTint else color.copy(alpha = 0.16f))
+                                    .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(16.dp)) else Modifier)
                                     .clickable { onOpenCategory(cat) }
                                     .padding(horizontal = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Box(
-                                    Modifier.size(32.dp).clip(CircleShape).background(color),
+                                    Modifier.size(32.dp).clip(CircleShape).background(if (isLiquid) liquid.chipBg else color),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(categoryIcon(cat, ""), null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                                    Icon(categoryIcon(cat, ""), null, tint = if (isLiquid) liquid.chipFg else MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                                 }
                                 Spacer(Modifier.height(6.dp))
                                 Text(
@@ -394,14 +409,15 @@ fun HomeScreen(
                             Column(
                                 Modifier.weight(1f).height(80.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(trashColor.copy(alpha = 0.16f))
+                                    .background(if (isLiquid) liquid.dangerTile else trashColor.copy(alpha = 0.16f))
+                                    .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(16.dp)) else Modifier)
                                     .clickable { onOpenTrash() }
                                     .padding(horizontal = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Box(
-                                    Modifier.size(32.dp).clip(CircleShape).background(trashColor),
+                                    Modifier.size(32.dp).clip(CircleShape).background(if (isLiquid) liquid.dangerChip else trashColor),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(18.dp))

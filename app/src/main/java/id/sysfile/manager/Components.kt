@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
@@ -487,12 +488,16 @@ fun StorageCard(
     statusDot: Color,
     icon: ImageVector = Icons.Default.Storage,
     usedFraction: Float = 0f,
+    isLiquid: Boolean = false,
     onClick: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
+    // r211: kaca saat gaya Liquid — tint + tepi terang seperti GlassSurface.
+    val liquid = LocalLiquid.current
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-            .background(scheme.secondaryContainer)
+            .background(if (isLiquid) liquid.glassTint else scheme.secondaryContainer)
+            .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
             .clickable { onClick() }
     ) {
         StorageCardContent(
