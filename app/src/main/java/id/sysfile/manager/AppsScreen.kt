@@ -18,7 +18,10 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -173,8 +176,10 @@ object AppOps {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
+fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit, isLiquid: Boolean = false) {
     val t = txt()
+    // r214: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
@@ -248,7 +253,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
             }
             if (!usageAccess) {
                 Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    SectionCard(icon = Icons.Default.Info, title = t.usageAccessTitle) {
+                    SectionCard(icon = Icons.Default.Info, title = t.usageAccessTitle, isLiquid = isLiquid) {
                         Text(t.usageAccessBody, style = MaterialTheme.typography.bodyMedium)
                         Button(
                             onClick = {
@@ -325,10 +330,11 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                     }
                                 }
                             },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            colors = ListItemDefaults.colors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHigh),
                             modifier = Modifier.fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 5.dp)
                                 .clip(RoundedCornerShape(28.dp))
+                                .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
                                 .clickable { actionApp = app }
                         )
                     }
@@ -379,7 +385,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (app.totalSize != null) {
-                            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                            Surface(shape = RoundedCornerShape(50), color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest, border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null) {
                                 Text(
                                     t.totalWord + " " + FileOps.formatSize(app.totalSize),
                                     style = MaterialTheme.typography.labelMedium,
@@ -387,7 +393,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                 )
                             }
                         }
-                        Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                        Surface(shape = RoundedCornerShape(50), color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest, border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null) {
                             Text(
                                 "APK " + FileOps.formatSize(app.apkSize),
                                 style = MaterialTheme.typography.labelMedium,
@@ -408,6 +414,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                 label = t.appOpen,
                                 desc = t.appOpenDesc,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                                isLiquid = isLiquid,
                                 onClick = {
                                     actionApp = null
                                     val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
@@ -427,6 +434,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                 label = t.appCopyApk,
                                 desc = t.appCopyDesc,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                                isLiquid = isLiquid,
                                 onClick = {
                                     actionApp = null
                                     copyTarget = app
@@ -442,6 +450,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                 label = t.appShareApk,
                                 desc = t.appShareDesc,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                                isLiquid = isLiquid,
                                 onClick = {
                                     actionApp = null
                                     scope.launch {
@@ -480,6 +489,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                                 label = t.appInfo,
                                 desc = t.appInfoDesc,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                                isLiquid = isLiquid,
                                 onClick = {
                                     actionApp = null
                                     try {
@@ -526,13 +536,16 @@ private fun AppActionTile(
     label: String,
     desc: String,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isLiquid: Boolean = false
 ) {
+    val liquid = LocalLiquid.current
     Surface(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest
+        color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Surface(

@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -93,6 +94,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -333,9 +335,12 @@ fun TextViewerScreen(
     extractedText: String? = null,
     onSaveArchiveText: ((String) -> Boolean)? = null,
     onSaved: (() -> Unit)? = null,
-    originalPath: String? = null
+    originalPath: String? = null,
+    isLiquid: Boolean = false
 ) {
     val t = txt()
+    // r214: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var content by remember { mutableStateOf<String?>(null) }
@@ -616,7 +621,8 @@ fun TextViewerScreen(
                                 Surface(
                                     onClick = { wrapLines = !wrapLines },
                                     shape = RoundedCornerShape(4.dp),
-                                    color = if (wrapLines) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent
+                                    color = if (wrapLines) (if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest) else Color.Transparent,
+                                    border = if (wrapLines && isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
                                 ) {
                                     Text(
                                         text = if (wrapLines) "Wrap: ON" else "Wrap: OFF",
@@ -627,7 +633,8 @@ fun TextViewerScreen(
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Surface(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
@@ -648,7 +655,8 @@ fun TextViewerScreen(
             // Bilah Pencarian Cepat (Expandable)
             AnimatedVisibility(visible = searchVisible && content != null) {
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -1075,8 +1083,10 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
  *  kapsul, baris atas; tombol prev/play/next di baris bawah). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit) {
+fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, onPathChange: (String) -> Unit, notify: (String) -> Unit, isLiquid: Boolean = false) {
     val t = txt()
+    // r214: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { paths.size })
     val currentPath = paths[pagerState.currentPage]
@@ -1231,7 +1241,8 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
                 ) {
                     Surface(
                         shape = RoundedCornerShape(28.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        color = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
                         tonalElevation = 3.dp,
                         shadowElevation = 6.dp,
                         modifier = Modifier.fillMaxWidth()
@@ -1319,7 +1330,7 @@ fun VideoViewerScreen(paths: List<String>, startIndex: Int, onBack: () -> Unit, 
  *  Compose FontFamily dari berkas tidak punya API publik yang stabil. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun FontViewerScreen(path: String, onBack: () -> Unit) {
+fun FontViewerScreen(path: String, onBack: () -> Unit, isLiquid: Boolean = false) {
     val t = txt()
     val file = File(path)
     val ink = MaterialTheme.colorScheme.onSurface
@@ -1354,7 +1365,7 @@ fun FontViewerScreen(path: String, onBack: () -> Unit) {
             Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SectionCard(icon = Icons.Default.Info, title = t.properties) {
+            SectionCard(icon = Icons.Default.Info, title = t.properties, isLiquid = isLiquid) {
                 FontInfoRow(t.fontFamily, info?.first ?: "—")
                 FontInfoRow(t.fontStyle, info?.second ?: "—")
                 FontInfoRow(t.propSize, FileOps.formatSize(file.length()))

@@ -1544,7 +1544,7 @@ fun SysFileApp() {
                 onRequestUnlock = { path, grant -> requestUnlock(path, grant) }
             )
         } else if (showApps) {
-            AppsScreen(notify = { notify(it) }, onBack = { showApps = false })
+            AppsScreen(notify = { notify(it) }, onBack = { showApps = false }, isLiquid = themeStyle == "liquid")
         } else if (showSpecs) {
             SpecScreen(onBack = { showSpecs = false })
         } else if (showFormats) {
@@ -1668,33 +1668,37 @@ fun SysFileApp() {
                         onDelete = { p -> dialog = DialogKind.Delete(listOf(FileOps.entryOf(File(p)))) },
                         onPathChange = { viewingPath = it }
                     )
-                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, originalPath = ov.originalPath)
-                    is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null })
+                    is Overlay.TextView -> TextViewerScreen(ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, notify = { notify(it) }, originalPath = ov.originalPath, isLiquid = themeStyle == "liquid")
+                    is Overlay.FontView -> FontViewerScreen(path = ov.path, onBack = { overlay = overlayReturn; overlayReturn = null }, isLiquid = themeStyle == "liquid")
                     is Overlay.ArchiveText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
                         extractedText = ov.content,
                         onSaveArchiveText = if (ov.canSave) { { newText -> ArchiveOps.replaceZipEntry(File(ov.archivePath), ov.name, newText) } } else null,
-                        onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) }
+                        onSaved = { val cur = overlayReturn; if (cur is Overlay.ArchiveView) overlayReturn = cur.copy(reload = cur.reload + 1) },
+                        isLiquid = themeStyle == "liquid"
                     )
                     is Overlay.RamdiskText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        extractedText = ov.content
+                        extractedText = ov.content,
+                        isLiquid = themeStyle == "liquid"
                     )
                     is Overlay.Ext4Text -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        extractedText = ov.content
+                        extractedText = ov.content,
+                        isLiquid = themeStyle == "liquid"
                     )
                     is Overlay.FatText -> TextViewerScreen(
                         ov.name,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
                         notify = { notify(it) },
-                        extractedText = ov.content
+                        extractedText = ov.content,
+                        isLiquid = themeStyle == "liquid"
                     )
                     is Overlay.PdfView -> PdfViewerScreen(
                         path = ov.path,
@@ -1715,7 +1719,8 @@ fun SysFileApp() {
                         startIndex = ov.startIndex,
                         onBack = { overlay = overlayReturn; overlayReturn = null; viewingPath = null },
                         onPathChange = { viewingPath = it },
-                        notify = { notify(it) }
+                        notify = { notify(it) },
+                        isLiquid = themeStyle == "liquid"
                     )
                     is Overlay.Search -> SearchScreen(
                         rootPath = ov.rootPath,
