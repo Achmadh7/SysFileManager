@@ -81,13 +81,17 @@ import java.util.Date
 fun SectionCard(
     icon: ImageVector,
     title: String,
+    isLiquid: Boolean = false,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
+    // r212: kaca saat gaya Liquid.
+    val liquid = LocalLiquid.current
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
+        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
         shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -289,9 +293,12 @@ fun FileRow(
     itemCount: Int?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    locked: Boolean = false
+    locked: Boolean = false,
+    isLiquid: Boolean = false
 ) {
     val t = txt()
+    // r212: kaca saat gaya Liquid.
+    val liquid = LocalLiquid.current
     val emptyDir = entry.isDir && itemCount == 0
     val sub = if (entry.isDir) {
         if (emptyDir) t.emptyShort
@@ -305,10 +312,13 @@ fun FileRow(
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
+            } else if (isLiquid) {
+                liquid.glassTint
             } else {
                 MaterialTheme.colorScheme.surfaceContainerHighest
             }
         ),
+        border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null,
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
@@ -424,11 +434,15 @@ fun FileCell(
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    locked: Boolean = false
+    locked: Boolean = false,
+    isLiquid: Boolean = false
 ) {
+    // r212: kaca saat gaya Liquid.
+    val liquid = LocalLiquid.current
     Column(
         Modifier.clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else if (isLiquid) liquid.glassTint else Color.Transparent)
+            .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(16.dp)) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

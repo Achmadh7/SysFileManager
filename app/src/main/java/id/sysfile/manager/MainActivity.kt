@@ -1717,6 +1717,7 @@ fun SysFileApp() {
                     )
                     is Overlay.Search -> SearchScreen(
                         rootPath = ov.rootPath,
+                        isLiquid = themeStyle == "liquid",
                         onBack = { overlay = null; overlayReturn = null },
                         onOpenEntry = { entry ->
                             overlay = null
@@ -1742,6 +1743,7 @@ fun SysFileApp() {
                     )
                     is Overlay.CategoryView -> CategoryScreen(
                         category = ov.category,
+                        isLiquid = themeStyle == "liquid",
                         categoryCache = categoryCache,
                         categoryCacheAt = categoryCacheAt,
                         categoryCacheKey = categoryCacheKey,
@@ -2292,6 +2294,7 @@ fun SysFileApp() {
                                 if (currentPath != null && selected.isEmpty()) {
                                     BrowseHeaderBar(
                                         currentPath = currentPath,
+                                        isLiquid = themeStyle == "liquid",
                                         currentRoot = currentRoot,
                                         gridView = gridView,
                                         sortKey = sortKey,
@@ -2500,6 +2503,7 @@ fun SysFileApp() {
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
+                                                    isLiquid = themeStyle == "liquid",
                                                     accessGranted = accessGranted,
                                                     onOpenEntry = { entry ->
                                                         if (entry.isDir) {
@@ -2511,6 +2515,7 @@ fun SysFileApp() {
                                                 )
                                                 2 -> AnalysisScreen(
                                                     roots = roots,
+                                                    isLiquid = themeStyle == "liquid",
                                                     onOpenFolder = { path -> homeTab = 0; openFolderGuarded(path) { browseStack = listOf(path) } },
                                                     onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                                 )
@@ -2530,6 +2535,7 @@ fun SysFileApp() {
                                     } else {
                                         BrowseScreen(
                                         currentPath = animatedPath,
+                                        isLiquid = themeStyle == "liquid",
                                         entries = entries,
                                         loaded = entriesLoaded,
                                         gridView = gridView,

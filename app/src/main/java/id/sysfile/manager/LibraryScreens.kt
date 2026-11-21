@@ -22,6 +22,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -131,6 +132,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -159,8 +161,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 fun RecentScreen(
     files: List<FEntry>,
     accessGranted: Boolean,
-    onOpenEntry: (FEntry) -> Unit
+    onOpenEntry: (FEntry) -> Unit,
+    isLiquid: Boolean = false
 ) {
+    // r212: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val t = txt()
     if (!accessGranted) {
         Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -198,14 +203,14 @@ fun RecentScreen(
                 if (index == 0 || day != prevDay) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        color = if (isLiquid) liquid.chipBg else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                         modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
                     ) {
                         Text(
                             day,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = if (isLiquid) liquid.chipFg else MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
@@ -234,9 +239,10 @@ fun RecentScreen(
                         )
                     },
                     leadingContent = { FileThumbTile(entry, 48) },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                    colors = ListItemDefaults.colors(containerColor = if (isLiquid) liquid.glassTint else MaterialTheme.colorScheme.surfaceContainerLowest),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                         .clip(RoundedCornerShape(28.dp))
+                        .then(if (isLiquid) Modifier.border(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd)), RoundedCornerShape(28.dp)) else Modifier)
                         .clickable { onOpenEntry(entry) }
                 )
             }
@@ -290,7 +296,8 @@ fun CategoryScreen(
     categoryCacheKey: MutableMap<Category, Int>,
     reloadKey: Int,
     onBack: () -> Unit,
-    onOpenEntry: (FEntry, List<FEntry>) -> Unit
+    onOpenEntry: (FEntry, List<FEntry>) -> Unit,
+    isLiquid: Boolean = false
 ) {
     val t = txt()
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -393,7 +400,8 @@ fun CategoryScreen(
                                 isSelected = false,
                                 itemCount = null,
                                 onClick = { onOpenEntry(entry, loaded.orEmpty()) },
-                                onLongClick = {}
+                                onLongClick = {},
+                                isLiquid = isLiquid
                             )
                         }
                     }
@@ -1361,7 +1369,8 @@ fun LpBrowseScreen(
 fun SearchScreen(
     rootPath: String,
     onBack: () -> Unit,
-    onOpenEntry: (FEntry) -> Unit
+    onOpenEntry: (FEntry) -> Unit,
+    isLiquid: Boolean = false
 ) {
     val t = txt()
     val context = LocalContext.current
@@ -1477,7 +1486,8 @@ fun SearchScreen(
                             isSelected = false,
                             itemCount = null,
                             onClick = { onOpenEntry(entry) },
-                            onLongClick = {}
+                            onLongClick = {},
+                            isLiquid = isLiquid
                         )
                     }
                 }
@@ -1496,7 +1506,8 @@ fun SearchScreen(
                             isSelected = false,
                             itemCount = null,
                             onClick = { onOpenEntry(entry) },
-                            onLongClick = {}
+                            onLongClick = {},
+                            isLiquid = isLiquid
                         )
                     }
                 }
@@ -1515,6 +1526,7 @@ fun AnalysisScreen(
     roots: List<RootInfo>,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (FEntry) -> Unit,
+    isLiquid: Boolean = false
 ) {
     val t = txt()
     val context = LocalContext.current
@@ -1556,6 +1568,7 @@ fun AnalysisScreen(
                     val freeFracSummary = if (totalStorage > 0) (totalStorage - usedStorage).toFloat() / totalStorage.toFloat() else 0f
                     val (statusText, statusDot) = storageStatus(freeFracSummary)
                     StorageCard(
+                        isLiquid = isLiquid,
                         label = t.storageAnalysis,
                         usedText = FileOps.formatSize(usedStorage),
                         detailText = t.ofTotal(FileOps.formatSize(totalStorage)) + " · " + t.items(totalFilesAll),

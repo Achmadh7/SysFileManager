@@ -24,6 +24,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -144,6 +145,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
@@ -173,8 +175,11 @@ fun BrowseHeaderBar(
     onSearch: () -> Unit,
     onSortPick: (SortKey, Boolean) -> Unit,
     onToggleView: () -> Unit,
-    onNavigate: (List<String>) -> Unit
+    onNavigate: (List<String>) -> Unit,
+    isLiquid: Boolean = false
 ) {
+    // r212: warna kaca dibaca sekali di sini; hanya dipakai di cabang liquid.
+    val liquid = LocalLiquid.current
     val t = txt()
     val rootPath = currentRoot?.path ?: currentPath
     val relative = currentPath.removePrefix(rootPath).trim('/')
@@ -234,7 +239,8 @@ fun BrowseHeaderBar(
                     color = if (active) MaterialTheme.colorScheme.primaryContainer
                     else MaterialTheme.colorScheme.surfaceContainerHigh,
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
-                    enabled = !active
+                    enabled = !active,
+                    border = if (isLiquid) BorderStroke(1.dp, Brush.linearGradient(listOf(liquid.rimStart, liquid.rimEnd))) else null
                 ) {
                     Text(
                         label,
@@ -311,7 +317,8 @@ fun BrowseScreen(
     lockedPaths: Set<String> = emptySet(),
     safHasGrant: Boolean = false,
     onSafAction: (() -> Unit)? = null,
-    safSubtreeBlocked: Boolean = false
+    safSubtreeBlocked: Boolean = false,
+    isLiquid: Boolean = false
 ) {
     val t = txt()
     Column(Modifier.fillMaxSize()) {
@@ -397,7 +404,8 @@ fun BrowseScreen(
                             isSelected = selected.contains(entry.path),
                             onClick = { onOpenEntry(entry) },
                             onLongClick = { onLongPress(entry) },
-                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
+                            locked = FileOps.isLockedFolder(entry.path, lockedPaths),
+                            isLiquid = isLiquid
                         )
                     }
                 }
@@ -410,7 +418,8 @@ fun BrowseScreen(
                             itemCount = counts[entry.path],
                             onClick = { onOpenEntry(entry) },
                             onLongClick = { onLongPress(entry) },
-                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
+                            locked = FileOps.isLockedFolder(entry.path, lockedPaths),
+                            isLiquid = isLiquid
                         )
                     }
                 }

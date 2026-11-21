@@ -229,7 +229,7 @@ fun HomeScreen(
     ) {
         if (!accessGranted) {
             item {
-                SectionCard(icon = Icons.Default.Warning, title = t.permissionTitle) {
+                SectionCard(icon = Icons.Default.Warning, title = t.permissionTitle, isLiquid = isLiquid) {
                     Text(t.permissionBody, style = MaterialTheme.typography.bodyMedium)
                     Button(onClick = onRequestAccess, modifier = Modifier.fillMaxWidth()) {
                         Text(t.permissionButton)
