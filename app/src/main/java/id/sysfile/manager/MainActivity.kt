@@ -2665,13 +2665,13 @@ fun SysFileApp() {
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
                 ) {
-                    Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                    Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 extractCardName,
@@ -2686,21 +2686,15 @@ fun SysFileApp() {
                                 Text(
                                     "${(extractCardProg * 100).toInt()}%",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
-                        if (extractCardProg != null) {
-                            LinearWavyProgressIndicator(
-                                progress = { extractCardProg },
-                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                            )
-                        } else {
-                            LinearWavyProgressIndicator(
-                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                            )
-                        }
+                        SplitGapSolidProgressBar(
+                            progress = extractCardProg,
+                            modifier = Modifier.fillMaxWidth().padding(top = 13.dp)
+                        )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(top = 8.dp)
@@ -2727,38 +2721,59 @@ fun SysFileApp() {
         // M3 terang (ungu) walau aplikasi mode gelap.
 
         if (working) {
-            AlertDialog(
-                onDismissRequest = {},
-                text = {
-                    Column {
+            val prog = workProgress
+            val flag = workCancelFlag
+            androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    tonalElevation = 3.dp,
+                    shadowElevation = 6.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            LoadingIndicator(Modifier.size(52.dp))
-                            Spacer(Modifier.width(16.dp))
-                            Text(workStage ?: t.working)
-                        }
-                        val prog = workProgress
-                        if (prog != null) {
-                            LinearWavyProgressIndicator(
-                                progress = { prog },
-                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp)
-                            )
                             Text(
-                                workProgressText ?: "${(prog * 100).toInt()}%",
+                                text = workStage ?: t.working,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (prog != null) {
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = "${(prog * 100).toInt()}%",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        SplitGapSolidProgressBar(
+                            progress = prog,
+                            modifier = Modifier.fillMaxWidth().padding(top = 13.dp)
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text(
+                                text = workProgressText ?: (if (prog != null) "${(prog * 100).toInt()}%" else ""),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 6.dp)
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
+                            if (flag != null) {
+                                TextButton(onClick = { flag.set(true) }) { Text(t.cancel) }
+                            }
                         }
                     }
-                },
-                confirmButton = {},
-                dismissButton = {
-                    val flag = workCancelFlag
-                    if (flag != null) {
-                        TextButton(onClick = { flag.set(true) }) { Text(t.cancel) }
-                    }
                 }
-            )
+            }
         }
 
         if (showAccessDialog) {

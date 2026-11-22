@@ -80,9 +80,11 @@ fun SysFileLogo(
 }
 
 /**
- * Layar sambutan (Opsi 3 Thumb-Zone Power Spec + Logo Aurora Opsi 1):
- * hero logo SF bercahaya di atas, grid kapabilitas 2x2, lalu banner izin
- * dan tombol lanjut di area jempol bawah. Muncul sekali sampai welcome_done.
+ * Layar sambutan (Opsi 4 — Clean Stage + Floating Bottom Sheet):
+ * - Panggung atas bersih tanpa pendaran aurora dan tanpa badge chip di bawah judul.
+ * - Logo dan tipografi judul/subjudul diperbesar.
+ * - Paruh bawah berupa Floating Bottom Sheet 28dp yang merangkum kartu kapabilitas,
+ *   kartu izin penyimpanan, dan tombol mulai di zona jempol.
  */
 @Composable
 fun WelcomeScreen(
@@ -93,159 +95,181 @@ fun WelcomeScreen(
     onTheme: (String) -> Unit
 ) {
     val t = txt()
-    val statusColor = if (accessGranted) Color(0xFF81C995) else Color(0xFFF5C542)
+    val scheme = MaterialTheme.colorScheme
+    val statusColor = if (accessGranted) Color(0xFF34D399) else Color(0xFFF59E0B)
 
     Box(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        Modifier
+            .fillMaxSize()
+            .background(scheme.background)
     ) {
         Column(
-            Modifier.fillMaxSize().padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
+            Spacer(Modifier.height(24.dp))
+
+            // Panggung Atas: Logo & Tulisan Diperbesar (Tanpa Aurora Glow & Tanpa Chip Root/DEX/OTG)
             Column(
                 Modifier
-                    .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Spacer(Modifier.height(28.dp))
-
-                // Hero gaya Opsi 2: logo SF dengan radial glow halus.
-                Column(
-                    Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Box(
-                            Modifier
-                                .size(124.dp)
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-                        SysFileLogo(
-                            modifier = Modifier.size(72.dp),
-                            cornerRadius = 22.dp
-                        )
-                    }
-                    Text(
-                        t.welcomeTitle,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        t.welcomePitch,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                // Grid 2x2 Spec Bento (Opsi 3).
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        WelcomeSpecTile(
-                            icon = Icons.Default.Terminal,
-                            title = "Root & Shell",
-                            subtitle = "Full / & su ops",
-                            modifier = Modifier.weight(1f)
-                        )
-                        WelcomeSpecTile(
-                            icon = Icons.Default.Storage,
-                            title = "Disk Images",
-                            subtitle = "Ext4, FAT, LP, Payload",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        WelcomeSpecTile(
-                            icon = Icons.Default.Inventory2,
-                            title = "APK & DEX",
-                            subtitle = "Smali & ARSC inspect",
-                            modifier = Modifier.weight(1f)
-                        )
-                        WelcomeSpecTile(
-                            icon = Icons.Default.Description,
-                            title = "Built-in Viewers",
-                            subtitle = "Office, EPUB, EXIF",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+                SysFileLogo(
+                    modifier = Modifier.size(96.dp),
+                    cornerRadius = 28.dp
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = t.welcomeTitle,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = scheme.onBackground,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = t.welcomePitch,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = scheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
             }
 
-            // Thumb-Zone Bottom Action Stack (Opsi 3).
+            // Paruh Bawah: Floating Bottom Sheet 28dp di Zona Jempol
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    containerColor = scheme.surfaceContainerLow
                 ),
-                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.5f)),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
+                border = BorderStroke(1.dp, scheme.outlineVariant.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Icon(
-                        if (accessGranted) Icons.Default.CheckCircle else Icons.Default.Folder,
-                        contentDescription = null,
-                        tint = if (accessGranted) statusColor else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(26.dp)
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            t.welcomeAccessTitle,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
+                    // 2 Kartu Fitur Berdampingan
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        WelcomeSpecTile(
+                            icon = Icons.Default.Terminal,
+                            title = "Root & Disk",
+                            subtitle = "Partisi /, Ext4, Payload",
+                            modifier = Modifier.weight(1f)
                         )
-                        Text(
-                            if (accessGranted) t.welcomeGranted else t.welcomeNotGranted,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = statusColor
+                        WelcomeSpecTile(
+                            icon = Icons.Default.Inventory2,
+                            title = "APK & Viewer",
+                            subtitle = "Smali, Office, EPUB",
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                    if (!accessGranted) {
-                        FilledTonalButton(onClick = onRequestAccess) {
-                            Text(t.welcomeGrant)
+
+                    // Kartu Status Izin Penyimpanan
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = scheme.surfaceContainerHighest
+                        ),
+                        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.55f)),
+                        shape = RoundedCornerShape(22.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (accessGranted) Icons.Default.CheckCircle else Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = if (accessGranted) statusColor else scheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = t.welcomeAccessTitle,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (accessGranted) t.welcomeGranted else t.welcomeNotGranted,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = statusColor
+                                )
+                            }
+                            if (!accessGranted) {
+                                FilledTonalButton(
+                                    onClick = onRequestAccess,
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Text(
+                                        text = t.welcomeGrant,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Tombol Mulai Utama
+                    if (accessGranted) {
+                        Button(
+                            onClick = onFinish,
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                        ) {
+                            Text(
+                                text = t.welcomeStart,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onFinish,
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                        ) {
+                            Text(
+                                text = t.welcomeStart,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
-            }
-
-            if (accessGranted) {
-                Button(
-                    onClick = onFinish,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
-                ) { Text(t.welcomeStart) }
-            } else {
-                OutlinedButton(
-                    onClick = onFinish,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
-                ) { Text(t.welcomeStart) }
             }
         }
 
         // WT1: tombol ganti tema di pojok kanan atas.
         IconButton(
             onClick = { onTheme(if (themeMode == "dark") "light" else "dark") },
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = 32.dp, end = 8.dp)
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 32.dp, end = 12.dp)
         ) {
             Icon(
                 if (themeMode == "dark") Icons.Default.DarkMode else Icons.Default.LightMode,
                 contentDescription = t.theme,
-                tint = MaterialTheme.colorScheme.onSurface
+                tint = scheme.onSurface
             )
         }
     }
@@ -262,23 +286,27 @@ private fun WelcomeSpecTile(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         modifier = modifier
     ) {
         Column(
-            Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             Icon(
                 icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
-            Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Text(
-                subtitle,
-                style = MaterialTheme.typography.labelSmall,
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

@@ -678,6 +678,18 @@ object FileOps {
         return nw to nh
     }
 
+    /** Konversi Drawable ikon aplikasi menjadi Bitmap aman (maks 512px). */
+    private fun drawableToIconBitmap(drawable: android.graphics.drawable.Drawable): android.graphics.Bitmap {
+        val rawW = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 144
+        val rawH = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 144
+        val (width, height) = iconBitmapSize(rawW, rawH)
+        val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        drawable.setBounds(0, 0, width, height)
+        drawable.draw(canvas)
+        return bitmap
+    }
+
     /** Ikon aplikasi dari dalam berkas APK sebagai Bitmap; null bila gagal. */
     fun apkIcon(context: Context, file: File): android.graphics.Bitmap? {
         return try {
@@ -686,15 +698,90 @@ object FileOps {
             val appInfo = pkg.applicationInfo ?: return null
             appInfo.sourceDir = file.absolutePath
             appInfo.publicSourceDir = file.absolutePath
-            val drawable = pm.getApplicationIcon(appInfo)
-            // M9: dimensi dibatasi sebelum createBitmap (dulu intrinsic
-            // langsung, bisa ribuan px -> OOM pada APK tertentu).
-            val (width, height) = iconBitmapSize(drawable.intrinsicWidth, drawable.intrinsicHeight)
-            val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
-            val canvas = android.graphics.Canvas(bitmap)
-            drawable.setBounds(0, 0, width, height)
-            drawable.draw(canvas)
-            bitmap
+            val drawable = try {
+                appInfo.loadIcon(pm)
+            } catch (e: Exception) {
+                pkg.packageName?.let { runCatching { pm.getApplicationIcon(it) }.getOrNull() }
+            } ?: return null
+            drawableToIconBitmap(drawable)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    @Volatile
+    private var appDirToPkgCache: Map<String, String>? = null
+
+    private fun getAppDirToPkgMap(pm: PackageManager): Map<String, String> {
+        appDirToPkgCache?.let { return it }
+        val map = mutableMapOf<String, String>()
+        runCatching {
+            val apps = pm.getInstalledApplications(0)
+            for (info in apps) {
+                val pkg = info.packageName ?: continue
+                info.sourceDir?.let { src ->
+                    val parent = File(src).parentFile
+                    if (parent != null) {
+                        map[parent.absolutePath] = pkg
+                        parent.parentFile?.let { grand ->
+                            if (grand.name.startsWith("~~")) {
+                                map[grand.absolutePath] = pkg
+                            }
+                        }
+                    }
+                }
+                info.dataDir?.let { map[it] = pkg }
+            }
+        }
+        appDirToPkgCache = map
+        return map
+    }
+
+    /** Cek cepat apakah folder berpotensi mewakili suatu aplikasi (paket atau folder sistem). */
+    fun mayHaveAppIcon(file: File): Boolean {
+        val name = file.name
+        if (name.contains('.') && !name.startsWith('.')) return true
+        val p = file.absolutePath
+        return p.startsWith("/system/app/") ||
+            p.startsWith("/system/priv-app/") ||
+            p.startsWith("/product/app/") ||
+            p.startsWith("/product/priv-app/") ||
+            p.startsWith("/system_ext/app/") ||
+            p.startsWith("/system_ext/priv-app/") ||
+            p.startsWith("/vendor/app/") ||
+            p.startsWith("/data/app/") ||
+            p.startsWith("/data/data/") ||
+            p.startsWith("/data/user/") ||
+            p.contains("/Android/data/") ||
+            p.contains("/Android/obb/") ||
+            p.contains("/Android/media/")
+    }
+
+    /** Ikon asli aplikasi untuk berkas APK maupun folder paket/aplikasi terpasang. */
+    fun entryAppIcon(context: Context, file: File, isDir: Boolean): android.graphics.Bitmap? {
+        if (!isDir) return apkIcon(context, file)
+        return try {
+            val pm = context.packageManager
+            val name = file.name
+            // 1. Nama folder adalah packageName langsung (mis. com.whatsapp) atau com.pkg-xxx==
+            val candidatePkg = name.substringBefore('-').takeIf { it.contains('.') }
+            if (candidatePkg != null) {
+                val d = runCatching { pm.getApplicationIcon(candidatePkg) }.getOrNull()
+                if (d != null) return drawableToIconBitmap(d)
+            }
+            // 2. Cocokkan dengan peta sourceDir/dataDir aplikasi terpasang (/system/app/Chrome, /data/app/...)
+            val dirMap = getAppDirToPkgMap(pm)
+            dirMap[file.absolutePath]?.let { mappedPkg ->
+                val d = runCatching { pm.getApplicationIcon(mappedPkg) }.getOrNull()
+                if (d != null) return drawableToIconBitmap(d)
+            }
+            // 3. Cek berkas <FolderName>.apk atau base.apk di dalam folder
+            val directApk = File(file, "$name.apk").takeIf { it.exists() }
+                ?: File(file, "base.apk").takeIf { it.exists() }
+            if (directApk != null) {
+                return apkIcon(context, directApk)
+            }
+            null
         } catch (e: Exception) {
             null
         }

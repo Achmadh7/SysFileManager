@@ -236,100 +236,37 @@ fun HomeScreen(
         }
         if (roots.isNotEmpty()) {
             item {
-                // BR4 (r161): remember tanpa syarat di kepala blok item
-                // agar slot remember stabil saat roots berubah
-                // (kosong -> terisi).
                 val heroes = heroRoots(roots)
-                val pagerState = rememberPagerState(pageCount = { heroes.size })
-                val scope = rememberCoroutineScope()
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val primaryRoot = heroes.firstOrNull() ?: roots.first()
+                val secondaryRoots = roots.filter { it.path != primaryRoot.path }
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
                         Spacer(Modifier.width(10.dp))
                         Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     }
-                    // BR4 Hero Geser (r161, pilihannya): kartu hero
-                    // Internal/Root/SD/USB (D1, r53) jadi satu pager yang
-                    // bisa digeser — Internal dulu, geser untuk Root (dan
-                    // USB/SD kalau ada). Titik di bawah: aktif = aksen,
-                    // ketuk titik = geser ke halaman itu.
-                    if (heroes.isNotEmpty()) {
-                        // Opsi 1 (Shared-Axis Parallax + Scale Depth): kartu mengecil,
-                        // memudar, dan bergeser parallax horizontal saat digeser.
-                        val parallaxPx = with(LocalDensity.current) { 36.dp.toPx() }
-                        // r169: pageSpacing 16dp - kartu yang
-                        // bersebelahan tidak menempel saat digeser.
-                        // Settled page tetap penuh (PageSize.Fill
-                        // mengabaikan pageSpacing).
-                        HorizontalPager(
-                            state = pagerState,
-                            pageSpacing = 16.dp,
-                            modifier = Modifier.fillMaxWidth()
-                        ) { page ->
-                            val pageOffset = pagerState.getOffsetDistanceInPages(page)
-                            val absOffset = minOf(1f, abs(pageOffset))
-                            val heroScale = lerp(1f, 0.90f, absOffset)
-                            val heroAlpha = lerp(1f, 0.35f, absOffset)
-                            Box(
-                                Modifier.graphicsLayer {
-                                    scaleX = heroScale
-                                    scaleY = heroScale
-                                    alpha = heroAlpha
-                                    translationX = pageOffset * -parallaxPx
-                                }
-                            ) {
-                                StorageHeroCard(
-                                    root = heroes[page],
-                                    rootActive = rootActive,
-                                    onOpenRoot = onOpenRoot
-                                )
-                            }
-                        }
-                        if (heroes.size > 1) {
+                    // Opsi 4D (Expressive Split Volumes — kartu diperbesar):
+                    // Volume utama (Internal) tampil penuh & besar di atas,
+                    // diikuti kartu volume sekunder (Root /, USB OTG, SD)
+                    // yang tampil langsung di bawahnya tanpa harus geser.
+                    StorageHeroCard(
+                        root = primaryRoot,
+                        rootActive = rootActive,
+                        onOpenRoot = onOpenRoot
+                    )
+                    if (secondaryRoots.isNotEmpty()) {
+                        secondaryRoots.chunked(2).forEach { rowRoots ->
                             Row(
                                 Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                heroes.forEachIndexed { i, _ ->
-                                    val selected = pagerState.currentPage == i
-                                    val dotWidth by animateDpAsState(
-                                        targetValue = if (selected) 24.dp else 8.dp,
-                                        label = "heroDot"
+                                rowRoots.forEach { secRoot ->
+                                    SecondaryStorageSplitCard(
+                                        root = secRoot,
+                                        rootActive = rootActive,
+                                        modifier = Modifier.weight(1f),
+                                        onOpenRoot = onOpenRoot
                                     )
-                                    Box(
-                                        Modifier.padding(4.dp).clickable {
-                                            scope.launch { pagerState.animateScrollToPage(i) }
-                                        },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Box(
-                                            Modifier.height(8.dp).width(dotWidth).clip(CircleShape)
-                                                .background(
-                                                    if (selected) MaterialTheme.colorScheme.primary
-                                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                                )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Volume tanpa total diketahui tetap tampil sebagai
-                    // baris kecil seperti sebelumnya.
-                    roots.filter { it.total <= 0 }.forEach { root ->
-                        Box(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
-                        ) {
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Column {
-                                    Text(rootLabel(root, t), style = MaterialTheme.typography.titleSmall)
-                                    Text(root.path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -338,69 +275,176 @@ fun HomeScreen(
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(t.categories, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(t.categories, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
-                // Redesain Opsi 1 (Expressive Hub - 4 Kolom Kompak):
-                // 8 ubin (7 kategori + Tempat Sampah) disusun dalam 4 kolom x 2 baris
-                // dengan warna semantik khas per kategori untuk pengenalan visual cepat.
-                val cats = listOf(
-                    Triple(Category.IMAGE, t.catImagesS, Color(0xFF8B5CF6)), // Violet
-                    Triple(Category.VIDEO, t.catVideosS, Color(0xFFF43F5E)), // Rose/Coral
-                    Triple(Category.AUDIO, t.catAudioS, Color(0xFF14B8A6)), // Teal
-                    Triple(Category.DOCUMENT, t.catDocumentsS, Color(0xFF3B82F6)), // Blue
-                    Triple(Category.APP, t.catAppsS, Color(0xFF10B981)), // Emerald
-                    Triple(Category.ARCHIVE, t.catArchivesS, Color(0xFFF59E0B)), // Amber
-                    Triple(Category.OTHER, t.catOtherS, Color(0xFF64748B)) // Slate
-                )
-                
-                // Baris 1: Gambar, Video, Audio, Dokumen
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    cats.take(4).forEach { (cat, label, color) ->
-                        CategoryTile(
-                            icon = categoryIcon(cat, ""),
-                            label = label,
-                            color = color,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onOpenCategory(cat) }
-                        )
-                    }
+                // Opsi 4D (Kartu Kategori 2-Kolom Diperbesar):
+                val cats = buildList {
+                    add(Triple(Category.IMAGE, t.catImagesS, Color(0xFF8B5CF6)))
+                    add(Triple(Category.VIDEO, t.catVideosS, Color(0xFF06B6D4)))
+                    add(Triple(Category.APP, t.catAppsS, Color(0xFF10B981)))
+                    add(Triple(Category.DOCUMENT, t.catDocumentsS, Color(0xFFF59E0B)))
+                    add(Triple(Category.AUDIO, t.catAudioS, Color(0xFFF43F5E)))
+                    add(Triple(Category.ARCHIVE, t.catArchivesS, Color(0xFFA855F7)))
+                    add(Triple(Category.OTHER, t.catOtherS, Color(0xFF64748B)))
                 }
-
-                // Baris 2: APK, Arsip, Lainnya, dan Tempat Sampah
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    cats.drop(4).forEach { (cat, label, color) ->
-                        CategoryTile(
-                            icon = categoryIcon(cat, ""),
-                            label = label,
-                            color = color,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onOpenCategory(cat) }
-                        )
-                    }
-                    if (trashEnabled) {
-                        val trashColor = Color(0xFFEF5350)
-                        CategoryTile(
-                            icon = Icons.Default.Delete,
-                            label = t.trash,
-                            color = trashColor,
-                            modifier = Modifier.weight(1f),
-                            onClick = onOpenTrash
-                        )
-                    } else {
-                        Spacer(Modifier.weight(1f))
+                val totalTiles = if (trashEnabled) cats.size + 1 else cats.size
+                val indices = (0 until totalTiles).chunked(2)
+                indices.forEach { pair ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        pair.forEach { idx ->
+                            if (idx < cats.size) {
+                                val (cat, label, color) = cats[idx]
+                                CategoryTile(
+                                    icon = categoryIcon(cat, ""),
+                                    label = label,
+                                    color = color,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { onOpenCategory(cat) }
+                                )
+                            } else {
+                                val trashColor = Color(0xFFEF5350)
+                                CategoryTile(
+                                    icon = Icons.Default.Delete,
+                                    label = t.trash,
+                                    color = trashColor,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onOpenTrash
+                                )
+                            }
+                        }
+                        if (pair.size == 1) {
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SecondaryStorageSplitCard(
+    root: RootInfo,
+    rootActive: Boolean,
+    modifier: Modifier = Modifier,
+    onOpenRoot: (String) -> Unit
+) {
+    val t = txt()
+    val scheme = MaterialTheme.colorScheme
+    val data = heroCardData(root)
+    val freeFraction =
+        if (data.totalBytes > 0) data.freeBytes.toFloat() / data.totalBytes.toFloat() else 0f
+    val (healthText, healthDot) = storageStatus(freeFraction)
+    val accentColor = when (root.kind) {
+        "root" -> if (rootActive) Color(0xFF10B981) else Color(0xFFF59E0B)
+        "usb" -> Color(0xFF06B6D4)
+        "sd" -> Color(0xFF38BDF8)
+        else -> scheme.primary
+    }
+    val statusLabel = if (root.kind == "root") {
+        if (rootActive) t.rootActive else t.rootLimited
+    } else {
+        healthText
+    }
+    val badgeColor = if (root.kind == "root") accentColor else healthDot
+    val icon = when (root.kind) {
+        "root" -> Icons.Default.Terminal
+        "sd" -> Icons.Default.SdStorage
+        "usb" -> Icons.Default.Usb
+        else -> Icons.Default.Smartphone
+    }
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(scheme.secondaryContainer)
+            .border(1.dp, accentColor.copy(alpha = 0.38f), RoundedCornerShape(24.dp))
+            .clickable { onOpenRoot(root.path) }
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
+                Icon(icon, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = rootLabel(root, t),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(Modifier.width(6.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(badgeColor.copy(alpha = 0.18f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = badgeColor,
+                    maxLines = 1
+                )
+            }
+        }
+        if (data.totalBytes > 0) {
+            Text(
+                text = FileOps.formatSize(data.usedBytes) + " / " + FileOps.formatSize(data.totalBytes),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = scheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(scheme.surfaceContainerHighest)
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(data.usedFraction.coerceIn(0.04f, 1f))
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(accentColor)
+                )
+            }
+            Text(
+                text = String.format(appLocale(), "%.1f%%", data.usedPercent) + " \u00b7 " + t.freeOf(FileOps.formatSize(data.freeBytes)),
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else {
+            Text(
+                text = root.path,
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -413,40 +457,39 @@ private fun CategoryTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Column(
+    Row(
         modifier = modifier
-            .height(76.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(color.copy(alpha = 0.12f))
+            .height(74.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(22.dp))
             .clickable { onClick() }
-            .padding(horizontal = 4.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
             Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = 0.22f)),
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(color.copy(alpha = 0.20f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 icon,
                 null,
                 tint = color,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
-        Spacer(Modifier.height(5.dp))
         Text(
             label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -498,12 +541,12 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 36.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = 28.dp, vertical = 12.dp)
+            .clip(RoundedCornerShape(26.dp))
             .background(barColor)
-            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(26.dp))
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         items.forEach { (index, icon, label) ->
@@ -521,12 +564,12 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             Column(
                 Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(bg)
                     .clickable { onSelect(index) }
-                    .padding(vertical = 7.dp),
+                    .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Icon(
                     imageVector = if (selected) icon else outlined[index],
@@ -537,7 +580,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     color = fg,
                     maxLines = 1
                 )

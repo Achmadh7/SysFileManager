@@ -25,6 +25,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -222,6 +223,68 @@ fun BrowseHeaderBar(
                 )
             }
         }
+        // Opsi 2 (Status Volume Banner tanpa switcher volume):
+        // menampilkan konteks penyimpanan aktif (Internal, Root /, atau USB OTG/SD).
+        if (currentRoot != null) {
+            val rootActive = RootShell.state == RootShell.GRANTED
+            val bannerColor = when (currentRoot.kind) {
+                "root" -> if (rootActive) Color(0xFF10B981) else Color(0xFFF59E0B)
+                "usb", "sd" -> Color(0xFF06B6D4)
+                else -> MaterialTheme.colorScheme.primary
+            }
+            val bannerPrefix = when (currentRoot.kind) {
+                "root" -> "\u26A1 "
+                "usb", "sd" -> "\uD83D\uDD0C "
+                else -> "\uD83D\uDCF1 "
+            }
+            val bannerStatus = when (currentRoot.kind) {
+                "root" -> if (rootActive) t.rootActive else t.rootLimited
+                else -> if (currentRoot.total > 0) t.freeOf(FileOps.formatSize(currentRoot.free)) else currentRoot.path
+            }
+            val rightBadge = when (currentRoot.kind) {
+                "root" -> if (rootActive) "RW" else "r-x"
+                "usb", "sd" -> "RW"
+                else -> if (currentRoot.total > 0) {
+                    val usedPct = (((currentRoot.total - currentRoot.free).coerceAtLeast(0L).toDouble() / currentRoot.total.toDouble()) * 100.0).toInt()
+                    "$usedPct%"
+                } else "OK"
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(bannerColor.copy(alpha = 0.14f))
+                    .border(1.dp, bannerColor.copy(alpha = 0.38f), RoundedCornerShape(18.dp))
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = bannerPrefix + rootLabel(currentRoot, t) + " \u2022 " + bannerStatus,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = bannerColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(bannerColor.copy(alpha = 0.22f))
+                        .padding(horizontal = 9.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = rightBadge,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = bannerColor
+                    )
+                }
+            }
+        }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 .padding(horizontal = 8.dp, vertical = 3.dp),
@@ -401,17 +464,106 @@ fun BrowseScreen(
                         )
                     }
                 }
-                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
-                    items(entries, key = { it.path }) { entry ->
-                        FileRow(
-                            entry = entry,
-                            selectionMode = selected.isNotEmpty(),
-                            isSelected = selected.contains(entry.path),
-                            itemCount = counts[entry.path],
-                            onClick = { onOpenEntry(entry) },
-                            onLongClick = { onLongPress(entry) },
-                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
-                        )
+                else -> {
+                    val (dirs, files) = remember(entries) { entries.partition { it.isDir } }
+                    val groupBg = MaterialTheme.colorScheme.surfaceContainerLow
+                    val groupBorder = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                    val isId = appLocale().language == "id" || appLocale().language == "in"
+                    val dirGroupTitle = (if (isId) "FOLDER" else "FOLDERS") + " (${dirs.size})"
+                    val fileGroupTitle = (if (isId) "BERKAS" else "FILES") + " (${files.size})"
+                    LazyColumn(
+                        Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
+                    ) {
+                        if (dirs.isNotEmpty()) {
+                            item(key = "header_dirs") {
+                                Text(
+                                    text = dirGroupTitle,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 6.dp)
+                                )
+                            }
+                            itemsIndexed(dirs, key = { _, e -> e.path }) { idx, entry ->
+                                val isFirst = idx == 0
+                                val isLast = idx == dirs.lastIndex
+                                val shape = RoundedCornerShape(
+                                    topStart = if (isFirst) 24.dp else 0.dp,
+                                    topEnd = if (isFirst) 24.dp else 0.dp,
+                                    bottomStart = if (isLast) 24.dp else 0.dp,
+                                    bottomEnd = if (isLast) 24.dp else 0.dp
+                                )
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp)
+                                        .clip(shape)
+                                        .background(groupBg)
+                                        .padding(
+                                            top = if (isFirst) 8.dp else 1.dp,
+                                            bottom = if (isLast) 8.dp else 1.dp
+                                        )
+                                ) {
+                                    FileRow(
+                                        entry = entry,
+                                        selectionMode = selected.isNotEmpty(),
+                                        isSelected = selected.contains(entry.path),
+                                        itemCount = counts[entry.path],
+                                        onClick = { onOpenEntry(entry) },
+                                        onLongClick = { onLongPress(entry) },
+                                        locked = FileOps.isLockedFolder(entry.path, lockedPaths)
+                                    )
+                                }
+                            }
+                        }
+                        if (files.isNotEmpty()) {
+                            item(key = "header_files") {
+                                Text(
+                                    text = fileGroupTitle,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 6.dp)
+                                )
+                            }
+                            itemsIndexed(files, key = { _, e -> e.path }) { idx, entry ->
+                                val isFirst = idx == 0
+                                val isLast = idx == files.lastIndex
+                                val shape = RoundedCornerShape(
+                                    topStart = if (isFirst) 24.dp else 0.dp,
+                                    topEnd = if (isFirst) 24.dp else 0.dp,
+                                    bottomStart = if (isLast) 24.dp else 0.dp,
+                                    bottomEnd = if (isLast) 24.dp else 0.dp
+                                )
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp)
+                                        .clip(shape)
+                                        .background(groupBg)
+                                        .border(
+                                            width = if (isFirst && isLast) 1.dp else 0.dp,
+                                            color = if (isFirst && isLast) groupBorder else Color.Transparent,
+                                            shape = shape
+                                        )
+                                        .padding(
+                                            top = if (isFirst) 8.dp else 1.dp,
+                                            bottom = if (isLast) 8.dp else 1.dp
+                                        )
+                                ) {
+                                    FileRow(
+                                        entry = entry,
+                                        selectionMode = selected.isNotEmpty(),
+                                        isSelected = selected.contains(entry.path),
+                                        itemCount = counts[entry.path],
+                                        onClick = { onOpenEntry(entry) },
+                                        onLongClick = { onLongPress(entry) },
+                                        locked = FileOps.isLockedFolder(entry.path, lockedPaths)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -12,8 +13,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Archive
@@ -34,6 +38,9 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ListItem
@@ -55,7 +62,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -139,18 +152,26 @@ fun entryColor(entry: FEntry): Color {
 private data class FolderStyle(val icon: ImageVector, val color: Color)
 
 private val folderStyles: Map<String, FolderStyle> = mapOf(
-    "download" to FolderStyle(Icons.Default.Download, Color(0xFF9ACBFA)),
-    "downloads" to FolderStyle(Icons.Default.Download, Color(0xFF9ACBFA)),
-    "dcim" to FolderStyle(Icons.Default.PhotoCamera, Color(0xFFCFBCFF)),
-    "pictures" to FolderStyle(Icons.Default.Image, Color(0xFFCFBCFF)),
-    "documents" to FolderStyle(Icons.Default.Description, Color(0xFF7FD8C3)),
-    "android" to FolderStyle(Icons.Default.Android, Color(0xFFA8D98A)),
-    "music" to FolderStyle(Icons.Default.MusicNote, Color(0xFFF2A7C3)),
-    "audiobooks" to FolderStyle(Icons.Default.MusicNote, Color(0xFFF2A7C3)),
-    "movies" to FolderStyle(Icons.Default.Movie, Color(0xFFFFB870)),
-    "alarms" to FolderStyle(Icons.Default.Alarm, Color(0xFF9AA8B5))
+    "download" to FolderStyle(Icons.Default.Download, Color(0xFF0EA5E9)),
+    "downloads" to FolderStyle(Icons.Default.Download, Color(0xFF0EA5E9)),
+    "dcim" to FolderStyle(Icons.Default.PhotoCamera, Color(0xFF8B5CF6)),
+    "pictures" to FolderStyle(Icons.Default.Image, Color(0xFF8B5CF6)),
+    "documents" to FolderStyle(Icons.Default.Description, Color(0xFF14B8A6)),
+    "android" to FolderStyle(Icons.Default.Android, Color(0xFF10B981)),
+    "music" to FolderStyle(Icons.Default.MusicNote, Color(0xFFF43F5E)),
+    "audiobooks" to FolderStyle(Icons.Default.MusicNote, Color(0xFFF43F5E)),
+    "movies" to FolderStyle(Icons.Default.Movie, Color(0xFFF59E0B)),
+    "alarms" to FolderStyle(Icons.Default.Alarm, Color(0xFF64748B)),
+    "system" to FolderStyle(Icons.Default.Settings, Color(0xFFF59E0B)),
+    "vendor" to FolderStyle(Icons.Default.Build, Color(0xFF06B6D4)),
+    "product" to FolderStyle(Icons.Default.Storage, Color(0xFF6366F1)),
+    "data" to FolderStyle(Icons.Default.Security, Color(0xFFEC4899)),
+    "priv-app" to FolderStyle(Icons.Default.Security, Color(0xFFF59E0B)),
+    "app" to FolderStyle(Icons.Default.Android, Color(0xFF10B981)),
+    "etc" to FolderStyle(Icons.Default.Terminal, Color(0xFF38BDF8)),
+    "mnt" to FolderStyle(Icons.Default.Storage, Color(0xFF06B6D4))
 )
-private val defaultFolderStyle = FolderStyle(Icons.Default.Folder, Color(0xFF9AA8B5))
+private val defaultFolderStyle = FolderStyle(Icons.Default.Folder, Color(0xFF6366F1))
 
 fun folderIcon(name: String): ImageVector =
     (folderStyles[name.lowercase()] ?: defaultFolderStyle).icon
@@ -167,15 +188,19 @@ private val apkIconCache = object : android.util.LruCache<String, android.graphi
     }
 }
 
-/** Ikon asli aplikasi dari berkas APK, dimuat di latar; null untuk non-APK atau gagal urai. */
+/** Ikon asli aplikasi dari berkas APK maupun folder paket/sistem aplikasi, dimuat di latar. */
 @Composable
 fun rememberApkIcon(entry: FEntry): android.graphics.Bitmap? {
     val context = LocalContext.current
     val key = entry.path + ":" + entry.modified
     var icon by remember(key) { mutableStateOf(apkIconCache.get(key)) }
-    LaunchedEffect(key) {
-        if (icon == null && entry.category == Category.APP && !entry.isDir) {
-            val bmp = withContext(Dispatchers.IO) { FileOps.apkIcon(context, entry.file) }
+    val eligible = (!entry.isDir && entry.category == Category.APP) ||
+        (entry.isDir && FileOps.mayHaveAppIcon(entry.file))
+    LaunchedEffect(key, eligible) {
+        if (icon == null && eligible) {
+            val bmp = withContext(Dispatchers.IO) {
+                FileOps.entryAppIcon(context, entry.file, entry.isDir)
+            }
             if (bmp != null) {
                 apkIconCache.put(key, bmp)
                 icon = bmp
@@ -207,12 +232,158 @@ fun rememberThumbLoader(): ImageLoader {
     }
 }
 
-/** Miniatur besar untuk sel kisi 2 kolom: foto/video memenuhi sel, lainnya panel ikon berwarna. */
+/**
+ * Opsi 2 — Pocket Folder (Kantong Folder Terbuka):
+ * Pelat folder belakang + logo asli aplikasi (atau ikon kategori) yang menyembul
+ * keluar dari mulut kantong folder + bibir kantong depan di bagian bawah.
+ */
+@Composable
+private fun PocketFolderGraphic(
+    entry: FEntry,
+    apkIcon: android.graphics.Bitmap?,
+    boxHeightDp: Int,
+    modifier: Modifier = Modifier
+) {
+    val baseColor = entryColor(entry)
+    val isAppFolder = apkIcon != null
+    val backColor = if (isAppFolder) Color(0xFF334155) else baseColor.copy(alpha = 0.62f)
+    val lipColor = if (isAppFolder) Color(0xFF475569) else baseColor
+    val peekSize = (boxHeightDp * 0.44f).dp
+    val peekOffsetY = -(boxHeightDp * 0.08f).dp
+
+    Box(
+        modifier = modifier.background(
+            if (isAppFolder) Color(0xFF1E293B) else baseColor.copy(alpha = 0.14f)
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        // Lapis 1: Pelat Belakang Folder + Tab Atas
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val backPath = Path().apply {
+                moveTo(w * 0.16f, h * 0.28f)
+                lineTo(w * 0.16f, h * 0.23f)
+                lineTo(w * 0.42f, h * 0.23f)
+                lineTo(w * 0.49f, h * 0.29f)
+                lineTo(w * 0.84f, h * 0.29f)
+                lineTo(w * 0.84f, h * 0.78f)
+                lineTo(w * 0.16f, h * 0.78f)
+                close()
+            }
+            drawPath(backPath, color = backColor)
+        }
+
+        // Lapis 2: Logo Asli Aplikasi atau Ikon Kategori yang Menyembul dari Mulut Kantong
+        if (apkIcon != null) {
+            Image(
+                bitmap = apkIcon.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(peekSize)
+                    .offset(y = peekOffsetY)
+                    .clip(RoundedCornerShape((boxHeightDp * 0.13f).dp))
+                    .border(
+                        1.2.dp,
+                        Color.White.copy(alpha = 0.85f),
+                        RoundedCornerShape((boxHeightDp * 0.13f).dp)
+                    )
+            )
+        } else {
+            Box(
+                Modifier
+                    .size(peekSize)
+                    .offset(y = peekOffsetY)
+                    .clip(RoundedCornerShape((boxHeightDp * 0.13f).dp))
+                    .background(Color.White.copy(alpha = 0.90f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = folderIcon(entry.name),
+                    contentDescription = null,
+                    tint = baseColor,
+                    modifier = Modifier.size((boxHeightDp * 0.26f).dp)
+                )
+            }
+        }
+
+        // Lapis 3: Bibir Kantong Depan (menutupi bagian bawah logo yang masuk ke kantong) + garis slot
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val lipTop = h * 0.50f
+            val lipHeight = h * 0.34f
+            drawRoundRect(
+                color = lipColor,
+                topLeft = Offset(w * 0.13f, lipTop),
+                size = Size(w * 0.74f, lipHeight),
+                cornerRadius = CornerRadius(w * 0.10f, w * 0.10f)
+            )
+            // Garis aksen slot kantong
+            drawLine(
+                color = Color.White.copy(alpha = 0.55f),
+                start = Offset(w * 0.37f, lipTop + lipHeight * 0.48f),
+                end = Offset(w * 0.63f, lipTop + lipHeight * 0.48f),
+                strokeWidth = (h * 0.055f).coerceAtLeast(2f),
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+
+/**
+ * Opsi 2 — Zipper Archive Graphic (Ilustrasi Ritsleting untuk ZIP / 7Z / TAR / RAR).
+ */
+@Composable
+private fun ZipperArchiveGraphic(boxHeightDp: Int, modifier: Modifier = Modifier) {
+    val amber = Color(0xFFF59E0B)
+    Box(
+        modifier = modifier.background(amber.copy(alpha = 0.16f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            // Badan arsip
+            drawRoundRect(
+                color = amber,
+                topLeft = Offset(w * 0.22f, h * 0.18f),
+                size = Size(w * 0.56f, h * 0.64f),
+                cornerRadius = CornerRadius(w * 0.14f, w * 0.14f)
+            )
+            // Jalur ritsleting putus-putus
+            drawLine(
+                color = Color(0xFF451A03),
+                start = Offset(w * 0.50f, h * 0.18f),
+                end = Offset(w * 0.50f, h * 0.58f),
+                strokeWidth = (w * 0.08f).coerceAtLeast(3f),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(h * 0.06f, h * 0.05f), 0f)
+            )
+            // Kepala ritsleting (zipper pull)
+            drawRoundRect(
+                color = Color(0xFFFEF3C7),
+                topLeft = Offset(w * 0.42f, h * 0.52f),
+                size = Size(w * 0.16f, h * 0.17f),
+                cornerRadius = CornerRadius(w * 0.04f, w * 0.04f)
+            )
+        }
+    }
+}
+
+/** Miniatur besar untuk sel kisi 2 kolom: foto/video memenuhi sel, folder memakai Pocket Folder Opsi 2. */
 @Composable
 fun FileThumbLarge(entry: FEntry) {
     val isMedia = (entry.category == Category.IMAGE || entry.category == Category.VIDEO) && !entry.isDir
     val apkIcon = rememberApkIcon(entry)
-    if (apkIcon != null) {
+    if (entry.isDir) {
+        PocketFolderGraphic(
+            entry = entry,
+            apkIcon = apkIcon,
+            boxHeightDp = 96,
+            modifier = Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(16.dp))
+        )
+    } else if (apkIcon != null) {
         Image(
             bitmap = apkIcon.asImageBitmap(),
             contentDescription = null,
@@ -229,6 +400,11 @@ fun FileThumbLarge(entry: FEntry) {
             modifier = Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
+    } else if (entry.category == Category.ARCHIVE) {
+        ZipperArchiveGraphic(
+            boxHeightDp = 96,
+            modifier = Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(16.dp))
+        )
     } else {
         val color = entryColor(entry)
         Box(
@@ -237,7 +413,7 @@ fun FileThumbLarge(entry: FEntry) {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (entry.isDir) folderIcon(entry.name) else categoryIcon(entry.category, entry.name),
+                categoryIcon(entry.category, entry.name),
                 null,
                 tint = color,
                 modifier = Modifier.size(46.dp)
@@ -375,12 +551,19 @@ fun FileRow(
     }
 }
 
-/** Ubin kotak membulat untuk kartu daftar: foto/video memenuhi ubin, lainnya ikon berwarna. */
+/** Ubin kotak membulat untuk kartu daftar: folder memakai Pocket Folder Opsi 2, arsip memakai ritsleting, APK memakai logo asli. */
 @Composable
 fun FileThumbTile(entry: FEntry, sizeDp: Int) {
     val isMedia = entry.category == Category.IMAGE || entry.category == Category.VIDEO
     val apkIcon = rememberApkIcon(entry)
-    if (apkIcon != null) {
+    if (entry.isDir) {
+        PocketFolderGraphic(
+            entry = entry,
+            apkIcon = apkIcon,
+            boxHeightDp = sizeDp,
+            modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
+        )
+    } else if (apkIcon != null) {
         Image(
             bitmap = apkIcon.asImageBitmap(),
             contentDescription = null,
@@ -388,7 +571,7 @@ fun FileThumbTile(entry: FEntry, sizeDp: Int) {
             modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
-    } else if (isMedia && !entry.isDir) {
+    } else if (isMedia) {
         AsyncImage(
             model = File(entry.path),
             contentDescription = null,
@@ -396,6 +579,11 @@ fun FileThumbTile(entry: FEntry, sizeDp: Int) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+    } else if (entry.category == Category.ARCHIVE) {
+        ZipperArchiveGraphic(
+            boxHeightDp = sizeDp,
+            modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
         )
     } else {
         val color = entryColor(entry)
@@ -405,7 +593,7 @@ fun FileThumbTile(entry: FEntry, sizeDp: Int) {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (entry.isDir) folderIcon(entry.name) else categoryIcon(entry.category, entry.name),
+                categoryIcon(entry.category, entry.name),
                 null,
                 tint = color,
                 modifier = Modifier.size((sizeDp * 0.52f).dp)
@@ -493,6 +681,7 @@ fun StorageCard(
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
             .background(scheme.secondaryContainer)
+            .border(1.dp, scheme.primary.copy(alpha = 0.22f), RoundedCornerShape(28.dp))
             .clickable { onClick() }
     ) {
         StorageCardContent(
@@ -527,15 +716,16 @@ fun StorageCardContent(
     val scheme = MaterialTheme.colorScheme
     Column {
             Column(
-                Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(icon, null, tint = scheme.primary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
+                    Icon(icon, null, tint = scheme.primary, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         label,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                         color = scheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -547,25 +737,25 @@ fun StorageCardContent(
                         border = BorderStroke(1.dp, statusDot.copy(alpha = 0.6f))
                     ) {
                         Row(
-                            Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(Modifier.size(8.dp).clip(CircleShape).background(statusDot))
                             Spacer(Modifier.width(6.dp))
-                            Text(statusText, style = MaterialTheme.typography.labelMedium, color = statusDot)
+                            Text(statusText, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = statusDot)
                         }
                     }
                 }
                 Text(
                     usedText + " " + usedWord,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold
                 )
                 Text(detailText, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
             }
             Column(
-                Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                Modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 LinearWavyProgressIndicator(
                     progress = { usedFraction.coerceIn(0f, 1f) },
@@ -575,9 +765,58 @@ fun StorageCardContent(
                 )
                 Text(
                     percentText + " " + usedWord,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
 }
+
+/**
+ * Progress bar operasi berkas Variasi 1A (Split-Gap Solid Capsule):
+ * kapsul warna solid murni (tanpa gradien) dengan celah pemisah 5dp
+ * antara bagian progres terisi dan sisa track, serta titik ujung di dalam bar.
+ */
+@Composable
+fun SplitGapSolidProgressBar(
+    progress: Float?,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    val clamped = (progress ?: 0.35f).coerceIn(0.06f, 1f)
+    val remain = (1f - clamped).coerceAtLeast(0f)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .weight(clamped)
+                .height(12.dp)
+                .clip(CircleShape)
+                .background(scheme.primary)
+                .padding(end = 4.dp),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            Box(
+                Modifier
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(scheme.surfaceContainerHighest)
+            )
+        }
+        if (remain > 0.02f) {
+            Box(
+                Modifier
+                    .weight(remain)
+                    .height(12.dp)
+                    .clip(CircleShape)
+                    .background(scheme.outlineVariant.copy(alpha = 0.45f))
+            )
+        }
+    }
+}
+
