@@ -17,7 +17,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -146,6 +151,7 @@ import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlin.math.abs
+import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -236,38 +242,99 @@ fun HomeScreen(
         }
         if (roots.isNotEmpty()) {
             item {
-                val heroes = heroRoots(roots)
-                val primaryRoot = heroes.firstOrNull() ?: roots.first()
-                val secondaryRoots = roots.filter { it.path != primaryRoot.path }
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                        Spacer(Modifier.width(10.dp))
-                        Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    }
-                    // Opsi 4D (Expressive Split Volumes — kartu diperbesar):
-                    // Volume utama (Internal) tampil penuh & besar di atas,
-                    // diikuti kartu volume sekunder (Root /, USB OTG, SD)
-                    // yang tampil langsung di bawahnya tanpa harus geser.
-                    StorageHeroCard(
-                        root = primaryRoot,
-                        rootActive = rootActive,
-                        onOpenRoot = onOpenRoot
-                    )
-                    if (secondaryRoots.isNotEmpty()) {
-                        secondaryRoots.chunked(2).forEach { rowRoots ->
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                val pagerState = rememberPagerState(pageCount = { roots.size })
+                val scope = rememberCoroutineScope()
+                val currentRoot = roots[pagerState.currentPage.coerceIn(0, roots.lastIndex)]
+                val currentAccent = storageVolumeAccent(currentRoot.kind, rootActive, MaterialTheme.colorScheme.primary)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        }
+                        if (roots.size > 1) {
+                            Box(
+                                Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(currentAccent.copy(alpha = 0.15f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                rowRoots.forEach { secRoot ->
-                                    SecondaryStorageSplitCard(
-                                        root = secRoot,
-                                        rootActive = rootActive,
-                                        modifier = Modifier.weight(1f),
-                                        onOpenRoot = onOpenRoot
-                                    )
-                                }
+                                Text(
+                                    text = "${pagerState.currentPage + 1} / ${roots.size}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = currentAccent
+                                )
+                            }
+                        }
+                    }
+
+                    // Opsi 1 — Peek Hero Carousel (HorizontalPager + Neighbor Edge Peek + Dynamic Pill Indicator):
+                    // Semua penyimpanan (Internal, Root /, USB OTG, SD Card) dalam 1 slot hemat ruang
+                    // dengan kartu berikutnya mengintip di sisi kanan sebagai petunjuk swipe.
+                    HorizontalPager(
+                        state = pagerState,
+                        contentPadding = if (roots.size > 1) PaddingValues(end = 38.dp) else PaddingValues(0.dp),
+                        pageSpacing = 12.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { page ->
+                        val pageRoot = roots[page]
+                        val pageOffset = abs(
+                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        ).coerceIn(0f, 1f)
+                        val scale = lerp(0.95f, 1f, 1f - pageOffset)
+                        val alpha = lerp(0.58f, 1f, 1f - pageOffset)
+                        PeekStorageHeroCard(
+                            root = pageRoot,
+                            rootActive = rootActive,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                    this.alpha = alpha
+                                },
+                            onOpenRoot = onOpenRoot
+                        )
+                    }
+
+                    if (roots.size > 1) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            roots.forEachIndexed { idx, r ->
+                                val selected = idx == pagerState.currentPage
+                                val dotAccent = storageVolumeAccent(r.kind, rootActive, MaterialTheme.colorScheme.primary)
+                                val dotWidth by animateDpAsState(
+                                    targetValue = if (selected) 24.dp else 7.dp,
+                                    label = "storagePagerDotWidth"
+                                )
+                                val dotColor by animateColorAsState(
+                                    targetValue = if (selected) dotAccent else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                                    label = "storagePagerDotColor"
+                                )
+                                Box(
+                                    Modifier
+                                        .padding(horizontal = 3.5.dp)
+                                        .height(7.dp)
+                                        .width(dotWidth)
+                                        .clip(CircleShape)
+                                        .background(dotColor)
+                                        .clickable {
+                                            scope.launch {
+                                                pagerState.animateScrollToPage(idx)
+                                            }
+                                        }
+                                )
                             }
                         }
                     }
@@ -329,8 +396,24 @@ fun HomeScreen(
     }
 }
 
+private fun storageVolumeAccent(kind: String, rootActive: Boolean, defaultPrimary: Color): Color {
+    return when (kind) {
+        "root" -> if (rootActive) Color(0xFF10B981) else Color(0xFFF59E0B)
+        "usb" -> Color(0xFFA855F7)
+        "sd" -> Color(0xFF06B6D4)
+        else -> defaultPrimary
+    }
+}
+
+/**
+ * Opsi 1 — Peek Hero Carousel Card:
+ * Kartu penyimpanan tunggal untuk HorizontalPager dengan kotak ikon berwarna,
+ * nama volume + path/status, badge persentase/status di kanan atas,
+ * Split-Gap Solid Progress Bar (selaras Opsi 1A dengan titik stop di ujung kanan track),
+ * dan baris ringkasan kapasitas terpakai & total.
+ */
 @Composable
-private fun SecondaryStorageSplitCard(
+private fun PeekStorageHeroCard(
     root: RootInfo,
     rootActive: Boolean,
     modifier: Modifier = Modifier,
@@ -339,37 +422,39 @@ private fun SecondaryStorageSplitCard(
     val t = txt()
     val scheme = MaterialTheme.colorScheme
     val data = heroCardData(root)
-    val freeFraction =
-        if (data.totalBytes > 0) data.freeBytes.toFloat() / data.totalBytes.toFloat() else 0f
-    val (healthText, healthDot) = storageStatus(freeFraction)
-    val accentColor = when (root.kind) {
-        "root" -> if (rootActive) Color(0xFF10B981) else Color(0xFFF59E0B)
-        "usb" -> Color(0xFF06B6D4)
-        "sd" -> Color(0xFF38BDF8)
-        else -> scheme.primary
-    }
-    val statusLabel = if (root.kind == "root") {
-        if (rootActive) t.rootActive else t.rootLimited
-    } else {
-        healthText
-    }
-    val badgeColor = if (root.kind == "root") accentColor else healthDot
+    val accentColor = storageVolumeAccent(root.kind, rootActive, scheme.primary)
     val icon = when (root.kind) {
         "root" -> Icons.Default.Terminal
         "sd" -> Icons.Default.SdStorage
         "usb" -> Icons.Default.Usb
         else -> Icons.Default.Smartphone
     }
+    val subtitleText = when (root.kind) {
+        "root" -> if (rootActive) t.rootActive else t.rootLimited
+        else -> root.path
+    }
+    val badgeText = when {
+        root.kind == "root" -> if (rootActive) t.rootActive else t.rootLimited
+        data.totalBytes > 0 -> String.format(appLocale(), "%.0f%%", data.usedPercent)
+        else -> root.kind.uppercase()
+    }
+    val clampedFraction = when {
+        data.totalBytes > 0 -> data.usedFraction.coerceIn(0.06f, 1f)
+        root.kind == "root" -> if (rootActive) 0.68f else 0.25f
+        else -> 0.08f
+    }
+    val remainFraction = (1f - clampedFraction).coerceAtLeast(0f)
 
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(26.dp))
             .background(scheme.secondaryContainer)
-            .border(1.dp, accentColor.copy(alpha = 0.38f), RoundedCornerShape(24.dp))
+            .border(1.dp, accentColor.copy(alpha = 0.34f), RoundedCornerShape(26.dp))
             .clickable { onOpenRoot(root.path) }
             .padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Baris atas: kotak ikon + judul/subjudul volume + badge persentase/status
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -377,74 +462,131 @@ private fun SecondaryStorageSplitCard(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.weight(1f)
             ) {
-                Icon(icon, null, tint = accentColor, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(6.dp))
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(accentColor.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = rootLabel(root, t),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = scheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = subtitleText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(accentColor.copy(alpha = 0.16f))
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
                 Text(
-                    text = rootLabel(root, t),
-                    style = MaterialTheme.typography.titleMedium,
+                    text = badgeText,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = accentColor,
+                    maxLines = 1
+                )
+            }
+        }
+
+        // Baris tengah: Split-Gap Solid Progress Bar (5dp gap + stop dot di ujung kanan track)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .weight(clampedFraction)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(accentColor)
+            )
+            if (remainFraction > 0.02f) {
+                Box(
+                    Modifier
+                        .weight(remainFraction)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(scheme.surfaceContainerHighest)
+                        .padding(end = 4.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.75f))
+                    )
+                }
+            }
+        }
+
+        // Baris bawah: info kapasitas terpakai & total/bebas
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (data.totalBytes > 0) {
+                Text(
+                    text = "${t.usedWord.replaceFirstChar { it.uppercase() }} ${FileOps.formatSize(data.usedBytes)}",
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = scheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-            Spacer(Modifier.width(6.dp))
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(badgeColor.copy(alpha = 0.18f))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
-            ) {
                 Text(
-                    text = statusLabel,
-                    style = MaterialTheme.typography.labelSmall,
+                    text = "${FileOps.formatSize(data.freeBytes)} · ${t.ofTotal(FileOps.formatSize(data.totalBytes))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            } else {
+                Text(
+                    text = root.path,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (root.kind == "root" && rootActive) "R/W →" else "→",
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = badgeColor,
+                    color = accentColor,
                     maxLines = 1
                 )
             }
-        }
-        if (data.totalBytes > 0) {
-            Text(
-                text = FileOps.formatSize(data.usedBytes) + " / " + FileOps.formatSize(data.totalBytes),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = scheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(CircleShape)
-                    .background(scheme.surfaceContainerHighest)
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(data.usedFraction.coerceIn(0.04f, 1f))
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(accentColor)
-                )
-            }
-            Text(
-                text = String.format(appLocale(), "%.1f%%", data.usedPercent) + " \u00b7 " + t.freeOf(FileOps.formatSize(data.freeBytes)),
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        } else {
-            Text(
-                text = root.path,
-                style = MaterialTheme.typography.bodyMedium,
-                color = scheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }
@@ -534,56 +676,128 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val barColor = MaterialTheme.colorScheme.surfaceContainer
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
     val activeBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+    val activeBorder = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
     val activeFg = MaterialTheme.colorScheme.primary
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val inactiveFg = if (isDark) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
 
-    Row(
+    val safeTab = homeTab.coerceIn(0, 2)
+    val pillProgress by animateFloatAsState(
+        targetValue = safeTab.toFloat(),
+        animationSpec = spring(
+            dampingRatio = 0.68f,
+            stiffness = 380f
+        ),
+        label = "navPillSlide"
+    )
+    val flightArc = sin((pillProgress - pillProgress.toInt()).coerceIn(0f, 1f) * Math.PI.toFloat())
+    val pulseAnim = remember { Animatable(1f) }
+    val firstRender = remember { mutableStateOf(true) }
+    LaunchedEffect(safeTab) {
+        if (firstRender.value) {
+            firstRender.value = false
+        } else {
+            pulseAnim.snapTo(0f)
+            pulseAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 520)
+            )
+        }
+    }
+
+    BoxWithConstraints(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 28.dp, vertical = 12.dp)
             .clip(RoundedCornerShape(26.dp))
             .background(barColor)
             .border(1.dp, borderColor, RoundedCornerShape(26.dp))
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        items.forEach { (index, icon, label) ->
-            val selected = homeTab == index
-            val bg by animateColorAsState(
-                targetValue = if (selected) activeBg else Color.Transparent,
-                animationSpec = motion.defaultEffectsSpec(),
-                label = "navTileBg"
-            )
-            val fg by animateColorAsState(
-                targetValue = if (selected) activeFg else inactiveFg,
-                animationSpec = motion.defaultEffectsSpec(),
-                label = "navTileFg"
-            )
-            Column(
+        val gap = 8.dp
+        val slotWidth = (maxWidth - gap * 2) / 3f
+        val stepWidth = slotWidth + gap
+        val pillX = stepWidth * pillProgress
+        val targetX = stepWidth * safeTab.toFloat()
+        val pillLift = (-3).dp * flightArc
+        val pillScale = 1f + 0.04f * flightArc
+
+        // Cincin pulsa tonal Material 3 (Opsi 3: Flat M3 Tonal Ripple Ring saat mendarat)
+        val p = pulseAnim.value
+        if (p < 0.99f) {
+            Box(
                 Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(bg)
-                    .clickable { onSelect(index) }
-                    .padding(vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                Icon(
-                    imageVector = if (selected) icon else outlined[index],
-                    contentDescription = label,
-                    tint = fg,
-                    modifier = Modifier.size(22.dp)
+                    .offset(x = targetX)
+                    .width(slotWidth)
+                    .height(52.dp)
+                    .graphicsLayer {
+                        scaleX = 0.94f + 0.24f * p
+                        scaleY = 0.94f + 0.32f * p
+                        alpha = (1f - p) * 0.75f
+                    }
+                    .border(1.5.dp, activeFg, RoundedCornerShape(20.dp))
+            )
+        }
+
+        // Kapsul tonal solid Material 3 Expressive yang bergeser dengan pegas + lompatan halus
+        Box(
+            Modifier
+                .offset(x = pillX, y = pillLift)
+                .width(slotWidth)
+                .height(52.dp)
+                .graphicsLayer {
+                    scaleX = pillScale
+                    scaleY = pillScale
+                }
+                .clip(RoundedCornerShape(20.dp))
+                .background(activeBg)
+                .border(1.dp, activeBorder, RoundedCornerShape(20.dp))
+        )
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items.forEach { (index, icon, label) ->
+                val selected = safeTab == index
+                val fg by animateColorAsState(
+                    targetValue = if (selected) activeFg else inactiveFg,
+                    animationSpec = motion.defaultEffectsSpec(),
+                    label = "navTileFg"
                 )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = fg,
-                    maxLines = 1
+                val tabLift by animateDpAsState(
+                    targetValue = if (selected) (-2).dp else 0.dp,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "navTabLift"
                 )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onSelect(index) }
+                        .offset(y = tabLift),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically)
+                ) {
+                    Icon(
+                        imageVector = if (selected) icon else outlined[index],
+                        contentDescription = label,
+                        tint = fg,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        color = fg,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }

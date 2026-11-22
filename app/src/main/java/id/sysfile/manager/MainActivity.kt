@@ -16,6 +16,9 @@ import android.os.Environment
 import android.hardware.usb.UsbManager
 import android.provider.Settings
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -412,6 +415,31 @@ fun SysFileApp() {
         )
     }
 
+    // Berkas yang sedang tampil di penampil foto/video (diperbarui tiap
+    // ganti halaman) — dipakai aksi Bagikan/Properti/Hapus + penanda hapus.
+    var viewingPath by remember { mutableStateOf<String?>(null) }
+    var entries by remember { mutableStateOf<List<FEntry>>(emptyList()) }
+    var entryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var entriesLoaded by remember { mutableStateOf(true) }
+    // Cache sesi: folder yang pernah dibuka tampil seketika, lalu dimuat ulang di latar.
+    val listingCache = remember { mutableMapOf<String, List<FEntry>>() }
+    // r84: cache daftar kategori per sesi (pola yang sama dengan
+    // listingCache) — buka Foto/Video/Audio tidak memindai ulang
+    // seluruh penyimpanan dari nol; daftar lama tampil seketika,
+    // hasil segar menyusul di latar.
+    val categoryCache = remember { mutableMapOf<Category, List<FEntry>>() }
+    val categoryCacheAt = remember { mutableMapOf<Category, Long>() }
+    val categoryCacheKey = remember { mutableMapOf<Category, Int>() }
+    val countCache = remember { mutableMapOf<String, Int>() }
+    var reloadKey by remember { mutableStateOf(0) }
+    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    fun invalidateRootCaches() {
+        listingCache.clear()
+        countCache.clear()
+        reloadKey++
+    }
+
     // r116: refreshRoots dideklarasikan di sini — receiver OT1 di
     // bawah memakainya, dan fungsi lokal harus dideklarasi sebelum
     // pemakaian pertama.
@@ -419,31 +447,25 @@ fun SysFileApp() {
     // membaca /proc/mounts + sysfs — dulu ANR saat storage lambat).
     fun refreshRoots() {
         scope.launch {
-            // r201: pulihkan akses root saat startup — RootShell.state
-            // selalu UNKNOWN di proses baru, dan L17 melarang prompt su
-            // pasif; tapi bila root PERNAH diberikan (pref
-            // root_granted_before), Magisk sudah mengingat izinnya
-            // sehingga ensureRoot() berhasil tanpa prompt. Tanpa ini
-            // Root storage tak terbaca sampai sakelar di-off/on dulu.
-            // (Gate memakai pref root_entry, bukan state showRootEntry:
-            // state itu dideklarasi SETELAH fun ini — local fun tak bisa
-            // menangkap val yang dideklarasi sesudahnya.)
             val rootOn = prefs.getBoolean("root_entry", false)
-            if (rootOn && prefs.getBoolean("root_granted_before", false) &&
-                RootShell.state == RootShell.UNKNOWN
-            ) {
-                withContext(Dispatchers.IO) { RootShell.ensureRoot() }
-                // r204: hanya ingat keberhasilan — kegagalan sementara
-                // (su sempat gagal) tidak boleh menghapus ingatan bahwa
-                // root pernah diberikan.
-                if (RootShell.state == RootShell.GRANTED) {
+            if (!rootOn) {
+                if (rootActive) {
+                    rootActive = false
+                    invalidateRootCaches()
+                }
+            } else {
+                if (RootShell.state != RootShell.GRANTED) {
+                    RootShell.resetRootState()
+                    withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+                }
+                val isGranted = RootShell.state == RootShell.GRANTED
+                if (isGranted && !prefs.getBoolean("root_granted_before", false)) {
                     prefs.edit().putBoolean("root_granted_before", true).apply()
                 }
-            }
-            if (RootShell.state == RootShell.GRANTED &&
-                !prefs.getBoolean("root_granted_before", false)
-            ) {
-                prefs.edit().putBoolean("root_granted_before", true).apply()
+                if (rootActive != isGranted) {
+                    rootActive = isGranted
+                    invalidateRootCaches()
+                }
             }
             val fresh = withContext(Dispatchers.IO) { FileOps.storageRoots(context) }.toMutableList()
             // r201: OTG yang tak terlihat di /storage (di HP ini mount
@@ -473,6 +495,19 @@ fun SysFileApp() {
                 prefs.getStringSet("locked_folders", emptySet()) ?: emptySet()
             )
         }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (prefs.getBoolean("root_entry", false) && !rootActive) {
+                    refreshRoots()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // OT1 (r110): pantau colok/cabut media + perangkat USB — daftar
@@ -530,24 +565,6 @@ fun SysFileApp() {
             try { context.unregisterReceiver(usbReceiver) } catch (_: Exception) { }
         }
     }
-    // Berkas yang sedang tampil di penampil foto/video (diperbarui tiap
-    // ganti halaman) — dipakai aksi Bagikan/Properti/Hapus + penanda hapus.
-    var viewingPath by remember { mutableStateOf<String?>(null) }
-    var entries by remember { mutableStateOf<List<FEntry>>(emptyList()) }
-    var entryCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var entriesLoaded by remember { mutableStateOf(true) }
-    // Cache sesi: folder yang pernah dibuka tampil seketika, lalu dimuat ulang di latar.
-    val listingCache = remember { mutableMapOf<String, List<FEntry>>() }
-    // r84: cache daftar kategori per sesi (pola yang sama dengan
-    // listingCache) — buka Foto/Video/Audio tidak memindai ulang
-    // seluruh penyimpanan dari nol; daftar lama tampil seketika,
-    // hasil segar menyusul di latar.
-    val categoryCache = remember { mutableMapOf<Category, List<FEntry>>() }
-    val categoryCacheAt = remember { mutableMapOf<Category, Long>() }
-    val categoryCacheKey = remember { mutableMapOf<Category, Int>() }
-    val countCache = remember { mutableMapOf<String, Int>() }
-    var reloadKey by remember { mutableStateOf(0) }
-    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
     var clipboard by remember { mutableStateOf<Pair<List<String>, ClipMode>?>(null) }
     var working by remember { mutableStateOf(false) }
     var workProgress by remember { mutableStateOf<Float?>(null) }
@@ -807,21 +824,40 @@ fun SysFileApp() {
         if (accessGranted) showAccessDialog = false
     }
 
-    // L17: prompt root HANYA dari sakelar di Pengaturan — efek pasif
-    // ini tidak lagi memanggil ensureRoot() (dulu prompt su bisa muncul
-    // begitu saja saat root dipilih).
-    LaunchedEffect(currentRoot?.kind) {
-        rootActive = RootShell.state == RootShell.GRANTED
-        if (rootActive) reloadKey++
+    LaunchedEffect(currentRoot?.kind, showRootEntry) {
+        if (showRootEntry && currentRoot?.kind == "root" && RootShell.state != RootShell.GRANTED) {
+            RootShell.resetRootState()
+            withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+        }
+        val granted = showRootEntry && RootShell.state == RootShell.GRANTED
+        if (rootActive != granted) {
+            rootActive = granted
+            invalidateRootCaches()
+        } else if (granted) {
+            reloadKey++
+        }
     }
 
-    LaunchedEffect(currentPath, reloadKey, showHidden, sortKey, sortAsc, accessGranted) {
+    LaunchedEffect(currentPath, reloadKey, showHidden, sortKey, sortAsc, accessGranted, rootActive) {
         val path = currentPath
         if (path == null) {
             entries = emptyList()
             return@LaunchedEffect
         }
-        val cacheKey = path + "|" + showHidden + "|" + sortKey + "|" + sortAsc
+        if (showRootEntry && !rootActive &&
+            (!path.startsWith("/storage/") && path != "/storage" && !path.startsWith("/sdcard") ||
+                FileOps.isRestrictedDir(path))
+        ) {
+            RootShell.resetRootState()
+            val ok = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
+            if (ok) {
+                prefs.edit().putBoolean("root_granted_before", true).apply()
+                rootActive = true
+                listingCache.clear()
+                countCache.clear()
+            }
+        }
+        val cacheKey = path + "|" + showHidden + "|" + sortKey + "|" + sortAsc + "|" + rootActive
         val cached = listingCache[cacheKey]
         if (cached != null) {
             // Tampilkan hasil sebelumnya seketika; data segar menyusul di bawah.
@@ -1585,6 +1621,7 @@ fun SysFileApp() {
                             RootShell.resetRootState()
                             val ok = withContext(Dispatchers.IO) { RootShell.ensureRoot() }
                             rootActive = ok
+                            invalidateRootCaches()
                             // r204: hanya ingat keberhasilan — kegagalan
                             // sementara tidak boleh menghapus ingatan bahwa
                             // root pernah diberikan.
@@ -1597,6 +1634,7 @@ fun SysFileApp() {
                         }
                     } else {
                         rootActive = false
+                        invalidateRootCaches()
                     }
                 },
                 onTrashEnabled = { v ->
