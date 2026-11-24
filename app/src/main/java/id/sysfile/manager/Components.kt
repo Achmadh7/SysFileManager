@@ -97,11 +97,11 @@ fun SectionCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
         shape = RoundedCornerShape(28.dp),
-        modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp))
+        modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -478,7 +478,7 @@ fun FileRow(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = glassContainerColor(
+            containerColor = liquidContainerColor(
                 if (isSelected) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
@@ -488,7 +488,7 @@ fun FileRow(
         ),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
-            .obsidianGlass(RoundedCornerShape(16.dp), selected = isSelected)
+            .liquidGlass(RoundedCornerShape(16.dp), selected = isSelected)
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
     ) {
         Row(
@@ -685,8 +685,8 @@ fun StorageCard(
     Box(
         Modifier.fillMaxWidth().clip(cardShape)
             .then(
-                if (LocalGlass.current) {
-                    Modifier.obsidianGlass(cardShape)
+                if (LocalLiquidGlass.current) {
+                    Modifier.liquidGlass(cardShape)
                 } else {
                     Modifier
                         .background(scheme.secondaryContainer)

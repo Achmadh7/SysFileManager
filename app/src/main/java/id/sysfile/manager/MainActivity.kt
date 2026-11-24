@@ -164,14 +164,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalLayoutDirection
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.drawToBitmap
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -314,7 +314,7 @@ fun SysFileApp() {
         themeMode = mode
         prefs.edit().putString("theme_mode", mode).apply()
     }
-    // Tema 2: gaya UI "m3" (Material 3 Expressive) / "glass" (iOS Liquid Glass).
+    // Tema 2: gaya UI "m3" (Material 3 Expressive) / "glass" (Liquid Glass).
     var uiStyle by remember { mutableStateOf(prefs.getString("ui_style", "m3") ?: "m3") }
     val onUiStyleChange: (String) -> Unit = { style ->
         if (themeShot == null) {
@@ -1704,7 +1704,7 @@ fun SysFileApp() {
                     }
                 },
                 label = "overlayAnim"
-            ) { ov -> Box(Modifier.fillMaxSize().glassScreenBg()) {
+            ) { ov -> Box(Modifier.fillMaxSize().liquidGlassBg()) {
                 when (ov) {
                     is Overlay.ImageView -> ImageViewerScreen(
                         paths = ov.paths,
@@ -2159,8 +2159,8 @@ fun SysFileApp() {
                     )
                     null -> {
                         // Tema kaca: konten Beranda lewat di bawah navbar
-                        // melayang supaya navbar mem-blur isi (Haze).
-                        val hazeState = rememberHazeState()
+                        // Backdrop konten untuk refraksi AGSL navbar & bar melayang.
+                        val contentBackdrop = if (LocalLiquidGlass.current) rememberLayerBackdrop() else null
                         Scaffold(
                             // r164: latar dari skema, bukan Transparent —
                             // windowBackground di themes.xml adalah #101418
@@ -2171,9 +2171,9 @@ fun SysFileApp() {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
-                                        modifier = Modifier.obsidianGlass(RoundedCornerShape(0.dp), strong = true),
+                                        modifier = Modifier.liquidGlass(RoundedCornerShape(0.dp), floating = true),
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = glassContainerColor(MaterialTheme.colorScheme.surface)
+                                            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
                                         ),
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2207,9 +2207,9 @@ fun SysFileApp() {
                                     )
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
-                                        modifier = Modifier.obsidianGlass(RoundedCornerShape(0.dp), strong = true),
+                                        modifier = Modifier.liquidGlass(RoundedCornerShape(0.dp), floating = true),
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = glassContainerColor(MaterialTheme.colorScheme.surface)
+                                            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
                                         ),
                                         title = { Text(t.selected(selected.size)) },
                                         navigationIcon = {
@@ -2223,9 +2223,9 @@ fun SysFileApp() {
                                     )
                                 } else {
                                     TopAppBar(
-                                        modifier = Modifier.obsidianGlass(RoundedCornerShape(0.dp), strong = true),
+                                        modifier = Modifier.liquidGlass(RoundedCornerShape(0.dp), floating = true),
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = glassContainerColor(MaterialTheme.colorScheme.surface)
+                                            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
                                         ),
                                         title = {
                                             Column {
@@ -2490,7 +2490,7 @@ fun SysFileApp() {
                                                     }
                                                 }
                                             },
-                                            hazeState = hazeState
+                                            backdrop = contentBackdrop
                                         )
                                     }
                                     if (selected.isEmpty() || currentPath == null) {
@@ -2512,18 +2512,18 @@ fun SysFileApp() {
                                                     }
                                                 },
                                                 onClear = { clipboard = null },
-                                                hazeState = hazeState
+                                                backdrop = contentBackdrop
                                             )
                                         }
                                     } else {
-                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it }, hazeState = hazeState)
+                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it }, backdrop = contentBackdrop)
                                     }
                                     }
                                 }
                             }
                         ) { padding ->
                             val ld = LocalLayoutDirection.current
-                            val glassNav = LocalGlass.current && currentPath == null
+                            val glassNav = LocalLiquidGlass.current && currentPath == null
                             val navInset = if (glassNav) padding.calculateBottomPadding() else 0.dp
                             Box(
                                 Modifier.fillMaxSize()
@@ -2533,7 +2533,11 @@ fun SysFileApp() {
                                         end = padding.calculateEndPadding(ld),
                                         bottom = padding.calculateBottomPadding() - navInset
                                     )
-                                    .then(if (glassNav) Modifier.hazeSource(hazeState).glassScreenBg() else Modifier)
+                                    .then(
+                                        if (contentBackdrop != null) {
+                                            Modifier.liquidGlassBg().layerBackdrop(contentBackdrop)
+                                        } else Modifier
+                                    )
                             ) {
                             CompositionLocalProvider(LocalNavInset provides navInset) {
                                 AnimatedContent(
@@ -2550,7 +2554,7 @@ fun SysFileApp() {
                                         }
                                     },
                                     label = "folderAnim"
-                                ) { animatedPath -> Box(Modifier.fillMaxSize().glassScreenBg()) {
+                                ) { animatedPath -> Box(Modifier.fillMaxSize().liquidGlassBg()) {
                                     if (animatedPath == null) {
                                         AnimatedContent(
                                             targetState = homeTab,
@@ -2559,7 +2563,7 @@ fun SysFileApp() {
                                                     fadeOut(animationSpec = fadeSpec)
                                             },
                                             label = "tabAnim"
-                                        ) { tab -> Box(Modifier.fillMaxSize().glassScreenBg()) {
+                                        ) { tab -> Box(Modifier.fillMaxSize().liquidGlassBg()) {
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
@@ -2695,11 +2699,11 @@ fun SysFileApp() {
                     ) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-                            tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
+                            color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                            tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
                             shadowElevation = 6.dp,
                             modifier = Modifier.widthIn(max = 320.dp)
-                                .obsidianGlass(RoundedCornerShape(20.dp), strong = true)
+                                .liquidGlass(RoundedCornerShape(20.dp), floating = true)
                                 .clip(RoundedCornerShape(20.dp))
                                 .clickable { pillVisible = false }
                         ) {
@@ -2762,11 +2766,11 @@ fun SysFileApp() {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-                    tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
+                    color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
-                        .obsidianGlass(RoundedCornerShape(24.dp), strong = true)
+                        .liquidGlass(RoundedCornerShape(24.dp), floating = true)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2823,11 +2827,11 @@ fun SysFileApp() {
             androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-                    tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
+                    color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth()
-                        .obsidianGlass(RoundedCornerShape(24.dp), strong = true)
+                        .liquidGlass(RoundedCornerShape(24.dp), floating = true)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

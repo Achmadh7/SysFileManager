@@ -1,5 +1,7 @@
 package id.sysfile.manager
 
+import com.kyant.backdrop.backdrops.LayerBackdrop
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -115,7 +117,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import dev.chrisbanes.haze.HazeState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -210,9 +211,9 @@ fun BrowseHeaderBar(
                 expanded = false,
                 onExpandedChange = {},
                 colors = SearchBarDefaults.colors(
-                    containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
                 ),
-                modifier = Modifier.weight(1f).obsidianGlass(RoundedCornerShape(28.dp), strong = true),
+                modifier = Modifier.weight(1f).liquidGlass(RoundedCornerShape(28.dp), floating = true),
                 // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
                 // status bar di atas pil (windowInsets default), padahal
                 // ia duduk di bawah TopAppBar yang inset-nya sudah
@@ -299,11 +300,11 @@ fun BrowseHeaderBar(
                 val active = index == labels.lastIndex
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = glassContainerColor(
+                    color = liquidContainerColor(
                         if (active) MaterialTheme.colorScheme.primaryContainer
                         else MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
-                    modifier = Modifier.obsidianGlass(RoundedCornerShape(50), strong = !active, selected = active),
+                    modifier = Modifier.liquidGlass(RoundedCornerShape(50), selected = active),
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active
                 ) {
@@ -348,8 +349,6 @@ fun BrowseHeaderBar(
                         else onSortPick(key, key == SortKey.NAME)
                     },
                     label = { Text(label) },
-                    colors = obsidianFilterChipColors(),
-                    border = obsidianFilterChipBorder(active),
                     leadingIcon = if (active) {
                         {
                             Icon(
@@ -640,7 +639,7 @@ fun SelectionBar(
     singleIsDir: Boolean = false,
     singleLocked: Boolean = false,
     onToggleLock: () -> Unit = {},
-    hazeState: HazeState? = LocalHazeState.current
+    backdrop: LayerBackdrop? = LocalBackdrop.current
 ) {
     val t = txt()
     var menuOpen by remember { mutableStateOf(false) }
@@ -650,10 +649,10 @@ fun SelectionBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
-            tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
-            shadowElevation = 6.dp,
-            modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp), strong = true, hazeState = hazeState)
+            color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+            tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
+            shadowElevation = if (LocalLiquidGlass.current) 0.dp else 6.dp,
+            modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp), floating = true, backdrop = backdrop)
         ) {
             Row(
                 Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -761,7 +760,7 @@ fun ClipboardBar(
     count: Int,
     onPaste: () -> Unit,
     onClear: () -> Unit,
-    hazeState: HazeState? = LocalHazeState.current
+    backdrop: LayerBackdrop? = LocalBackdrop.current
 ) {
     val t = txt()
     Box(
@@ -770,9 +769,9 @@ fun ClipboardBar(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                .obsidianGlass(RoundedCornerShape(28.dp), strong = true, hazeState = hazeState),
+                .liquidGlass(RoundedCornerShape(28.dp), floating = true, backdrop = backdrop),
             shape = RoundedCornerShape(28.dp),
-            color = glassContainerColor(MaterialTheme.colorScheme.secondaryContainer)
+            color = liquidContainerColor(MaterialTheme.colorScheme.secondaryContainer)
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -826,10 +825,10 @@ fun MiniPlayerBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-            tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
-            shadowElevation = 6.dp,
-            modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp), strong = true)
+            color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+            tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
+            shadowElevation = if (LocalLiquidGlass.current) 0.dp else 6.dp,
+            modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp), floating = true)
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),

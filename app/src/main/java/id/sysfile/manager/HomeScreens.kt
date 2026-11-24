@@ -1,5 +1,7 @@
 package id.sysfile.manager
 
+import com.kyant.backdrop.backdrops.LayerBackdrop
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -147,10 +149,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -455,8 +453,8 @@ private fun PeekStorageHeroCard(
         modifier = modifier
             .clip(peekShape)
             .then(
-                if (LocalGlass.current) {
-                    Modifier.obsidianGlass(peekShape)
+                if (LocalLiquidGlass.current) {
+                    Modifier.liquidGlass(peekShape)
                 } else {
                     Modifier
                         .background(scheme.secondaryContainer)
@@ -618,8 +616,8 @@ private fun CategoryTile(
             .height(74.dp)
             .clip(tileShape)
             .then(
-                if (LocalGlass.current) {
-                    Modifier.obsidianGlass(tileShape)
+                if (LocalLiquidGlass.current) {
+                    Modifier.liquidGlass(tileShape)
                 } else {
                     Modifier
                         .background(MaterialTheme.colorScheme.secondaryContainer)
@@ -683,7 +681,7 @@ private fun CategoryTile(
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, hazeState: HazeState? = null) {
+fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop? = null) {
     val t = txt()
     val motion = MaterialTheme.motionScheme
     val items = listOf(
@@ -700,7 +698,6 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, hazeState: HazeState? =
     val activeBorder = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
     val activeFg = MaterialTheme.colorScheme.primary
     val isDark = MaterialTheme.colorScheme.onSurface.luminance() > 0.5f
-    val glass = LocalGlass.current
     val inactiveFg = if (isDark) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
 
     val safeTab = homeTab.coerceIn(0, 2)
@@ -734,8 +731,8 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, hazeState: HazeState? =
             .padding(horizontal = 28.dp, vertical = 12.dp)
             .clip(navShape)
             .then(
-                if (glass) {
-                    Modifier.obsidianGlass(navShape, strong = true, hazeState = hazeState ?: LocalHazeState.current)
+                if (LocalLiquidGlass.current) {
+                    Modifier.liquidGlass(navShape, floating = true, backdrop = backdrop ?: LocalBackdrop.current)
                 } else {
                     Modifier
                         .background(barColor)

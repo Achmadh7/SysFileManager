@@ -1419,9 +1419,9 @@ fun SearchScreen(
                     expanded = false,
                     onExpandedChange = {},
                     colors = SearchBarDefaults.colors(
-                        containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
                     ),
-                    modifier = Modifier.weight(1f).obsidianGlass(RoundedCornerShape(28.dp), strong = true)
+                    modifier = Modifier.weight(1f).liquidGlass(RoundedCornerShape(28.dp), floating = true)
                 ) {}
             }
             LazyRow(
@@ -1432,9 +1432,7 @@ fun SearchScreen(
                     FilterChip(
                         selected = filterCat == null,
                         onClick = { filterCat = null },
-                        label = { Text(t.all) },
-                        colors = obsidianFilterChipColors(),
-                        border = obsidianFilterChipBorder(filterCat == null)
+                        label = { Text(t.all) }
                     )
                 }
                 listOf(
@@ -1447,9 +1445,7 @@ fun SearchScreen(
                         FilterChip(
                             selected = filterCat == cat,
                             onClick = { filterCat = if (filterCat == cat) null else cat },
-                            label = { Text(label) },
-                            colors = obsidianFilterChipColors(),
-                            border = obsidianFilterChipBorder(filterCat == cat)
+                            label = { Text(label) }
                         )
                     }
                 }
@@ -1636,8 +1632,8 @@ fun AnalysisScreen(
                         if (res == null) {
                             Card(
                                 shape = RoundedCornerShape(28.dp),
-                                colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                                modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp))
+                                colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                                modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp))
                             ) {
                                 Row(
                                     Modifier.padding(20.dp),
@@ -1664,8 +1660,8 @@ fun AnalysisScreen(
                                 entries.forEach { (cat, size) ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                                        modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp))
+                                        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                                        modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1721,8 +1717,8 @@ fun AnalysisScreen(
                                 shownLargest.forEach { entry ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                                        modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp))
+                                        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                                        modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp))
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth()
