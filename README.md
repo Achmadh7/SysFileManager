@@ -34,10 +34,10 @@ Full details in [CHANGELOG.md](CHANGELOG.md).
 - **Hidden files** — dotfiles can be shown or hidden from the browser menu or Settings.
 - **Favorites** — star any folder from the browser's overflow menu; the star is remembered across launches.
 - **Storage analysis** — per-volume scan with sizes per category (images, videos, audio, documents, apps, archives, other), file counts, and the largest files, each category as its own card with a proportional bar.
-- **Home dashboard** — a brand header (the SysFile name next to its logo tile), then the **Storage** section: a hero card with a wavy progress bar carrying the used percentage, with the used-of-total figures and a status chip tinted by storage health (Healthy / Almost Full / Full); rows for the other volumes with usage bars and free space at a glance ("tersisa"); and three-column category tiles (violet Images, pink Video, teal Audio, blue Documents, green APKs, amber Archives, grey Other, red Trash). The floating capsule navigation (48dp, surfaceContainer) has a primary pill (#9ACBFA) that hugs the active tab's icon and label; inactive tabs show an outlined icon only.
+- **Home dashboard** — a brand header (the SysFile name next to its Split-Pocket logo tile), then the **Storage** section: a **Peek Storage Hero Carousel** (`HorizontalPager`) with a `SplitGapSolidProgressBar` / `NothingMatrixProgressBar` carrying the used percentage, used-of-total figures, and a status chip tinted by storage health (Healthy / Almost Full / Full); volume rows with usage bars and free space ("tersisa"); and three-column category tiles (violet Images, pink Video, teal Audio, blue Documents, green APKs, amber Archives, grey Other, red Trash). The floating capsule navigation hugs the active tab (`#3B52B0` / `#A6B8FF` in M3 Pixel Indigo; white pill + Signal Red accents in Nothing Matrix), and all main lists support **iOS Spokes Pull-to-Refresh**.
 - **Recent files** — a dedicated bottom-navigation tab groups the newest files across all volumes by their parent folder; tapping a group opens that folder.
-- **About & specifications** — Settings → **About** opens a full screen: a live storage summary (tapping it jumps straight into the internal storage), a grouped **Specifications** page (app identity, archive engine, UI & storage — including the storage-engine line: All Files Access, SAF & Java NIO), and the developer credit.
-- **Themes & languages** — Light / Dark in Settings (one tap toggles each, no picker), and an Indonesian/English interface switch (also one tap); all choices are remembered. There is no dynamic colour — the Biru Senja palette is fixed in both themes.
+- **About & specifications** — Settings → **About** opens a full screen with Bento quick-tiles: live storage summary (jumping straight into internal storage), Supported Formats shortcut, grouped **Specifications** page (`id.sysfile.manager`, target Android 15 / API 35, archive engines, UI & storage), and developer credit.
+- **Themes & languages** — Light / Dark in Settings (one tap toggles each, no picker), a two-column **UI Style selector** (`M3 Pixel Indigo` vs `Nothing Matrix`), and a one-tap Indonesian/English interface switch; all choices are remembered.
 - **Official Material 3 Expressive & Dual Themes** — `MaterialExpressiveTheme` with `MotionScheme.expressive()` and the morphing `LoadingIndicator`, extra-rounded cards, gentle 300 ms crossfades, and spring motion (Material3 pinned to 1.5.0-alpha08 — the Expressive APIs were removed from the 1.4.0 stable release). Switch between **M3 Pixel Indigo** and **Nothing Matrix**; the logo adapts automatically (Split-Pocket Indigo vs Nothing Monochrome + Signal Red).
 
 ## Permissions
@@ -58,7 +58,7 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 | Android | minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36 |
 | Package | `id.sysfile.manager` |
 | Version | 1.4.0 |
-| Signing | Fixed keystore committed in this repo (`sysfile.p12`, PKCS12) — every CI build carries the same signature, so updates install in place |
+| Signing | Reads `SYSFILE_STORE_FILE` / password / alias env vars (wired to GitHub Secrets for release; `SYSFILE_STRICT_SIGNING=true` enforces them), falling back to the committed `sysfile.p12` (PKCS12) keystore for in-place updates |
 | R8 | Minify + resource shrinking enabled on debug and release builds, using the default optimize rules plus keep rules for the archive libraries |
 
 ## Building the APK
@@ -84,11 +84,11 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 - `app/src/main/java/id/sysfile/manager/FileOps.kt` — the file engine: directory listing and sorting, storage volumes, recursive copy/move, name de-duplication, search, folder statistics, MD5/SHA-256 checksums, APK archive info and icons, ZIP compress/extract, the category/largest-files analysis, and `ArchiveOps` (ZIP/TAR, 7Z and RAR extraction, encrypted ZIP and encrypted RAR, archive content listing and browsing).
 - `app/src/main/java/id/sysfile/manager/PayloadOps.kt` — the payload.bin extractor: a hand-written minimal protobuf reader that lists partitions, extracts all or one of them to `.img` files, and rejects delta payloads before writing anything.
 - `app/src/main/java/id/sysfile/manager/TrashOps.kt` — the trash bin: an indexed `.SysFileTrash` folder with move-to-trash, restore (de-duplicated names), permanent delete, and empty-trash.
-- `app/src/main/java/id/sysfile/manager/RootShell.kt` — root access via `su`: one-time grant check (the Magisk prompt fires on first entry), shell-based listing of `/`, and staging unreadable files into the cache so they can be opened.
-- `app/src/main/java/id/sysfile/manager/BiometricGate.kt` — the biometric/PIN prompt used by locked folders.
-- `app/src/main/java/id/sysfile/manager/Components.kt` — reusable UI pieces: section cards, file rows as cards and grid cells (with lock badges), thumbnails (Coil, plus real APK icons), category icons and colours, and the storage hero card with its health status chip.
+- `app/src/main/java/id/sysfile/manager/RootShell.kt` — root access via `su`: one-time grant check (`synchronized(rootLock)`), shell-based listing of `/` & `/mnt/media_rw` fallback, staging unreadable files to cache, and saving edited text files via `writeFile` while keeping existing file permissions.
+- `app/src/main/java/id/sysfile/manager/BiometricGate.kt` — device-lock / biometric availability check (`canAuthenticate`) and prompt used by locked folders.
+- `app/src/main/java/id/sysfile/manager/Components.kt` — reusable UI pieces: section cards, file rows and grid cells (with lock badges), Coil thumbnails + real APK icons, category icons/colours, `SplitGapSolidProgressBar`, and `IosSpokesPullToRefreshBox` / `IosSpokesSpinner`.
 - `app/src/main/java/id/sysfile/manager/Viewers.kt` — the full-screen photo viewer (pinch zoom, swipe between photos) and video viewer (swipe between videos), the text viewer/editor (syntax highlighting + HTML web preview), and the built-in video player with custom floating capsule controls.
-- `app/src/main/java/id/sysfile/manager/Theme.kt` — the hand-written Biru Senja light/dark colour schemes and the Material 3 Expressive theme wrapper.
+- `app/src/main/java/id/sysfile/manager/Theme.kt` — M3 Pixel Indigo (`SenjaLightScheme` / `SenjaDarkScheme`) and Nothing Dot-Matrix (`NothingLightScheme` / `NothingDarkScheme`) palettes, `DotMatrixBackground`, `nothingBorder`, `NothingMatrixProgressBar`, and the `MaterialExpressiveTheme` wrapper.
 - `app/src/main/java/id/sysfile/manager/Strings.kt` — the two-language text table (Indonesian/English) for the whole interface.
 
 ## Notes
@@ -96,5 +96,5 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 - File operations run on a background dispatcher with a progress dialog for long work, so the UI stays responsive.
 - Deleting asks for confirmation and moves items to the trash bin first — permanent erasure only happens inside the Trash screen (or when deleting something that is already in the trash).
 - Locked folders are an in-app privacy gate, not encryption: other file managers and a connected computer can still see the files.
-- Root write operations are not implemented yet: inside the Root volume you can browse and open files, while copy/move/delete still go through the normal file APIs and fail where Android denies them.
+- Root text/config editing uses `RootShell.writeFile` (preserving permissions on existing files), while copy/move/delete inside `/` still go through normal Android APIs where the OS allows.
 - Pasting a file into a folder that already contains the same name never overwrites: the copy is saved as `name (1)`, `name (2)`, and so on.

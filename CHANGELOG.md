@@ -6,14 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.4.0] — 2026-11-25
 
 ### Added
-- **Nothing Dot-Matrix theme (Tema 2):** `#000000` AMOLED dark / `#F2F2EF` light palette with `#D71921` Signal Red accents, `1dp` hardware borders (`nothingBorder`), monospace typography, and dedicated Split-Pocket Monochrome + Red Dot `SysFileLogo`.
-- **iOS Spokes Pull-to-Refresh:** custom 12-spoke radial spinner (`IosSpokesPullToRefreshBox` & `IosSpokesSpinner`) wired across Home, Browse, Recent, Category, and App Manager screens, styled for both themes.
-- **Peek Storage Hero Carousel & Split-Gap Progress Bar:** swipeable multi-volume storage hero cards (`HorizontalPager` with neighbor peek) and `SplitGapSolidProgressBar` / `NothingMatrixProgressBar`.
-- **Root file writing (`RootShell.writeFile`):** save edited text/config files to system paths via `su`.
+- **Nothing Dot-Matrix theme (Tema 2):** `#000000` AMOLED dark / `#F2F2EF` light palette with `#D71921` Signal Red accents, `1dp` hardware borders (`nothingBorder`), dot-matrix background, monospace typography, and dedicated Split-Pocket Monochrome + Red Dot `SysFileLogo`.
+- **iOS Spokes Pull-to-Refresh:** custom 12-spoke radial spinner (`IosSpokesPullToRefreshBox` & `IosSpokesSpinner`) wired across Home, Browse, Recent, Category, and App Manager screens, adapted for both M3 Pixel Indigo and Nothing Matrix.
+- **Peek Storage Hero Carousel & Split-Gap Progress Bar:** swipeable multi-volume storage hero cards (`HorizontalPager` with neighbor peek) plus `SplitGapSolidProgressBar` / `NothingMatrixProgressBar`.
+- **Root text saving (`RootShell.writeFile`):** save edited text/config files in root/system paths via `su` while preserving existing file permissions on overwrite.
 
 ### Changed
-- **Tema 1 updated to M3 Pixel Indigo (`SenjaLightScheme` / `SenjaDarkScheme`):** `#3B52B0` / `#A6B8FF` palette with tiered surface containers and redesigned Settings & About Bento screens.
-- **APK & SpecScreen fixes:** `SpecScreen` target SDK updated to Android 15 (API 35), `BiometricGate` now checks device lock availability cleanly, `RootShell.writeFile` preserves existing file permissions, and release APK filename is now `Sysfile Manager 1.4.0-Release.apk`.
+- **Tema 1 updated to M3 Pixel Indigo (`SenjaLightScheme` / `SenjaDarkScheme`):** `#3B52B0` / `#A6B8FF` palette with tiered surface containers (`surfaceContainerLow` → `surfaceContainerHighest`), Split-Pocket Indigo logo, and redesigned Settings Bento grid (with dual UI style preview cards) & About screen.
+- **Settings & Spec strings:** moved Settings tile/row subtitles into `Strings.kt` (`Txt`/`TxtId`/`TxtEn`) with `StringsTest` coverage, and aligned `SpecScreen` target Android label with `15 (API 35)`.
+- **Release APK artifact name:** CI build outputs `Sysfile Manager 1.4.0-Release.apk` (artifact `Sysfile Manager`).
+
+### Fixed
+- **Pull-to-Refresh state & completion:** hoisted `homeRefreshing`, `recentRefreshing`, and `browseRefreshing` outside `AnimatedContent` in `MainActivity.kt` so refresh stops on real IO completion instead of a fixed delay.
+- **Locked folder biometric availability check:** `BiometricGate` now checks `BiometricManager.canAuthenticate(...)` beforehand and displays localized `t.biometricUnavailable` when no PIN/screen lock/biometrics is configured.
+- **Root overwrite permissions & staging cache hygiene:** `RootShell.writeFile` only applies `chmod 644` to newly created files, and `Viewers.kt` removes stale temp cache files if staging write fails.
+
+### Security
+- **Configurable release signing:** separated `releaseSigning` in `app/build.gradle.kts` and wired `SYSFILE_STORE_FILE` / `SYSFILE_STORE_PASSWORD` / `SYSFILE_KEY_ALIAS` / `SYSFILE_KEY_PASSWORD` secrets in `.github/workflows/build.yml` (supports `SYSFILE_STRICT_SIGNING=true`, with repo `sysfile.p12` fallback warning when secrets are unset).
 
 ## [1.3.0] — 2026-11-20
 
