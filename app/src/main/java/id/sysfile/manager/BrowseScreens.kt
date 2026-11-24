@@ -1,7 +1,5 @@
 package id.sysfile.manager
 
-import com.kyant.backdrop.backdrops.LayerBackdrop
-
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -211,9 +209,9 @@ fun BrowseHeaderBar(
                 expanded = false,
                 onExpandedChange = {},
                 colors = SearchBarDefaults.colors(
-                    containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 ),
-                modifier = Modifier.weight(1f).liquidGlass(RoundedCornerShape(28.dp), floating = true),
+                modifier = Modifier.weight(1f),
                 // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
                 // status bar di atas pil (windowInsets default), padahal
                 // ia duduk di bawah TopAppBar yang inset-nya sudah
@@ -300,11 +298,8 @@ fun BrowseHeaderBar(
                 val active = index == labels.lastIndex
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = liquidContainerColor(
-                        if (active) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceContainerHigh
-                    ),
-                    modifier = Modifier.liquidGlass(RoundedCornerShape(50), selected = active),
+                    color = if (active) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active
                 ) {
@@ -638,8 +633,7 @@ fun SelectionBar(
     onSelectAll: () -> Unit,
     singleIsDir: Boolean = false,
     singleLocked: Boolean = false,
-    onToggleLock: () -> Unit = {},
-    backdrop: LayerBackdrop? = LocalBackdrop.current
+    onToggleLock: () -> Unit = {}
 ) {
     val t = txt()
     var menuOpen by remember { mutableStateOf(false) }
@@ -649,10 +643,9 @@ fun SelectionBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
-            tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
-            shadowElevation = if (LocalLiquidGlass.current) 0.dp else 6.dp,
-            modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp), floating = true, backdrop = backdrop)
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 3.dp,
+            shadowElevation = 6.dp
         ) {
             Row(
                 Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -759,8 +752,7 @@ private fun PillExtractAction(enabled: Boolean, label: String, onClick: () -> Un
 fun ClipboardBar(
     count: Int,
     onPaste: () -> Unit,
-    onClear: () -> Unit,
-    backdrop: LayerBackdrop? = LocalBackdrop.current
+    onClear: () -> Unit
 ) {
     val t = txt()
     Box(
@@ -768,10 +760,9 @@ fun ClipboardBar(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                .liquidGlass(RoundedCornerShape(28.dp), floating = true, backdrop = backdrop),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = RoundedCornerShape(28.dp),
-            color = liquidContainerColor(MaterialTheme.colorScheme.secondaryContainer)
+            color = MaterialTheme.colorScheme.secondaryContainer
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -825,10 +816,9 @@ fun MiniPlayerBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-            tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
-            shadowElevation = if (LocalLiquidGlass.current) 0.dp else 6.dp,
-            modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp), floating = true)
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            tonalElevation = 3.dp,
+            shadowElevation = 6.dp
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),

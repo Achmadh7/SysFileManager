@@ -326,8 +326,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     // info + izin; dialog jadi jauh lebih pendek.
                     Card(
                         shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                        modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
                     ) {
                         Column {
                             PropGridRow(
@@ -427,8 +426,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         Spacer(Modifier.height(12.dp))
                         Card(
                         shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                        modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
                     ) {
                             Column {
                                 PropGridRow(t.propPath, ellipsizeMiddle(entry.path)) {
@@ -551,8 +549,7 @@ fun ExifDialog(entry: FEntry, onDismiss: () -> Unit) {
                     } else {
                         Card(
                         shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                        modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
                     ) {
                             Column {
                                 rows.forEachIndexed { i, (label, value) ->

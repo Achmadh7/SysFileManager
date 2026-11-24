@@ -97,11 +97,11 @@ fun SectionCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
         shape = RoundedCornerShape(28.dp),
-        modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -478,17 +478,14 @@ fun FileRow(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = liquidContainerColor(
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                }
-            )
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            }
         ),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
-            .liquidGlass(RoundedCornerShape(16.dp), selected = isSelected)
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
     ) {
         Row(
@@ -684,15 +681,8 @@ fun StorageCard(
     val cardShape = RoundedCornerShape(28.dp)
     Box(
         Modifier.fillMaxWidth().clip(cardShape)
-            .then(
-                if (LocalLiquidGlass.current) {
-                    Modifier.liquidGlass(cardShape)
-                } else {
-                    Modifier
-                        .background(scheme.secondaryContainer)
-                        .border(1.dp, scheme.primary.copy(alpha = 0.22f), cardShape)
-                }
-            )
+            .background(scheme.secondaryContainer)
+            .border(1.dp, scheme.primary.copy(alpha = 0.22f), cardShape)
             .clickable { onClick() }
     ) {
         StorageCardContent(

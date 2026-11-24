@@ -1,8 +1,5 @@
 package id.sysfile.manager
 
-import com.kyant.backdrop.backdrops.LayerBackdrop
-import id.liquidglass.theme.liquidGlassTouchGlow
-
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -230,8 +227,7 @@ fun HomeScreen(
     val t = txt()
     LazyColumn(
         Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = LocalNavInset.current)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (!accessGranted) {
             item {
@@ -452,17 +448,9 @@ private fun PeekStorageHeroCard(
     val peekShape = RoundedCornerShape(26.dp)
     Column(
         modifier = modifier
-            .liquidGlassTouchGlow(enabled = LocalLiquidGlass.current)
             .clip(peekShape)
-            .then(
-                if (LocalLiquidGlass.current) {
-                    Modifier.liquidGlass(peekShape)
-                } else {
-                    Modifier
-                        .background(scheme.secondaryContainer)
-                        .border(1.dp, accentColor.copy(alpha = 0.34f), peekShape)
-                }
-            )
+            .background(scheme.secondaryContainer)
+            .border(1.dp, accentColor.copy(alpha = 0.34f), peekShape)
             .clickable { onOpenRoot(root.path) }
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -616,17 +604,9 @@ private fun CategoryTile(
     Row(
         modifier = modifier
             .height(74.dp)
-            .liquidGlassTouchGlow(enabled = LocalLiquidGlass.current)
             .clip(tileShape)
-            .then(
-                if (LocalLiquidGlass.current) {
-                    Modifier.liquidGlass(tileShape)
-                } else {
-                    Modifier
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .border(1.dp, color.copy(alpha = 0.25f), tileShape)
-                }
-            )
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .border(1.dp, color.copy(alpha = 0.25f), tileShape)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -684,7 +664,7 @@ private fun CategoryTile(
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop? = null) {
+fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val t = txt()
     val motion = MaterialTheme.motionScheme
     val items = listOf(
@@ -727,24 +707,15 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop
         }
     }
 
-    val isGlass = LocalLiquidGlass.current
-    val navShape = if (isGlass) RoundedCornerShape(50) else RoundedCornerShape(26.dp)
-    val pillShape = if (isGlass) RoundedCornerShape(50) else RoundedCornerShape(20.dp)
-    val navBackdrop = backdrop ?: LocalBackdrop.current
+    val navShape = RoundedCornerShape(26.dp)
+    val pillShape = RoundedCornerShape(20.dp)
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = if (isGlass) 22.dp else 28.dp, vertical = 12.dp)
+            .padding(horizontal = 28.dp, vertical = 12.dp)
             .clip(navShape)
-            .then(
-                if (isGlass) {
-                    Modifier.liquidGlass(navShape, floating = true, backdrop = navBackdrop)
-                } else {
-                    Modifier
-                        .background(barColor)
-                        .border(1.dp, borderColor, navShape)
-                }
-            )
+            .background(barColor)
+            .border(1.dp, borderColor, navShape)
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         val gap = 8.dp
@@ -753,12 +724,12 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop
         val pillX = stepWidth * pillProgress
         val targetX = stepWidth * safeTab.toFloat()
         val pillLift = (-3).dp * flightArc
-        val pillScaleX = if (isGlass) 1f + 0.12f * flightArc else 1f + 0.04f * flightArc
-        val pillScaleY = if (isGlass) 1f - 0.04f * flightArc else 1f + 0.04f * flightArc
+        val pillScaleX = 1f + 0.04f * flightArc
+        val pillScaleY = 1f + 0.04f * flightArc
 
         // Cincin pulsa tonal Material 3 (Opsi 3: Flat M3 Tonal Ripple Ring saat mendarat)
         val p = pulseAnim.value
-        if (!isGlass && p < 0.99f) {
+        if (p < 0.99f) {
             Box(
                 Modifier
                     .offset(x = targetX)
@@ -773,7 +744,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop
             )
         }
 
-        // Kapsul tab aktif: lensa Liquid Glass melar cair di tema 2, kapsul tonal di M3.
+        // Kapsul tab aktif tonal M3.
         Box(
             Modifier
                 .offset(x = pillX, y = pillLift)
@@ -783,16 +754,9 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop
                     scaleX = pillScaleX
                     scaleY = pillScaleY
                 }
-                .then(
-                    if (isGlass) {
-                        Modifier.liquidGlass(pillShape, floating = true, selected = true, backdrop = navBackdrop)
-                    } else {
-                        Modifier
-                            .clip(pillShape)
-                            .background(activeBg)
-                            .border(1.dp, activeBorder, pillShape)
-                    }
-                )
+                .clip(pillShape)
+                .background(activeBg)
+                .border(1.dp, activeBorder, pillShape)
         )
 
         Row(

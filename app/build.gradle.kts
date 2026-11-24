@@ -105,6 +105,4 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-video:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
-    // Tema 2 Liquid Glass (library lokal :liquidglass berbasis Kyant0/AndroidLiquidGlass).
-    implementation(project(":liquidglass"))
 }

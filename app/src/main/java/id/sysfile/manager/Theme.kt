@@ -2,8 +2,6 @@ package id.sysfile.manager
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LocalContentColor
@@ -11,23 +9,8 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import com.kyant.backdrop.backdrops.LayerBackdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import id.liquidglass.theme.LiquidGlassDarkColorScheme
-import id.liquidglass.theme.LiquidGlassLightColorScheme
-import id.liquidglass.theme.LiquidGlassVariant
-import id.liquidglass.theme.LocalLiquidBackdrop
-import id.liquidglass.theme.LocalLiquidGlassDark
-import id.liquidglass.theme.LocalLiquidGlassEnabled
-import id.liquidglass.theme.LocalLiquidGlassVariant
-import id.liquidglass.theme.liquidGlass as libLiquidGlass
-import id.liquidglass.theme.liquidGlassContainerColor
-import id.liquidglass.theme.liquidGlassWallpaper
 
 // Skema seed biru senja (r80, pilihan Achmad 2026-11-19 dari papan
 // warna WN2): nilai di bawah DIBANGKITKAN oleh Material Color
@@ -142,71 +125,22 @@ private val SenjaDarkScheme: ColorScheme = ColorScheme(
     onTertiaryFixedVariant = Color(0xFF4F4061),
 )
 
-// Tema 2 Liquid Glass — didelegasikan ke module library :liquidglass (id.liquidglass.theme).
-val LocalLiquidGlass = LocalLiquidGlassEnabled
-val LocalBackdrop = LocalLiquidBackdrop
-
-/** Inset bawah navbar melayang agar konten mengalir di bawah kaca. */
-val LocalNavInset = compositionLocalOf { 0.dp }
-
-/** Warna container transparan saat Liquid Glass aktif agar efek backdrop tidak tertutup. */
-@Composable
-fun liquidContainerColor(fallback: Color): Color = liquidGlassContainerColor(fallback)
-
-/** Modifier Liquid Glass terpadu (mendelegasikan ke library :liquidglass). */
-@Composable
-fun Modifier.liquidGlass(
-    shape: RoundedCornerShape,
-    floating: Boolean = false,
-    selected: Boolean = false,
-    backdrop: LayerBackdrop? = LocalBackdrop.current
-): Modifier = libLiquidGlass(
-    shape = shape,
-    floating = floating,
-    selected = selected,
-    backdrop = backdrop
-)
-
-/** Wallpaper gradien ambient untuk memunculkan refraksi Liquid Glass. */
-@Composable
-fun Modifier.liquidGlassBg(): Modifier = liquidGlassWallpaper()
-
-/** Tema aplikasi: mode "light" / "dark" / "system"; uiStyle "m3" / "glass". */
+/** Tema aplikasi: mode "light" / "dark" / "system". */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SysFileTheme(themeMode: String, uiStyle: String = "m3", content: @Composable () -> Unit) {
+fun SysFileTheme(themeMode: String, content: @Composable () -> Unit) {
     val dark = when (themeMode) {
         "light" -> false
         "dark" -> true
         else -> isSystemInDarkTheme()
     }
-    val glass = uiStyle == "glass"
-    val scheme = when {
-        glass && dark -> LiquidGlassDarkColorScheme
-        glass -> LiquidGlassLightColorScheme
-        dark -> SenjaDarkScheme
-        else -> SenjaLightScheme
-    }
+    val scheme = if (dark) SenjaDarkScheme else SenjaLightScheme
     MaterialExpressiveTheme(
         colorScheme = scheme,
         motionScheme = MotionScheme.expressive()
     ) {
-        val bgBackdrop = if (glass) rememberLayerBackdrop() else null
-        CompositionLocalProvider(
-            LocalContentColor provides scheme.onSurface,
-            LocalLiquidGlassEnabled provides glass,
-            LocalLiquidGlassDark provides dark,
-            LocalLiquidGlassVariant provides LiquidGlassVariant.Clear,
-            LocalLiquidBackdrop provides bgBackdrop
-        ) {
-            if (glass && bgBackdrop != null) {
-                Box(Modifier.fillMaxSize()) {
-                    Box(Modifier.fillMaxSize().liquidGlassBg().layerBackdrop(bgBackdrop))
-                    content()
-                }
-            } else {
-                Box(Modifier) { content() }
-            }
+        CompositionLocalProvider(LocalContentColor provides scheme.onSurface) {
+            Box(Modifier) { content() }
         }
     }
 }

@@ -1,7 +1,5 @@
 package id.sysfile.manager
 
-import id.liquidglass.theme.LiquidGlassToggle
-
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -177,8 +175,6 @@ fun SettingsScreen(
     showRootEntry: Boolean,
     trashEnabled: Boolean,
     onTheme: (String) -> Unit,
-    uiStyle: String = "m3",
-    onUiStyle: (String) -> Unit = {},
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
@@ -204,12 +200,11 @@ fun SettingsScreen(
             fadeOut(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
-        modifier = Modifier.liquidGlassBg(),
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface),
-                    scrolledContainerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainer)
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),
                 title = { Text(t.settings) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
@@ -230,8 +225,8 @@ fun SettingsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(16.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -286,30 +281,6 @@ fun SettingsScreen(
                                 }
                             }
                         )
-                        HorizontalDivider(
-                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-                        // Tema 2: pemilih gaya UI (M3 Expressive vs Liquid Glass).
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            UiStylePreview(
-                                label = "M3 Expressive",
-                                glass = false,
-                                selected = uiStyle != "glass",
-                                onClick = { onUiStyle("m3") },
-                                modifier = Modifier.weight(1f)
-                            )
-                            UiStylePreview(
-                                label = "Liquid Glass",
-                                glass = true,
-                                selected = uiStyle == "glass",
-                                onClick = { onUiStyle("glass") },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -369,8 +340,8 @@ fun SettingsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(16.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -379,8 +350,7 @@ fun SettingsScreen(
                             title = t.showHidden,
                             subtitle = if (language == "id") "Berkas berawalan titik (.)" else "Dotfiles (.)",
                             trailing = {
-                                if (LocalLiquidGlass.current) LiquidGlassToggle(checked = showHidden, onCheckedChange = onHidden)
-                                else Switch(checked = showHidden, onCheckedChange = onHidden)
+                                Switch(checked = showHidden, onCheckedChange = onHidden)
                             }
                         )
                         HorizontalDivider(
@@ -395,8 +365,7 @@ fun SettingsScreen(
                             badge = "SU",
                             badgeColor = MaterialTheme.colorScheme.error,
                             trailing = {
-                                if (LocalLiquidGlass.current) LiquidGlassToggle(checked = showRootEntry, onCheckedChange = onRootEntry)
-                                else Switch(checked = showRootEntry, onCheckedChange = onRootEntry)
+                                Switch(checked = showRootEntry, onCheckedChange = onRootEntry)
                             }
                         )
                         HorizontalDivider(
@@ -409,8 +378,7 @@ fun SettingsScreen(
                             title = t.trash,
                             subtitle = if (trashEnabled) t.trashHintOn else t.trashHintOff,
                             trailing = {
-                                if (LocalLiquidGlass.current) LiquidGlassToggle(checked = trashEnabled, onCheckedChange = onTrashEnabled)
-                                else Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled)
+                                Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled)
                             }
                         )
                     }
@@ -420,8 +388,8 @@ fun SettingsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(16.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -491,81 +459,6 @@ fun SettingsScreen(
             }
         }
     }
-    }
-}
-
-/** Kartu pratinjau mini gaya UI (M3 Expressive vs Liquid Glass). */
-@Composable
-private fun UiStylePreview(
-    label: String,
-    glass: Boolean,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val primary = MaterialTheme.colorScheme.primary
-    Column(
-        modifier
-            .clip(RoundedCornerShape(16.dp))
-            .border(
-                if (selected) 2.dp else 1.dp,
-                if (selected) primary else MaterialTheme.colorScheme.outlineVariant,
-                RoundedCornerShape(16.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(
-                    if (glass) Brush.linearGradient(
-                        listOf(Color(0xFF2563EB), Color(0xFFC026D3), Color(0xFF0EA5E9))
-                    ) else Brush.linearGradient(listOf(Color(0xFF101418), Color(0xFF101418)))
-                )
-                .padding(8.dp)
-        ) {
-            val cardShape = RoundedCornerShape(10.dp)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(22.dp)
-                    .clip(cardShape)
-                    .background(if (glass) Color.White.copy(alpha = 0.20f) else Color(0xFF323539))
-                    .then(
-                        if (glass) Modifier.border(
-                            1.dp,
-                            Brush.linearGradient(listOf(Color.White.copy(0.65f), Color.White.copy(0.12f))),
-                            cardShape
-                        ) else Modifier
-                    )
-            )
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth(0.7f)
-                    .height(14.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(if (glass) Color.White.copy(alpha = 0.25f) else Color(0xFF1C2024))
-            ) {
-                Box(
-                    Modifier.fillMaxHeight().fillMaxWidth(0.34f).padding(2.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (glass) Color(0xFF5AC8FA) else Color(0xFF9ACBFA))
-                )
-            }
-        }
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
-        )
     }
 }
 
@@ -728,7 +621,6 @@ fun FormatsScreen(onBack: () -> Unit) {
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
-        modifier = Modifier.liquidGlassBg(),
         topBar = {
             TopAppBar(
                 title = { Text(t.formatsTitle) },
@@ -749,8 +641,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
@@ -772,8 +664,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
@@ -800,8 +692,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
@@ -828,8 +720,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
@@ -874,7 +766,6 @@ fun AboutScreen(
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
-        modifier = Modifier.liquidGlassBg(),
         topBar = {
             TopAppBar(
                 title = { Text(t.about, fontWeight = FontWeight.ExtraBold) },
@@ -930,8 +821,8 @@ fun AboutScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                    modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -1037,7 +928,6 @@ fun SpecScreen(onBack: () -> Unit) {
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
-        modifier = Modifier.liquidGlassBg(),
         topBar = {
             TopAppBar(
                 title = { Text(t.appSpecs, fontWeight = FontWeight.ExtraBold) },
@@ -1108,9 +998,9 @@ private fun SpecGroup(
     rows: List<Pair<String, String>>
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp)),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

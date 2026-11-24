@@ -170,9 +170,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.drawToBitmap
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import id.liquidglass.theme.liquidGlassTouchGlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -314,19 +311,6 @@ fun SysFileApp() {
         }
         themeMode = mode
         prefs.edit().putString("theme_mode", mode).apply()
-    }
-    // Tema 2: gaya UI "m3" (Material 3 Expressive) / "glass" (Liquid Glass).
-    var uiStyle by remember { mutableStateOf(prefs.getString("ui_style", "m3") ?: "m3") }
-    val onUiStyleChange: (String) -> Unit = { style ->
-        if (themeShot == null) {
-            themeShot = try {
-                if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
-            } catch (_: Exception) {
-                null
-            }
-        }
-        uiStyle = style
-        prefs.edit().putString("ui_style", style).apply()
     }
 
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -1565,7 +1549,7 @@ fun SysFileApp() {
     // r137 TM1: Box akar supaya tangkapan layar lama bisa menutupi
     // seluruh isi (semua cabang layar) saat memudar.
     Box(Modifier.fillMaxSize()) {
-    SysFileTheme(themeMode, uiStyle) {
+    SysFileTheme(themeMode) {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1619,8 +1603,6 @@ fun SysFileApp() {
                 showRootEntry = showRootEntry,
                 trashEnabled = trashEnabled,
                 onTheme = onThemeChange,
-                uiStyle = uiStyle,
-                onUiStyle = onUiStyleChange,
                 onLanguage = { lang ->
                     language = lang
                     AppLang.code = lang
@@ -1705,7 +1687,7 @@ fun SysFileApp() {
                     }
                 },
                 label = "overlayAnim"
-            ) { ov -> Box(Modifier.fillMaxSize().liquidGlassBg()) {
+            ) { ov -> Box(Modifier.fillMaxSize()) {
                 when (ov) {
                     is Overlay.ImageView -> ImageViewerScreen(
                         paths = ov.paths,
@@ -2159,9 +2141,6 @@ fun SysFileApp() {
                         onBack = { overlay = overlayReturn; overlayReturn = null }
                     )
                     null -> {
-                        // Tema kaca: konten Beranda lewat di bawah navbar
-                        // Backdrop konten untuk refraksi AGSL navbar & bar melayang.
-                        val contentBackdrop = if (LocalLiquidGlass.current) rememberLayerBackdrop() else null
                         Scaffold(
                             // r164: latar dari skema, bukan Transparent —
                             // windowBackground di themes.xml adalah #101418
@@ -2173,7 +2152,7 @@ fun SysFileApp() {
                                 if (currentPath == null) {
                                     TopAppBar(
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
+                                            containerColor = MaterialTheme.colorScheme.surface
                                         ),
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2195,28 +2174,20 @@ fun SysFileApp() {
                                         actions = {
                                             val searchRoot = roots.firstOrNull { it.kind == "internal" }?.path
                                                 ?: roots.firstOrNull()?.path
-                                            Row(
-                                                Modifier
-                                                    .padding(end = if (LocalLiquidGlass.current) 10.dp else 0.dp)
-                                                    .liquidGlassTouchGlow(enabled = LocalLiquidGlass.current)
-                                                    .liquidGlass(RoundedCornerShape(50), floating = true),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                if (searchRoot != null) {
-                                                    IconButton(onClick = { overlay = Overlay.Search(searchRoot) }) {
-                                                        Icon(Icons.Default.Search, t.search)
-                                                    }
+                                            if (searchRoot != null) {
+                                                IconButton(onClick = { overlay = Overlay.Search(searchRoot) }) {
+                                                    Icon(Icons.Default.Search, t.search)
                                                 }
-                                                IconButton(onClick = { showSettings = true }) {
-                                                    Icon(Icons.Default.Settings, t.settings)
-                                                }
+                                            }
+                                            IconButton(onClick = { showSettings = true }) {
+                                                Icon(Icons.Default.Settings, t.settings)
                                             }
                                         }
                                     )
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
+                                            containerColor = MaterialTheme.colorScheme.surface
                                         ),
                                         title = { Text(t.selected(selected.size)) },
                                         navigationIcon = {
@@ -2231,7 +2202,7 @@ fun SysFileApp() {
                                 } else {
                                     TopAppBar(
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
+                                            containerColor = MaterialTheme.colorScheme.surface
                                         ),
                                         title = {
                                             Column {
@@ -2495,8 +2466,7 @@ fun SysFileApp() {
                                                         notify(t.folderLockedDone)
                                                     }
                                                 }
-                                            },
-                                            backdrop = contentBackdrop
+                                            }
                                         )
                                     }
                                     if (selected.isEmpty() || currentPath == null) {
@@ -2517,35 +2487,17 @@ fun SysFileApp() {
                                                         else FileOps.moveInto(files, destDir) > 0
                                                     }
                                                 },
-                                                onClear = { clipboard = null },
-                                                backdrop = contentBackdrop
+                                                onClear = { clipboard = null }
                                             )
                                         }
                                     } else {
-                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it }, backdrop = contentBackdrop)
+                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
                                     }
                                     }
                                 }
                             }
                         ) { padding ->
-                            val ld = LocalLayoutDirection.current
-                            val glassNav = LocalLiquidGlass.current && currentPath == null
-                            val navInset = if (glassNav) padding.calculateBottomPadding() else 0.dp
-                            Box(
-                                Modifier.fillMaxSize()
-                                    .padding(
-                                        start = padding.calculateStartPadding(ld),
-                                        top = padding.calculateTopPadding(),
-                                        end = padding.calculateEndPadding(ld),
-                                        bottom = padding.calculateBottomPadding() - navInset
-                                    )
-                                    .then(
-                                        if (contentBackdrop != null) {
-                                            Modifier.liquidGlassBg().layerBackdrop(contentBackdrop)
-                                        } else Modifier
-                                    )
-                            ) {
-                            CompositionLocalProvider(LocalNavInset provides navInset) {
+                            Box(Modifier.fillMaxSize().padding(padding)) {
                                 AnimatedContent(
                                     targetState = currentPath,
                                     transitionSpec = {
@@ -2560,7 +2512,7 @@ fun SysFileApp() {
                                         }
                                     },
                                     label = "folderAnim"
-                                ) { animatedPath -> Box(Modifier.fillMaxSize().liquidGlassBg()) {
+                                ) { animatedPath -> Box(Modifier.fillMaxSize()) {
                                     if (animatedPath == null) {
                                         AnimatedContent(
                                             targetState = homeTab,
@@ -2569,7 +2521,7 @@ fun SysFileApp() {
                                                     fadeOut(animationSpec = fadeSpec)
                                             },
                                             label = "tabAnim"
-                                        ) { tab -> Box(Modifier.fillMaxSize().liquidGlassBg()) {
+                                        ) { tab -> Box(Modifier.fillMaxSize()) {
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
@@ -2659,7 +2611,6 @@ fun SysFileApp() {
                                 }
                                 }
                             }
-                            }
                         }
                     }
                 }
@@ -2705,11 +2656,10 @@ fun SysFileApp() {
                     ) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-                            tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            tonalElevation = 3.dp,
                             shadowElevation = 6.dp,
                             modifier = Modifier.widthIn(max = 320.dp)
-                                .liquidGlass(RoundedCornerShape(20.dp), floating = true)
                                 .clip(RoundedCornerShape(20.dp))
                                 .clickable { pillVisible = false }
                         ) {
@@ -2772,11 +2722,10 @@ fun SysFileApp() {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-                    tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
-                        .liquidGlass(RoundedCornerShape(24.dp), floating = true)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2833,11 +2782,10 @@ fun SysFileApp() {
             androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
-                    tonalElevation = if (LocalLiquidGlass.current) 0.dp else 3.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth()
-                        .liquidGlass(RoundedCornerShape(24.dp), floating = true)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

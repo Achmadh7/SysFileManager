@@ -189,8 +189,7 @@ fun RecentScreen(
     val sorted = remember(files) { files.sortedByDescending { it.modified } }
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        contentPadding = PaddingValues(bottom = LocalNavInset.current)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         itemsIndexed(sorted, key = { _, entry -> entry.path }) { index, entry ->
             val day = recentDay(entry.modified, t)
@@ -1419,9 +1418,9 @@ fun SearchScreen(
                     expanded = false,
                     onExpandedChange = {},
                     colors = SearchBarDefaults.colors(
-                        containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
-                    modifier = Modifier.weight(1f).liquidGlass(RoundedCornerShape(28.dp), floating = true)
+                    modifier = Modifier.weight(1f)
                 ) {}
             }
             LazyRow(
@@ -1549,8 +1548,7 @@ fun AnalysisScreen(
     val displayRoots = if (roots.size > 1) roots.filter { it.path == activeRootPath } else roots
     LazyColumn(
             Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = LocalNavInset.current)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             val done = roots.mapNotNull { results[it.path] }
             if (done.isNotEmpty()) {
@@ -1632,8 +1630,7 @@ fun AnalysisScreen(
                         if (res == null) {
                             Card(
                                 shape = RoundedCornerShape(28.dp),
-                                colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                                modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp))
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
                             ) {
                                 Row(
                                     Modifier.padding(20.dp),
@@ -1660,8 +1657,8 @@ fun AnalysisScreen(
                                 entries.forEach { (cat, size) ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                                        modifier = Modifier.fillMaxWidth().liquidGlass(RoundedCornerShape(28.dp))
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1717,8 +1714,7 @@ fun AnalysisScreen(
                                 shownLargest.forEach { entry ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
-                                        modifier = Modifier.liquidGlass(RoundedCornerShape(28.dp))
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth()
