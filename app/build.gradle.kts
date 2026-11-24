@@ -105,4 +105,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-video:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
+    // Blur kaca asli tema 2 (API 31+; di bawahnya jatuh ke tint pekat).
+    implementation("dev.chrisbanes.haze:haze:1.6.10")
 }

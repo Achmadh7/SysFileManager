@@ -189,7 +189,8 @@ fun RecentScreen(
     val sorted = remember(files) { files.sortedByDescending { it.modified } }
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        contentPadding = PaddingValues(bottom = LocalNavInset.current)
     ) {
         itemsIndexed(sorted, key = { _, entry -> entry.path }) { index, entry ->
             val day = recentDay(entry.modified, t)
@@ -1545,7 +1546,8 @@ fun AnalysisScreen(
     val displayRoots = if (roots.size > 1) roots.filter { it.path == activeRootPath } else roots
     LazyColumn(
             Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = LocalNavInset.current)
         ) {
             val done = roots.mapNotNull { results[it.path] }
             if (done.isNotEmpty()) {

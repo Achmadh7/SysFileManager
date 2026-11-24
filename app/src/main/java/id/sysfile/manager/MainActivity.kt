@@ -50,6 +50,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -159,6 +161,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -306,6 +312,19 @@ fun SysFileApp() {
         }
         themeMode = mode
         prefs.edit().putString("theme_mode", mode).apply()
+    }
+    // Tema 2: gaya UI "m3" (Material 3 Expressive) / "glass" (iOS Liquid Glass).
+    var uiStyle by remember { mutableStateOf(prefs.getString("ui_style", "m3") ?: "m3") }
+    val onUiStyleChange: (String) -> Unit = { style ->
+        if (themeShot == null) {
+            themeShot = try {
+                if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
+            } catch (_: Exception) {
+                null
+            }
+        }
+        uiStyle = style
+        prefs.edit().putString("ui_style", style).apply()
     }
 
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
@@ -1544,7 +1563,7 @@ fun SysFileApp() {
     // r137 TM1: Box akar supaya tangkapan layar lama bisa menutupi
     // seluruh isi (semua cabang layar) saat memudar.
     Box(Modifier.fillMaxSize()) {
-    SysFileTheme(themeMode) {
+    SysFileTheme(themeMode, uiStyle) {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1598,6 +1617,8 @@ fun SysFileApp() {
                 showRootEntry = showRootEntry,
                 trashEnabled = trashEnabled,
                 onTheme = onThemeChange,
+                uiStyle = uiStyle,
+                onUiStyle = onUiStyleChange,
                 onLanguage = { lang ->
                     language = lang
                     AppLang.code = lang
@@ -1682,7 +1703,7 @@ fun SysFileApp() {
                     }
                 },
                 label = "overlayAnim"
-            ) { ov ->
+            ) { ov -> Box(Modifier.fillMaxSize().glassScreenBg()) {
                 when (ov) {
                     is Overlay.ImageView -> ImageViewerScreen(
                         paths = ov.paths,
@@ -2136,6 +2157,9 @@ fun SysFileApp() {
                         onBack = { overlay = overlayReturn; overlayReturn = null }
                     )
                     null -> {
+                        // Tema kaca: konten Beranda lewat di bawah navbar
+                        // melayang supaya navbar mem-blur isi (Haze).
+                        val hazeState = rememberHazeState()
                         Scaffold(
                             // r164: latar dari skema, bukan Transparent —
                             // windowBackground di themes.xml adalah #101418
@@ -2477,13 +2501,26 @@ fun SysFileApp() {
                                             )
                                         }
                                     } else {
-                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it })
+                                        SysFileNavBar(homeTab = homeTab, onSelect = { homeTab = it }, hazeState = hazeState)
                                     }
                                     }
                                 }
                             }
                         ) { padding ->
-                            Box(Modifier.fillMaxSize().padding(padding)) {
+                            val ld = LocalLayoutDirection.current
+                            val glassNav = LocalGlass.current && currentPath == null
+                            val navInset = if (glassNav) padding.calculateBottomPadding() else 0.dp
+                            Box(
+                                Modifier.fillMaxSize()
+                                    .padding(
+                                        start = padding.calculateStartPadding(ld),
+                                        top = padding.calculateTopPadding(),
+                                        end = padding.calculateEndPadding(ld),
+                                        bottom = padding.calculateBottomPadding() - navInset
+                                    )
+                                    .then(if (glassNav) Modifier.hazeSource(hazeState).glassScreenBg() else Modifier)
+                            ) {
+                            CompositionLocalProvider(LocalNavInset provides navInset) {
                                 AnimatedContent(
                                     targetState = currentPath,
                                     transitionSpec = {
@@ -2498,7 +2535,7 @@ fun SysFileApp() {
                                         }
                                     },
                                     label = "folderAnim"
-                                ) { animatedPath ->
+                                ) { animatedPath -> Box(Modifier.fillMaxSize().glassScreenBg()) {
                                     if (animatedPath == null) {
                                         AnimatedContent(
                                             targetState = homeTab,
@@ -2507,7 +2544,7 @@ fun SysFileApp() {
                                                     fadeOut(animationSpec = fadeSpec)
                                             },
                                             label = "tabAnim"
-                                        ) { tab ->
+                                        ) { tab -> Box(Modifier.fillMaxSize().glassScreenBg()) {
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
@@ -2536,6 +2573,7 @@ fun SysFileApp() {
                                                     onOpenTrash = { showTrash = true },
                                                 )
                                             }
+                                        }
                                         }
                                     } else {
                                         BrowseScreen(
@@ -2594,11 +2632,13 @@ fun SysFileApp() {
                                         )
                                     }
                                 }
+                                }
+                            }
                             }
                         }
                     }
                 }
-            }
+            } }
                 // r88: pill audio di layar overlay — Scaffold +
                 // bottomBar hanya ada saat overlay == null, jadi
                 // tanpa ini audio dari kategori Audio tidak pernah

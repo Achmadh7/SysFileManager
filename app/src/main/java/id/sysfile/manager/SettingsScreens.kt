@@ -24,6 +24,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -171,6 +174,8 @@ fun SettingsScreen(
     showRootEntry: Boolean,
     trashEnabled: Boolean,
     onTheme: (String) -> Unit,
+    uiStyle: String = "m3",
+    onUiStyle: (String) -> Unit = {},
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
@@ -196,6 +201,7 @@ fun SettingsScreen(
             fadeOut(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        modifier = Modifier.glassScreenBg(),
         topBar = {
             TopAppBar(
                 title = { Text(t.settings) },
@@ -273,6 +279,30 @@ fun SettingsScreen(
                                 }
                             }
                         )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        // Tema 2: pemilih gaya UI dengan pratinjau mini.
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            UiStylePreview(
+                                label = "M3 Expressive",
+                                glass = false,
+                                selected = uiStyle != "glass",
+                                onClick = { onUiStyle("m3") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            UiStylePreview(
+                                label = "iOS Liquid Glass",
+                                glass = true,
+                                selected = uiStyle == "glass",
+                                onClick = { onUiStyle("glass") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -448,6 +478,75 @@ fun SettingsScreen(
     }
 }
 
+/** Kartu pratinjau mini gaya UI (solid M3 vs kaca di atas blob). */
+@Composable
+private fun UiStylePreview(
+    label: String,
+    glass: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .border(
+                if (selected) 2.dp else 1.dp,
+                if (selected) primary else MaterialTheme.colorScheme.outlineVariant,
+                RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (glass) Brush.linearGradient(
+                        listOf(Color(0xFF2563EB), Color(0xFFC026D3), Color(0xFF0EA5E9))
+                    ) else Brush.linearGradient(listOf(Color(0xFF101418), Color(0xFF101418)))
+                )
+                .padding(8.dp)
+        ) {
+            val cardShape = RoundedCornerShape(10.dp)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(22.dp)
+                    .clip(cardShape)
+                    .background(if (glass) Color.White.copy(alpha = 0.18f) else Color(0xFF323539))
+                    .then(if (glass) Modifier.border(1.dp, glassRim(), cardShape) else Modifier)
+            )
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(0.7f)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (glass) Color.White.copy(alpha = 0.22f) else Color(0xFF1C2024))
+            ) {
+                Box(
+                    Modifier.fillMaxHeight().fillMaxWidth(0.34f).padding(2.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (glass) Color(0xFF5AC8FA) else Color(0xFF9ACBFA))
+                )
+            }
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+    }
+}
+
 @Composable
 private fun SettingsSectionLabel(text: String, topPadding: Dp = 4.dp) {
     Text(
@@ -607,6 +706,7 @@ fun FormatsScreen(onBack: () -> Unit) {
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        modifier = Modifier.glassScreenBg(),
         topBar = {
             TopAppBar(
                 title = { Text(t.formatsTitle) },
@@ -752,6 +852,7 @@ fun AboutScreen(
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        modifier = Modifier.glassScreenBg(),
         topBar = {
             TopAppBar(
                 title = { Text(t.about, fontWeight = FontWeight.ExtraBold) },
@@ -914,6 +1015,7 @@ fun SpecScreen(onBack: () -> Unit) {
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        modifier = Modifier.glassScreenBg(),
         topBar = {
             TopAppBar(
                 title = { Text(t.appSpecs, fontWeight = FontWeight.ExtraBold) },

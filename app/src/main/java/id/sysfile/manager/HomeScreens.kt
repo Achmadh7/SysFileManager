@@ -147,6 +147,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -227,7 +231,8 @@ fun HomeScreen(
     val t = txt()
     LazyColumn(
         Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = LocalNavInset.current)
     ) {
         if (!accessGranted) {
             item {
@@ -662,7 +667,7 @@ private fun CategoryTile(
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
+fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, hazeState: HazeState? = null) {
     val t = txt()
     val motion = MaterialTheme.motionScheme
     val items = listOf(
@@ -678,7 +683,8 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val activeBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
     val activeBorder = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
     val activeFg = MaterialTheme.colorScheme.primary
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val isDark = MaterialTheme.colorScheme.onSurface.luminance() > 0.5f
+    val glass = LocalGlass.current
     val inactiveFg = if (isDark) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
 
     val safeTab = homeTab.coerceIn(0, 2)
@@ -710,8 +716,24 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 28.dp, vertical = 12.dp)
             .clip(RoundedCornerShape(26.dp))
-            .background(barColor)
-            .border(1.dp, borderColor, RoundedCornerShape(26.dp))
+            .then(
+                if (glass && hazeState != null) {
+                    Modifier.hazeEffect(
+                        state = hazeState,
+                        style = HazeStyle(
+                            backgroundColor = glassBaseColor(isDark),
+                            blurRadius = 22.dp,
+                            tint = HazeTint(if (isDark) Color(0x991A2030) else Color(0xB8F4F7FD))
+                        )
+                    )
+                } else {
+                    Modifier.background(barColor)
+                }
+            )
+            .then(
+                if (glass) Modifier.border(1.dp, glassRim(), RoundedCornerShape(26.dp))
+                else Modifier.border(1.dp, borderColor, RoundedCornerShape(26.dp))
+            )
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         val gap = 8.dp
