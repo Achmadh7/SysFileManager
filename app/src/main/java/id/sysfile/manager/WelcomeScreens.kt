@@ -59,14 +59,21 @@ fun SysFileLogo(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 22.dp
 ) {
+    val isNothing = LocalNothingTheme.current
+    val shape = if (isNothing) RoundedCornerShape(50) else RoundedCornerShape(cornerRadius)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius))
+            .clip(shape)
             .background(
-                Brush.linearGradient(
-                    listOf(Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF082F49))
-                )
-            ),
+                if (isNothing) {
+                    Brush.linearGradient(listOf(NothingSignalRed, Color(0xFF9E1117)))
+                } else {
+                    Brush.linearGradient(
+                        listOf(Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF082F49))
+                    )
+                }
+            )
+            .nothingBorder(shape),
         contentAlignment = Alignment.Center
     ) {
         Image(
@@ -101,7 +108,7 @@ fun WelcomeScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(scheme.background)
+            .then(if (LocalNothingTheme.current) Modifier else Modifier.background(scheme.background))
     ) {
         Column(
             Modifier

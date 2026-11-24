@@ -1420,7 +1420,7 @@ fun SearchScreen(
                     colors = SearchBarDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).nothingBorder(RoundedCornerShape(28.dp))
                 ) {}
             }
             LazyRow(
@@ -1630,7 +1630,8 @@ fun AnalysisScreen(
                         if (res == null) {
                             Card(
                                 shape = RoundedCornerShape(28.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
                             ) {
                                 Row(
                                     Modifier.padding(20.dp),
@@ -1658,7 +1659,7 @@ fun AnalysisScreen(
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -1692,12 +1693,18 @@ fun AnalysisScreen(
                                                     )
                                                 }
                                                 Spacer(Modifier.height(7.dp))
-                                                LinearWavyProgressIndicator(
-                                                    progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                                )
+                                                if (LocalNothingTheme.current) {
+                                                    NothingMatrixProgressBar(
+                                                        fraction = (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f)
+                                                    )
+                                                } else {
+                                                    LinearWavyProgressIndicator(
+                                                        progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1714,7 +1721,8 @@ fun AnalysisScreen(
                                 shownLargest.forEach { entry ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
                                     ) {
                                         Row(
                                             Modifier.fillMaxWidth()

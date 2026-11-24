@@ -101,7 +101,7 @@ fun SectionCard(
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
         shape = RoundedCornerShape(28.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -486,6 +486,15 @@ fun FileRow(
         ),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
+            .then(
+                if (LocalNothingTheme.current) {
+                    Modifier.border(
+                        1.dp,
+                        if (isSelected) NothingSignalRed else MaterialTheme.colorScheme.outlineVariant,
+                        RoundedCornerShape(16.dp)
+                    )
+                } else Modifier
+            )
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
     ) {
         Row(
@@ -679,10 +688,15 @@ fun StorageCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     val cardShape = RoundedCornerShape(28.dp)
+    val isNothing = LocalNothingTheme.current
     Box(
         Modifier.fillMaxWidth().clip(cardShape)
             .background(scheme.secondaryContainer)
-            .border(1.dp, scheme.primary.copy(alpha = 0.22f), cardShape)
+            .border(
+                1.dp,
+                if (isNothing) scheme.outlineVariant else scheme.primary.copy(alpha = 0.22f),
+                cardShape
+            )
             .clickable { onClick() }
     ) {
         StorageCardContent(
@@ -758,12 +772,16 @@ fun StorageCardContent(
                 Modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                LinearWavyProgressIndicator(
-                    progress = { usedFraction.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = scheme.primary,
-                    trackColor = scheme.surfaceContainerHighest
-                )
+                if (LocalNothingTheme.current) {
+                    NothingMatrixProgressBar(fraction = usedFraction)
+                } else {
+                    LinearWavyProgressIndicator(
+                        progress = { usedFraction.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = scheme.primary,
+                        trackColor = scheme.surfaceContainerHighest
+                    )
+                }
                 Text(
                     percentText + " " + usedWord,
                     style = MaterialTheme.typography.titleSmall,
@@ -783,8 +801,12 @@ fun SplitGapSolidProgressBar(
     progress: Float?,
     modifier: Modifier = Modifier
 ) {
-    val scheme = MaterialTheme.colorScheme
     val clamped = (progress ?: 0.35f).coerceIn(0.06f, 1f)
+    if (LocalNothingTheme.current) {
+        NothingMatrixProgressBar(fraction = clamped, modifier = modifier)
+        return
+    }
+    val scheme = MaterialTheme.colorScheme
     val remain = (1f - clamped).coerceAtLeast(0f)
     Row(
         modifier = modifier

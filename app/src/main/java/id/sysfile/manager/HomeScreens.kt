@@ -253,22 +253,36 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Storage, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                            Icon(
+                                Icons.Default.Storage,
+                                null,
+                                tint = if (LocalNothingTheme.current) NothingSignalRed else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp)
+                            )
                             Spacer(Modifier.width(10.dp))
-                            Text(t.storage, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (LocalNothingTheme.current) t.storage.uppercase() else t.storage,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                         if (roots.size > 1) {
+                            val isNothing = LocalNothingTheme.current
                             Box(
                                 Modifier
                                     .clip(RoundedCornerShape(50))
-                                    .background(currentAccent.copy(alpha = 0.15f))
+                                    .background(
+                                        if (isNothing) MaterialTheme.colorScheme.surfaceContainer
+                                        else currentAccent.copy(alpha = 0.15f)
+                                    )
+                                    .nothingBorder(RoundedCornerShape(50))
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = "${pagerState.currentPage + 1} / ${roots.size}",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = currentAccent
+                                    color = if (isNothing) MaterialTheme.colorScheme.onSurface else currentAccent
                                 )
                             }
                         }
@@ -319,7 +333,12 @@ fun HomeScreen(
                                     label = "storagePagerDotWidth"
                                 )
                                 val dotColor by animateColorAsState(
-                                    targetValue = if (selected) dotAccent else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                                    targetValue = when {
+                                        LocalNothingTheme.current && selected -> NothingSignalRed
+                                        LocalNothingTheme.current -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+                                        selected -> dotAccent
+                                        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+                                    },
                                     label = "storagePagerDotColor"
                                 )
                                 Box(
@@ -344,9 +363,18 @@ fun HomeScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Analytics, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                    Icon(
+                        Icons.Default.Analytics,
+                        null,
+                        tint = if (LocalNothingTheme.current) NothingSignalRed else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text(t.categories, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (LocalNothingTheme.current) t.categories.uppercase() else t.categories,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
                 // Opsi 4D (Kartu Kategori 2-Kolom Diperbesar):
                 val cats = buildList {
@@ -372,6 +400,7 @@ fun HomeScreen(
                                     icon = categoryIcon(cat, ""),
                                     label = label,
                                     color = color,
+                                    highlightRed = cat == Category.APP,
                                     modifier = Modifier.weight(1f),
                                     onClick = { onOpenCategory(cat) }
                                 )
@@ -381,6 +410,7 @@ fun HomeScreen(
                                     icon = Icons.Default.Delete,
                                     label = t.trash,
                                     color = trashColor,
+                                    highlightRed = true,
                                     modifier = Modifier.weight(1f),
                                     onClick = onOpenTrash
                                 )
@@ -445,12 +475,18 @@ private fun PeekStorageHeroCard(
     }
     val remainFraction = (1f - clampedFraction).coerceAtLeast(0f)
 
-    val peekShape = RoundedCornerShape(26.dp)
+    val isNothing = LocalNothingTheme.current
+    val peekShape = RoundedCornerShape(if (isNothing) 22.dp else 26.dp)
+    val iconShape = if (isNothing) CircleShape else RoundedCornerShape(14.dp)
     Column(
         modifier = modifier
             .clip(peekShape)
             .background(scheme.secondaryContainer)
-            .border(1.dp, accentColor.copy(alpha = 0.34f), peekShape)
+            .border(
+                1.dp,
+                if (isNothing) scheme.outlineVariant else accentColor.copy(alpha = 0.34f),
+                peekShape
+            )
             .clickable { onOpenRoot(root.path) }
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -468,14 +504,19 @@ private fun PeekStorageHeroCard(
                 Box(
                     Modifier
                         .size(44.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(accentColor.copy(alpha = 0.16f)),
+                        .clip(iconShape)
+                        .background(if (isNothing) scheme.surfaceVariant else accentColor.copy(alpha = 0.16f))
+                        .nothingBorder(iconShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = accentColor,
+                        tint = when {
+                            isNothing && root.kind == "root" -> NothingSignalRed
+                            isNothing -> scheme.onSurface
+                            else -> accentColor
+                        },
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -502,50 +543,54 @@ private fun PeekStorageHeroCard(
             Box(
                 Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(accentColor.copy(alpha = 0.16f))
+                    .background(if (isNothing) NothingSignalRed else accentColor.copy(alpha = 0.16f))
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
-                    text = badgeText,
+                    text = if (isNothing) badgeText.uppercase() else badgeText,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = accentColor,
+                    color = if (isNothing) Color.White else accentColor,
                     maxLines = 1
                 )
             }
         }
 
-        // Baris tengah: Split-Gap Solid Progress Bar (5dp gap + stop dot di ujung kanan track)
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
+        // Baris tengah: Nothing Matrix Segmented Bar (tema 2) / Split-Gap Solid Progress Bar (tema 1)
+        if (isNothing) {
+            NothingMatrixProgressBar(fraction = clampedFraction)
+        } else {
+            Row(
                 Modifier
-                    .weight(clampedFraction)
-                    .fillMaxHeight()
-                    .clip(CircleShape)
-                    .background(accentColor)
-            )
-            if (remainFraction > 0.02f) {
+                    .fillMaxWidth()
+                    .height(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     Modifier
-                        .weight(remainFraction)
+                        .weight(clampedFraction)
                         .fillMaxHeight()
                         .clip(CircleShape)
-                        .background(scheme.surfaceContainerHighest)
-                        .padding(end = 4.dp),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
+                        .background(accentColor)
+                )
+                if (remainFraction > 0.02f) {
                     Box(
                         Modifier
-                            .size(5.dp)
+                            .weight(remainFraction)
+                            .fillMaxHeight()
                             .clip(CircleShape)
-                            .background(accentColor.copy(alpha = 0.75f))
-                    )
+                            .background(scheme.surfaceContainerHighest)
+                            .padding(end = 4.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Box(
+                            Modifier
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(accentColor.copy(alpha = 0.75f))
+                        )
+                    }
                 }
             }
         }
@@ -597,16 +642,23 @@ private fun CategoryTile(
     icon: ImageVector,
     label: String,
     color: Color,
+    highlightRed: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val tileShape = RoundedCornerShape(22.dp)
+    val isNothing = LocalNothingTheme.current
+    val tileShape = RoundedCornerShape(if (isNothing) 18.dp else 22.dp)
+    val icShape = if (isNothing) CircleShape else RoundedCornerShape(14.dp)
     Row(
         modifier = modifier
             .height(74.dp)
             .clip(tileShape)
             .background(MaterialTheme.colorScheme.secondaryContainer)
-            .border(1.dp, color.copy(alpha = 0.25f), tileShape)
+            .border(
+                1.dp,
+                if (isNothing) MaterialTheme.colorScheme.outlineVariant else color.copy(alpha = 0.25f),
+                tileShape
+            )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -615,14 +667,18 @@ private fun CategoryTile(
         Box(
             Modifier
                 .size(44.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(color.copy(alpha = 0.20f)),
+                .clip(icShape)
+                .background(if (isNothing) MaterialTheme.colorScheme.surfaceVariant else color.copy(alpha = 0.20f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 icon,
                 null,
-                tint = color,
+                tint = when {
+                    isNothing && highlightRed -> NothingSignalRed
+                    isNothing -> MaterialTheme.colorScheme.onSurface
+                    else -> color
+                },
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -675,11 +731,12 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val outlined = listOf(
         Icons.Outlined.Home, Icons.Outlined.History, Icons.Outlined.Analytics
     )
+    val isNothing = LocalNothingTheme.current
     val barColor = MaterialTheme.colorScheme.surfaceContainer
-    val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-    val activeBg = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-    val activeBorder = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-    val activeFg = MaterialTheme.colorScheme.primary
+    val borderColor = if (isNothing) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val activeBg = if (isNothing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+    val activeBorder = if (isNothing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    val activeFg = if (isNothing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
     val isDark = MaterialTheme.colorScheme.onSurface.luminance() > 0.5f
     val inactiveFg = if (isDark) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -707,8 +764,8 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         }
     }
 
-    val navShape = RoundedCornerShape(26.dp)
-    val pillShape = RoundedCornerShape(20.dp)
+    val navShape = if (isNothing) RoundedCornerShape(50) else RoundedCornerShape(26.dp)
+    val pillShape = if (isNothing) RoundedCornerShape(50) else RoundedCornerShape(20.dp)
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
@@ -729,7 +786,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
 
         // Cincin pulsa tonal Material 3 (Opsi 3: Flat M3 Tonal Ripple Ring saat mendarat)
         val p = pulseAnim.value
-        if (p < 0.99f) {
+        if (!isNothing && p < 0.99f) {
             Box(
                 Modifier
                     .offset(x = targetX)
@@ -796,7 +853,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
-                        text = label,
+                        text = if (isNothing) label.uppercase() else label,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         color = fg,

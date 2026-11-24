@@ -211,7 +211,7 @@ fun BrowseHeaderBar(
                 colors = SearchBarDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 ),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).nothingBorder(RoundedCornerShape(28.dp)),
                 // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
                 // status bar di atas pil (windowInsets default), padahal
                 // ia duduk di bawah TopAppBar yang inset-nya sudah
@@ -300,6 +300,7 @@ fun BrowseHeaderBar(
                     shape = RoundedCornerShape(50),
                     color = if (active) MaterialTheme.colorScheme.primaryContainer
                     else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.nothingBorder(RoundedCornerShape(50)),
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active
                 ) {
@@ -645,7 +646,8 @@ fun SelectionBar(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 3.dp,
-            shadowElevation = 6.dp
+            shadowElevation = 6.dp,
+            modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
         ) {
             Row(
                 Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -760,7 +762,8 @@ fun ClipboardBar(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                .nothingBorder(RoundedCornerShape(28.dp)),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.secondaryContainer
         ) {
@@ -818,7 +821,8 @@ fun MiniPlayerBar(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
             tonalElevation = 3.dp,
-            shadowElevation = 6.dp
+            shadowElevation = 6.dp,
+            modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),

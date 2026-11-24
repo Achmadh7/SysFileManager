@@ -175,6 +175,8 @@ fun SettingsScreen(
     showRootEntry: Boolean,
     trashEnabled: Boolean,
     onTheme: (String) -> Unit,
+    uiStyle: String = "m3",
+    onUiStyle: (String) -> Unit = {},
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
@@ -199,11 +201,13 @@ fun SettingsScreen(
         exit = slideOutHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
             fadeOut(animationSpec = motion.defaultEffectsSpec())
     ) {
+    val isNothing = LocalNothingTheme.current
     Scaffold(
+        containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.surface,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),
                 title = { Text(t.settings) },
@@ -226,7 +230,7 @@ fun SettingsScreen(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(16.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -281,6 +285,29 @@ fun SettingsScreen(
                                 }
                             }
                         )
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            UiStylePreviewCard(
+                                label = "M3 Biru Senja",
+                                nothingStyle = false,
+                                selected = uiStyle != "nothing",
+                                onClick = { onUiStyle("m3") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            UiStylePreviewCard(
+                                label = "Nothing Matrix",
+                                nothingStyle = true,
+                                selected = uiStyle == "nothing",
+                                onClick = { onUiStyle("nothing") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -341,7 +368,7 @@ fun SettingsScreen(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(16.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -389,7 +416,7 @@ fun SettingsScreen(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(16.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -451,7 +478,7 @@ fun SettingsScreen(
                         }
                     }
                     Text(
-                        "Jetpack Compose • Biru Senja",
+                        if (isNothing) "NOTHING DOT-MATRIX • AMAN AMOLED" else "Jetpack Compose • Biru Senja",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -459,6 +486,90 @@ fun SettingsScreen(
             }
         }
     }
+    }
+}
+
+@Composable
+private fun UiStylePreviewCard(
+    label: String,
+    nothingStyle: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val activeAccent = if (nothingStyle) NothingSignalRed else MaterialTheme.colorScheme.primary
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .border(
+                if (selected) 2.dp else 1.dp,
+                if (selected) activeAccent else MaterialTheme.colorScheme.outlineVariant,
+                RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (nothingStyle) Color(0xFF000000) else Color(0xFF101418))
+                .padding(8.dp)
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF3A4857))
+                    .border(
+                        1.dp,
+                        if (nothingStyle) Color(0xFF2A2A32) else Color(0xFF9ACBFA).copy(alpha = 0.35f),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 6.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Box(
+                    Modifier
+                        .size(width = 16.dp, height = 7.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (nothingStyle) NothingSignalRed else Color(0xFF9ACBFA))
+                )
+            }
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(0.72f)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF1C2024))
+                    .border(
+                        1.dp,
+                        if (nothingStyle) Color(0xFF2A2A32) else Color.Transparent,
+                        RoundedCornerShape(50)
+                    )
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(0.36f)
+                        .padding(2.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (nothingStyle) Color(0xFFF5F5F7) else Color(0xFF9ACBFA))
+                )
+            }
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
     }
 }
 
@@ -621,6 +732,7 @@ fun FormatsScreen(onBack: () -> Unit) {
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        containerColor = if (LocalNothingTheme.current) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(t.formatsTitle) },
@@ -642,7 +754,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
@@ -665,7 +777,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
@@ -693,7 +805,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
@@ -721,7 +833,7 @@ fun FormatsScreen(onBack: () -> Unit) {
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
@@ -766,6 +878,7 @@ fun AboutScreen(
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        containerColor = if (LocalNothingTheme.current) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(t.about, fontWeight = FontWeight.ExtraBold) },
@@ -822,7 +935,7 @@ fun AboutScreen(
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -928,6 +1041,7 @@ fun SpecScreen(onBack: () -> Unit) {
             fadeIn(animationSpec = motion.defaultEffectsSpec())
     ) {
     Scaffold(
+        containerColor = if (LocalNothingTheme.current) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(t.appSpecs, fontWeight = FontWeight.ExtraBold) },
@@ -998,7 +1112,7 @@ private fun SpecGroup(
     rows: List<Pair<String, String>>
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp)),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {

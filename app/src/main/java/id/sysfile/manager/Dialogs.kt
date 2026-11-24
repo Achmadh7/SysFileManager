@@ -326,7 +326,8 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     // info + izin; dialog jadi jauh lebih pendek.
                     Card(
                         shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                        modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
                     ) {
                         Column {
                             PropGridRow(
@@ -426,7 +427,8 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         Spacer(Modifier.height(12.dp))
                         Card(
                         shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                        modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
                     ) {
                             Column {
                                 PropGridRow(t.propPath, ellipsizeMiddle(entry.path)) {
@@ -549,7 +551,8 @@ fun ExifDialog(entry: FEntry, onDismiss: () -> Unit) {
                     } else {
                         Card(
                         shape = RoundedCornerShape(28.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                        modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
                     ) {
                             Column {
                                 rows.forEachIndexed { i, (label, value) ->

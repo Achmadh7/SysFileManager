@@ -312,6 +312,21 @@ fun SysFileApp() {
         themeMode = mode
         prefs.edit().putString("theme_mode", mode).apply()
     }
+    var uiStyle by remember {
+        val saved = prefs.getString("ui_style", "m3") ?: "m3"
+        mutableStateOf(if (saved == "nothing") "nothing" else "m3")
+    }
+    val onUiStyleChange: (String) -> Unit = { style ->
+        if (themeShot == null) {
+            themeShot = try {
+                if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
+            } catch (_: Exception) {
+                null
+            }
+        }
+        uiStyle = style
+        prefs.edit().putString("ui_style", style).apply()
+    }
 
     var language by remember { mutableStateOf(prefs.getString("app_language", "id") ?: "id") }
     AppLang.code = language
@@ -1549,7 +1564,7 @@ fun SysFileApp() {
     // r137 TM1: Box akar supaya tangkapan layar lama bisa menutupi
     // seluruh isi (semua cabang layar) saat memudar.
     Box(Modifier.fillMaxSize()) {
-    SysFileTheme(themeMode) {
+    SysFileTheme(themeMode, uiStyle) {
         if (safTreeUri != null) {
             SafBrowseScreen(
                 treeUri = safTreeUri!!,
@@ -1603,6 +1618,8 @@ fun SysFileApp() {
                 showRootEntry = showRootEntry,
                 trashEnabled = trashEnabled,
                 onTheme = onThemeChange,
+                uiStyle = uiStyle,
+                onUiStyle = onUiStyleChange,
                 onLanguage = { lang ->
                     language = lang
                     AppLang.code = lang
@@ -2141,18 +2158,18 @@ fun SysFileApp() {
                         onBack = { overlay = overlayReturn; overlayReturn = null }
                     )
                     null -> {
+                        val isNothing = LocalNothingTheme.current
+                        val barContainer = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.surface
                         Scaffold(
                             // r164: latar dari skema, bukan Transparent —
-                            // windowBackground di themes.xml adalah #101418
-                            // (gelap); dengan Transparent, mode terang pun
-                            // berlatar gelap di Beranda + Jelajah.
-                            containerColor = MaterialTheme.colorScheme.background,
+                            // kecuali saat Tema 2 Nothing aktif (kanvas dot-matrix di Box akar).
+                            containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.background,
                             topBar = {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
+                                            containerColor = barContainer
                                         ),
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2162,7 +2179,7 @@ fun SysFileApp() {
                                                 )
                                                 Spacer(Modifier.width(12.dp))
                                                 Column {
-                                                    Text("SysFile")
+                                                    Text(if (isNothing) "SYSFILE" else "SysFile")
                                                     Text(
                                                         t.appTagline,
                                                         style = MaterialTheme.typography.bodySmall,
@@ -2184,10 +2201,13 @@ fun SysFileApp() {
                                             }
                                         }
                                     )
+                                    if (isNothing) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
+                                            containerColor = barContainer
                                         ),
                                         title = { Text(t.selected(selected.size)) },
                                         navigationIcon = {
@@ -2202,7 +2222,7 @@ fun SysFileApp() {
                                 } else {
                                     TopAppBar(
                                         colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
+                                            containerColor = barContainer
                                         ),
                                         title = {
                                             Column {
@@ -2660,6 +2680,7 @@ fun SysFileApp() {
                             tonalElevation = 3.dp,
                             shadowElevation = 6.dp,
                             modifier = Modifier.widthIn(max = 320.dp)
+                                .nothingBorder(RoundedCornerShape(20.dp))
                                 .clip(RoundedCornerShape(20.dp))
                                 .clickable { pillVisible = false }
                         ) {
@@ -2726,6 +2747,7 @@ fun SysFileApp() {
                     tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                        .nothingBorder(RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2785,7 +2807,7 @@ fun SysFileApp() {
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
