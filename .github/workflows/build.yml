@@ -41,15 +41,20 @@ jobs:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
       - name: Build release APK
+        env:
+          SYSFILE_STORE_FILE: ${{ secrets.SYSFILE_STORE_FILE }}
+          SYSFILE_STORE_PASSWORD: ${{ secrets.SYSFILE_STORE_PASSWORD }}
+          SYSFILE_KEY_ALIAS: ${{ secrets.SYSFILE_KEY_ALIAS }}
+          SYSFILE_KEY_PASSWORD: ${{ secrets.SYSFILE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
       - name: Rename release APK
         # A1: nama APK diambil dari versionName (bukan hardcode).
         run: |
           VERSION=$(grep -m1 -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/SysFileManager-$VERSION-Release.apk"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/Sysfile Manager $VERSION-Release.apk"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SysFile Manager
-          path: app/build/outputs/apk/release/SysFileManager-${{ env.VERSION }}-Release.apk
+          name: Sysfile Manager
+          path: app/build/outputs/apk/release/Sysfile Manager ${{ env.VERSION }}-Release.apk

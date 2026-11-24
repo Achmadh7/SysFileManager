@@ -306,9 +306,10 @@ object RootShell {
                 if (qParent != null) {
                     append("mkdir -p $qParent && ")
                 }
-                append("cat $qSrc > $qDst 2>/dev/null || ")
-                append("(mount -o remount,rw / 2>/dev/null; mount -o remount,rw /system 2>/dev/null; cat $qSrc > $qDst 2>/dev/null || cp -f $qSrc $qDst) && ")
-                append("chmod 644 $qDst")
+                append("EXISTED=0; [ -e $qDst ] && EXISTED=1; ")
+                append("(cat $qSrc > $qDst 2>/dev/null || ")
+                append("(mount -o remount,rw / 2>/dev/null; mount -o remount,rw /system 2>/dev/null; cat $qSrc > $qDst 2>/dev/null || cp -f $qSrc $qDst)) && ")
+                append("([ \$EXISTED -eq 1 ] || chmod 644 $qDst)")
             }
             val res = runSu(script, 30)
             res != null

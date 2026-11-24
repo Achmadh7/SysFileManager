@@ -12,8 +12,8 @@ android {
         applicationId = "id.sysfile.manager"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.4.0"
     }
 
     buildFeatures {
@@ -21,16 +21,34 @@ android {
         compose = true
     }
 
-    // Kunci tanda tangan TETAP untuk semua build dari repo ini (keystore
-    // sysfile.p12 di root repo). Tanpa ini, setiap build GitHub Actions
-    // memakai kunci debug acak baru, sehingga APK baru tidak bisa dipasang
-    // menimpa yang lama dan aplikasi harus di-uninstall dulu setiap update.
+    // Kunci tanda tangan: baca kredensial dari env/CI secrets terlebih dahulu.
+    // Fallback ke `sysfile.p12` bawaan hanya jika `SYSFILE_STRICT_SIGNING` tidak aktif
+    // (menjaga CI tetap jalan saat belum ada secrets, sekaligus memperingatkan saat release).
     signingConfigs {
+        val envStoreFile = System.getenv("SYSFILE_STORE_FILE")
+        val envStorePass = System.getenv("SYSFILE_STORE_PASSWORD")
+        val envAlias = System.getenv("SYSFILE_KEY_ALIAS")
+        val envKeyPass = System.getenv("SYSFILE_KEY_PASSWORD")
+        val usingDemoKeystore = envStoreFile.isNullOrBlank() || envStorePass.isNullOrBlank()
+
         create("ci") {
-            storeFile = System.getenv("SYSFILE_STORE_FILE")?.let { file(it) } ?: rootProject.file("sysfile.p12")
-            storePassword = System.getenv("SYSFILE_STORE_PASSWORD") ?: "sysfile"
-            keyAlias = System.getenv("SYSFILE_KEY_ALIAS") ?: "sysfile"
-            keyPassword = System.getenv("SYSFILE_KEY_PASSWORD") ?: "sysfile"
+            storeFile = envStoreFile?.takeIf { it.isNotBlank() }?.let { file(it) } ?: rootProject.file("sysfile.p12")
+            storePassword = envStorePass?.takeIf { it.isNotBlank() } ?: "sysfile"
+            keyAlias = envAlias?.takeIf { it.isNotBlank() } ?: "sysfile"
+            keyPassword = envKeyPass?.takeIf { it.isNotBlank() } ?: "sysfile"
+            storeType = "PKCS12"
+        }
+        create("releaseSigning") {
+            if (usingDemoKeystore) {
+                if (System.getenv("SYSFILE_STRICT_SIGNING") == "true") {
+                    throw GradleException("SYSFILE_STORE_FILE dan SYSFILE_STORE_PASSWORD wajib diisi saat SYSFILE_STRICT_SIGNING=true")
+                }
+                logger.warn("PERINGATAN: Build release memakai keystore demo repo (sysfile.p12). Set SYSFILE_* env/secrets untuk rilis publik.")
+            }
+            storeFile = envStoreFile?.takeIf { it.isNotBlank() }?.let { file(it) } ?: rootProject.file("sysfile.p12")
+            storePassword = envStorePass?.takeIf { it.isNotBlank() } ?: "sysfile"
+            keyAlias = envAlias?.takeIf { it.isNotBlank() } ?: "sysfile"
+            keyPassword = envKeyPass?.takeIf { it.isNotBlank() } ?: "sysfile"
             storeType = "PKCS12"
         }
     }
@@ -48,7 +66,7 @@ android {
             )
         }
         release {
-            signingConfig = signingConfigs.getByName("ci")
+            signingConfig = signingConfigs.getByName("releaseSigning")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

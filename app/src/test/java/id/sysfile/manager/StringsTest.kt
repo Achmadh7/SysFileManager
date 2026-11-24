@@ -22,4 +22,15 @@ class StringsTest {
         assertEquals("Berhasil diekstrak.", TxtId.extractDone)
         assertEquals("Extracted successfully.", TxtEn.extractDone)
     }
+
+    @Test
+    fun v140SettingsAndBiometricStringsPresent() {
+        listOf(TxtId, TxtEn).forEach { t ->
+            assertFalse(t.tapToSwitch.isBlank())
+            assertFalse(t.dotfilesHint.isBlank())
+            assertFalse(t.manageApksSubtitle.isBlank())
+            assertFalse(t.infoEngineSubtitle.isBlank())
+            assertFalse(t.biometricUnavailable.isBlank())
+        }
+    }
 }

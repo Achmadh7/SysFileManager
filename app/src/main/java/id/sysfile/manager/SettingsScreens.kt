@@ -233,7 +233,7 @@ fun SettingsScreen(
                         SettingsBentoTile(
                             icon = if (isDark) Icons.Default.DarkMode else Icons.Default.LightMode,
                             title = if (isDark) t.themeDark else t.themeLight,
-                            subtitle = if (language == "id") "Ketuk untuk ganti" else "Tap to switch",
+                            subtitle = t.tapToSwitch,
                             onClick = { onTheme(if (isDark) "light" else "dark") },
                             modifier = Modifier.weight(1f)
                         )
@@ -286,7 +286,7 @@ fun SettingsScreen(
                             icon = Icons.Default.Folder,
                             circleColor = MaterialTheme.colorScheme.primary,
                             title = t.showHidden,
-                            subtitle = if (language == "id") "Berkas berawalan titik (.)" else "Dotfiles (.)",
+                            subtitle = t.dotfilesHint,
                             trailing = {
                                 Switch(checked = showHidden, onCheckedChange = onHidden)
                             }
@@ -331,14 +331,14 @@ fun SettingsScreen(
                     SettingsBentoTile(
                         icon = Icons.Default.Apps,
                         title = t.appsTitle,
-                        subtitle = if (language == "id") "Kelola APK" else "Manage APKs",
+                        subtitle = t.manageApksSubtitle,
                         onClick = onApps,
                         modifier = Modifier.weight(1f)
                     )
                     SettingsBentoTile(
                         icon = Icons.Default.Info,
                         title = t.about,
-                        subtitle = if (language == "id") "Info & Mesin" else "Info & Engine",
+                        subtitle = t.infoEngineSubtitle,
                         onClick = onAbout,
                         modifier = Modifier.weight(1f)
                     )
@@ -975,7 +975,7 @@ fun SpecScreen(onBack: () -> Unit) {
                         "Toolkit UI" to "Jetpack Compose",
                         t.specDesignLabel to "Material 3 Expressive",
                         t.minAndroidLabel to "8.0 (API 26)",
-                        t.targetAndroidLabel to "14 (API 34)"
+                        t.targetAndroidLabel to "15 (API 35)"
                     )
                 )
             }

@@ -456,6 +456,9 @@ fun SysFileApp() {
     val countCache = remember { mutableMapOf<String, Int>() }
     var reloadKey by remember { mutableStateOf(0) }
     var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var homeRefreshing by remember { mutableStateOf(false) }
+    var recentRefreshing by remember { mutableStateOf(false) }
+    var browseRefreshing by remember { mutableStateOf(false) }
 
     fun invalidateRootCaches() {
         listingCache.clear()
@@ -468,8 +471,9 @@ fun SysFileApp() {
     // pemakaian pertama.
     // L18: refreshRoots TIDAK lagi memblokir main thread (storageRoots
     // membaca /proc/mounts + sysfs — dulu ANR saat storage lambat).
-    fun refreshRoots() {
+    fun refreshRoots(onFinished: (() -> Unit)? = null) {
         scope.launch {
+            try {
             val rootOn = prefs.getBoolean("root_entry", false)
             if (!rootOn) {
                 if (rootActive) {
@@ -517,6 +521,9 @@ fun SysFileApp() {
             lockedFolders = FileOps.canonicalizeLocked(
                 prefs.getStringSet("locked_folders", emptySet()) ?: emptySet()
             )
+            } finally {
+                onFinished?.invoke()
+            }
         }
     }
 
@@ -679,6 +686,7 @@ fun SysFileApp() {
             activity = activity,
             title = t.unlockTitle,
             subtitle = t.unlockPrompt(File(path).name),
+            unavailableMessage = t.biometricUnavailable,
             onSuccess = {
                 // r175 H4: simpan ejaan mentah + kanonis — membuka
                 // lewat alias (/sdcard/...) tidak meminta ulang.
@@ -690,7 +698,7 @@ fun SysFileApp() {
                 }
                 onGranted()
             },
-            onError = { notify(t.unlockFailed) }
+            onError = { msg -> notify(msg.ifBlank { t.unlockFailed }) }
         )
     }
 
@@ -865,6 +873,7 @@ fun SysFileApp() {
         val path = currentPath
         if (path == null) {
             entries = emptyList()
+            browseRefreshing = false
             return@LaunchedEffect
         }
         if (showRootEntry && !rootActive &&
@@ -982,6 +991,7 @@ fun SysFileApp() {
             dirs.associate { it.path to (countCache[it.path] ?: 0) }
         }
         entriesLoaded = true
+        browseRefreshing = false
         // L29: pertahankan seleksi yang masih ada di daftar baru —
         // dulu seleksi dihapus di setiap reload (termasuk saat folder
         // berubah, entri yang hilang ikut terbuang dari seleksi).
@@ -992,11 +1002,13 @@ fun SysFileApp() {
     LaunchedEffect(accessGranted, roots, showHidden, reloadKey, lockedFolders) {
         if (!accessGranted || roots.isEmpty()) {
             recentFiles = emptyList()
+            recentRefreshing = false
             return@LaunchedEffect
         }
         recentFiles = withContext(Dispatchers.IO) {
             FileOps.recentFiles(roots.map { File(it.path) }, showHidden, lockedFolders, limit = 60)
         }
+        recentRefreshing = false
     }
 
     fun openExternal(file: File) {
@@ -2564,8 +2576,6 @@ fun SysFileApp() {
                                             },
                                             label = "tabAnim"
                                         ) { tab -> Box(Modifier.fillMaxSize()) {
-                                            var homeRefreshing by remember { mutableStateOf(false) }
-                                            var recentRefreshing by remember { mutableStateOf(false) }
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
@@ -2581,10 +2591,6 @@ fun SysFileApp() {
                                                     onRefresh = {
                                                         recentRefreshing = true
                                                         reloadKey++
-                                                        scope.launch {
-                                                            kotlinx.coroutines.delay(550)
-                                                            recentRefreshing = false
-                                                        }
                                                     }
                                                 )
                                                 2 -> AnalysisScreen(
@@ -2604,18 +2610,13 @@ fun SysFileApp() {
                                                     isRefreshing = homeRefreshing,
                                                     onRefresh = {
                                                         homeRefreshing = true
-                                                        refreshRoots()
-                                                        scope.launch {
-                                                            kotlinx.coroutines.delay(550)
-                                                            homeRefreshing = false
-                                                        }
+                                                        refreshRoots { homeRefreshing = false }
                                                     }
                                                 )
                                             }
                                         }
                                         }
                                     } else {
-                                        var browseRefreshing by remember { mutableStateOf(false) }
                                         BrowseScreen(
                                         currentPath = animatedPath,
                                         entries = entries,
@@ -2673,10 +2674,6 @@ fun SysFileApp() {
                                         onRefresh = {
                                             browseRefreshing = true
                                             invalidateRootCaches()
-                                            scope.launch {
-                                                kotlinx.coroutines.delay(550)
-                                                browseRefreshing = false
-                                            }
                                         }
                                         )
                                     }

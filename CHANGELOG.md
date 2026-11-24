@@ -3,6 +3,18 @@
 All notable changes to SysFileManager are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] — 2026-11-25
+
+### Added
+- **Nothing Dot-Matrix theme (Tema 2):** `#000000` AMOLED dark / `#F2F2EF` light palette with `#D71921` Signal Red accents, `1dp` hardware borders (`nothingBorder`), monospace typography, and dedicated Split-Pocket Monochrome + Red Dot `SysFileLogo`.
+- **iOS Spokes Pull-to-Refresh:** custom 12-spoke radial spinner (`IosSpokesPullToRefreshBox` & `IosSpokesSpinner`) wired across Home, Browse, Recent, Category, and App Manager screens, styled for both themes.
+- **Peek Storage Hero Carousel & Split-Gap Progress Bar:** swipeable multi-volume storage hero cards (`HorizontalPager` with neighbor peek) and `SplitGapSolidProgressBar` / `NothingMatrixProgressBar`.
+- **Root file writing (`RootShell.writeFile`):** save edited text/config files to system paths via `su`.
+
+### Changed
+- **Tema 1 updated to M3 Pixel Indigo (`SenjaLightScheme` / `SenjaDarkScheme`):** `#3B52B0` / `#A6B8FF` palette with tiered surface containers and redesigned Settings & About Bento screens.
+- **APK & SpecScreen fixes:** `SpecScreen` target SDK updated to Android 15 (API 35), `BiometricGate` now checks device lock availability cleanly, `RootShell.writeFile` preserves existing file permissions, and release APK filename is now `Sysfile Manager 1.4.0-Release.apk`.
+
 ## [1.3.0] — 2026-11-20
 
 ### Added

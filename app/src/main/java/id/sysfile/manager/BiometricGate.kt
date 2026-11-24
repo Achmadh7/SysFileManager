@@ -15,9 +15,16 @@ object BiometricGate {
         activity: FragmentActivity,
         title: String,
         subtitle: String,
+        unavailableMessage: String = "Kunci layar / biometrik perangkat belum diatur.",
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        if (BiometricManager.from(activity).canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
+            onError(unavailableMessage)
+            return
+        }
         val prompt = BiometricPrompt(
             activity,
             ContextCompat.getMainExecutor(activity),
@@ -34,10 +41,7 @@ object BiometricGate {
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setAllowedAuthenticators(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
-            )
+            .setAllowedAuthenticators(authenticators)
             .build()
         prompt.authenticate(info)
     }

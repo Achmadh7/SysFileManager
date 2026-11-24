@@ -1,6 +1,14 @@
 # SysFileManager 
 
-An Android file manager written in Kotlin with Jetpack Compose and Material 3 Expressive (the installed app is named **SysFile**), wearing the Biru Senja theme — a fixed dusk-blue palette with solid cards (dark background #101418, primary #9ACBFA; light #F7F9FF with primary #2E628C). Browse internal storage, SD cards, USB drives, and even the system root; copy, move, rename, delete, compress, and extract files; preview photos and text, and play videos in a built-in player; lock private folders behind your fingerprint; break into system-restricted folders (such as `Android/data`) through a one-time Storage Access Framework grant; manage installed apps; search the whole storage; and see what is taking up space — all on-device, no account, no ads.
+An Android file manager written in Kotlin with Jetpack Compose and Material 3 Expressive (the installed app is named **SysFile**), featuring dual themes: **M3 Pixel Indigo** (tiered surface hierarchy, primary `#3B52B0` light / `#A6B8FF` dark) and **Nothing Matrix** (AMOLED `#000000` dark / `#F2F2EF` light with `#D71921` Signal Red accents). Browse internal storage, SD cards, USB drives, and even the system root; copy, move, rename, delete, compress, and extract files; preview photos and text, and play videos in a built-in player; lock private folders behind your fingerprint; break into system-restricted folders (such as `Android/data`) through a one-time Storage Access Framework grant; manage installed apps; search the whole storage; and see what is taking up space — all on-device, no account, no ads.
+
+## What's new in 1.4.0
+
+- **Dual Themes (M3 Pixel Indigo & Nothing Dot-Matrix)** — switch between tiered Material 3 Pixel Indigo and monochrome `#000000` / `#F2F2EF` Nothing Dot-Matrix with `#D71921` Signal Red accents and a matching Split-Pocket Nothing logo.
+- **iOS Spokes Pull-to-Refresh** — smooth 12-spoke pull-to-refresh across Home, Browse, Recent, Category, and App Manager screens for both themes.
+- **Peek Storage Carousel & Root Save** — multi-volume storage hero carousel (`HorizontalPager`) and root-backed text saving (`RootShell.writeFile`).
+
+Previous release notes in [CHANGELOG.md](CHANGELOG.md).
 
 ## What's new in 1.3.0
 
@@ -30,7 +38,7 @@ Full details in [CHANGELOG.md](CHANGELOG.md).
 - **Recent files** — a dedicated bottom-navigation tab groups the newest files across all volumes by their parent folder; tapping a group opens that folder.
 - **About & specifications** — Settings → **About** opens a full screen: a live storage summary (tapping it jumps straight into the internal storage), a grouped **Specifications** page (app identity, archive engine, UI & storage — including the storage-engine line: All Files Access, SAF & Java NIO), and the developer credit.
 - **Themes & languages** — Light / Dark in Settings (one tap toggles each, no picker), and an Indonesian/English interface switch (also one tap); all choices are remembered. There is no dynamic colour — the Biru Senja palette is fixed in both themes.
-- **Official Material 3 Expressive** — `MaterialExpressiveTheme` with `MotionScheme.expressive()` and the morphing `LoadingIndicator`, extra-rounded cards, gentle 300 ms crossfades between tabs and category/archive screens, and spring motion (Material3 pinned to 1.5.0-alpha08 — the Expressive APIs were removed from the 1.4.0 stable release). The colour schemes are the hand-tuned Biru Senja palettes (dark background `#101418`, primary `#9ACBFA`; light `#F7F9FF` with primary `#2E628C`), with solid surfaceContainerHighest cards throughout; the logo is the **SF** mark with a diagonal slash.
+- **Official Material 3 Expressive & Dual Themes** — `MaterialExpressiveTheme` with `MotionScheme.expressive()` and the morphing `LoadingIndicator`, extra-rounded cards, gentle 300 ms crossfades, and spring motion (Material3 pinned to 1.5.0-alpha08 — the Expressive APIs were removed from the 1.4.0 stable release). Switch between **M3 Pixel Indigo** and **Nothing Matrix**; the logo adapts automatically (Split-Pocket Indigo vs Nothing Monochrome + Signal Red).
 
 ## Permissions
 
@@ -49,13 +57,13 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 | Build | AGP 8.11.1, Gradle 8.13, JDK 17 |
 | Android | minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36 |
 | Package | `id.sysfile.manager` |
-| Version | 1.3.0 |
+| Version | 1.4.0 |
 | Signing | Fixed keystore committed in this repo (`sysfile.p12`, PKCS12) — every CI build carries the same signature, so updates install in place |
 | R8 | Minify + resource shrinking enabled on debug and release builds, using the default optimize rules plus keep rules for the archive libraries |
 
 ## Building the APK
 
-**Without a computer (GitHub Actions):** open the **Actions** tab in this repo → workflow **Build APK** → **Run workflow** on branch `main` → download an artifact → install it on your phone. Each run publishes two artifacts with the same signature: **`app-debug-apk`** (the debug build) and **`SysFile Manager`** (the release build, named `SysFile Manager Release <version>.apk` from the app versionName). (Always start a fresh run — re-running an old failed run rebuilds that old commit.)
+**Without a computer (GitHub Actions):** open the **Actions** tab in this repo → workflow **Build APK** → **Run workflow** on branch `main` → download an artifact → install it on your phone. Each run publishes two artifacts with the same signature: **`app-debug-apk`** (the debug build) and **`Sysfile Manager`** (the release build, named `Sysfile Manager <version>-Release.apk` from the app versionName). (Always start a fresh run — re-running an old failed run rebuilds that old commit.)
 
 **With Android Studio:** open this repo folder, wait for Gradle Sync, then Build APK. (The CI workflow uses Gradle 8.13 and installs Android SDK 36; the same setup works locally.)
 

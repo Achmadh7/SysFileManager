@@ -372,6 +372,11 @@ class Txt {
     var usageAccessBody: String = ""
     var usageAccessButton: String = ""
     var appsEmpty: String = ""
+    var tapToSwitch: String = ""
+    var dotfilesHint: String = ""
+    var manageApksSubtitle: String = ""
+    var infoEngineSubtitle: String = ""
+    var biometricUnavailable: String = ""
 }
 
 val TxtId = Txt().apply {
@@ -743,6 +748,11 @@ val TxtId = Txt().apply {
     usageAccessBody = "Aktifkan Akses Penggunaan untuk SysFile agar ukuran aplikasi mencakup data dan cache, bukan hanya berkas APK."
     usageAccessButton = "Aktifkan"
     appsEmpty = "Tidak ada aplikasi pada saringan ini."
+    tapToSwitch = "Ketuk untuk ganti"
+    dotfilesHint = "Berkas berawalan titik (.)"
+    manageApksSubtitle = "Kelola APK"
+    infoEngineSubtitle = "Info & Mesin"
+    biometricUnavailable = "Kunci layar atau biometrik perangkat belum diatur."
 }
 
 val TxtEn = Txt().apply {
@@ -1114,6 +1124,11 @@ val TxtEn = Txt().apply {
     usageAccessBody = "Enable Usage Access for SysFile so app sizes include data and cache, not just the APK file."
     usageAccessButton = "Enable"
     appsEmpty = "No apps in this filter."
+    tapToSwitch = "Tap to switch"
+    dotfilesHint = "Dotfiles (.)"
+    manageApksSubtitle = "Manage APKs"
+    infoEngineSubtitle = "Info & Engine"
+    biometricUnavailable = "Device screen lock or biometrics is not set up."
 }
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */

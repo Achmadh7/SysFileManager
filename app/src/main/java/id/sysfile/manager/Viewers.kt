@@ -438,7 +438,8 @@ fun TextViewerScreen(
                     val targetFile = File(displayPath)
                     val success = FileOps.writeTextSafe(targetFile, toSave, context.cacheDir)
                     if (success && originalPath != null && path != originalPath) {
-                        try { File(path).writeText(toSave, Charsets.UTF_8) } catch (_: Exception) {}
+                        runCatching { File(path).writeText(toSave, Charsets.UTF_8) }
+                            .onFailure { runCatching { File(path).delete() } }
                     }
                     success
                 }
