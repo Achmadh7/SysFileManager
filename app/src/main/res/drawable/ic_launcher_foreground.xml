@@ -1,61 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Opsi 1: Aurora SF Monogram (scaled into 108dp adaptive safe zone [25..83]). -->
-    <path
-        android:fillColor="#10FFFFFF"
-        android:strokeWidth="2.0"
-        android:pathData="M25.9,33.7 C25.9,29.8 29.0,26.7 32.9,26.7 H47.8 L54.0,32.9 H75.1 C79.0,32.9 82.1,36.0 82.1,39.9 V74.3 C82.1,78.2 79.0,81.3 75.1,81.3 H32.9 C29.0,81.3 25.9,78.2 25.9,74.3 Z">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:type="linear"
-                android:startX="25.9"
-                android:startY="26.7"
-                android:endX="82.1"
-                android:endY="81.3">
-                <item android:color="#FF38BDF8" android:offset="0.0" />
-                <item android:color="#FF818CF8" android:offset="0.5" />
-                <item android:color="#FF2DD4BF" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+    <!-- Opsi 3: Split-Pocket Dual Layer (berada di safe-zone 26..82 dari 108dp adaptive icon). -->
 
-    <!-- Geometric S -->
+    <!-- Pelat belakang folder -->
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFF8FAFC"
-        android:strokeWidth="4.7"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M50.1,44.6 H40.0 C36.5,44.6 34.5,46.6 34.5,49.3 C34.5,52.0 36.5,54.0 40.0,54.0 H45.4 C48.9,54.0 50.9,56.0 50.9,59.1 C50.9,62.6 48.5,64.9 44.3,64.9 H34.5" />
+        android:fillColor="#FF283A7A"
+        android:pathData="M34,30 H74 C78.4,30 82,33.6 82,38 V64 C82,68.4 78.4,72 74,72 H34 C29.6,72 26,68.4 26,64 V38 C26,33.6 29.6,30 34,30 Z" />
 
-    <!-- Geometric F (Aurora gradient) -->
+    <!-- Kartu dokumen terang yang menyembul di atas -->
     <path
-        android:fillColor="#00000000"
-        android:strokeWidth="4.7"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M58.7,64.9 V44.6 H72.7 M58.7,54.8 H69.6">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:type="linear"
-                android:startX="58.7"
-                android:startY="44.6"
-                android:endX="72.7"
-                android:endY="64.9">
-                <item android:color="#FF38BDF8" android:offset="0.0" />
-                <item android:color="#FF818CF8" android:offset="0.5" />
-                <item android:color="#FF2DD4BF" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+        android:fillColor="#FFDCE2FF"
+        android:pathData="M38,24 H70 C73.3,24 76,26.7 76,30 V54 C76,57.3 73.3,60 70,60 H38 C34.7,60 32,57.3 32,54 V30 C32,26.7 34.7,24 38,24 Z" />
 
-    <!-- Root Node Dot -->
+    <!-- Dua garis isi dokumen -->
     <path
-        android:fillColor="#FF2DD4BF"
-        android:pathData="M72.7,61.8 A3.1,3.1 0 1,1 72.69,61.8 Z" />
+        android:fillColor="#FF3B52B0"
+        android:pathData="M41,31 H57 C58.1,31 59,31.9 59,33 C59,34.1 58.1,35 57,35 H41 C39.9,35 39,34.1 39,33 C39,31.9 39.9,31 41,31 Z" />
+    <path
+        android:fillColor="#FF90A4F0"
+        android:pathData="M41,38 H66 C67.1,38 68,38.9 68,40 C68,41.1 67.1,42 66,42 H41 C39.9,42 39,41.1 39,40 C39,38.9 39.9,38 41,38 Z" />
+
+    <!-- Kantong depan folder -->
+    <path
+        android:fillColor="#FF3B52B0"
+        android:pathData="M30,44 H78 C81.3,44 84,46.7 84,50 V76 C84,79.3 81.3,82 78,82 H30 C26.7,82 24,79.3 24,76 V50 C24,46.7 26.7,44 30,44 Z" />
+
+    <!-- Garis slot aksen di kantong depan -->
+    <path
+        android:fillColor="#FFA6B8FF"
+        android:pathData="M44,61 H64 C65.4,61 66.5,62.1 66.5,63.5 C66.5,64.9 65.4,66 64,66 H44 C42.6,66 41.5,64.9 41.5,63.5 C41.5,62.1 42.6,61 44,61 Z" />
 </vector>

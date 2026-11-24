@@ -69,7 +69,7 @@ fun SysFileLogo(
                     Brush.linearGradient(listOf(NothingSignalRed, Color(0xFF9E1117)))
                 } else {
                     Brush.linearGradient(
-                        listOf(Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF082F49))
+                        listOf(Color(0xFF1A2148), Color(0xFF0E1122))
                     )
                 }
             )
