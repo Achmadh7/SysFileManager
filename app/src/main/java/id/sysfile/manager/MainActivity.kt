@@ -203,6 +203,9 @@ private sealed interface Overlay {
     data class PayloadView(val path: String) : Overlay
     data class DexView(val path: String) : Overlay
     data class ArscView(val path: String) : Overlay
+    data class SqliteView(val path: String) : Overlay
+    data class AxmlView(val path: String) : Overlay
+    data class HexView(val path: String) : Overlay
 }
 
 private enum class ClipMode { COPY, CUT }
@@ -1484,6 +1487,13 @@ fun SysFileApp() {
             FileOps.extOf(f.name) == "ttf" -> show(Overlay.FontView(entry.path))
             FileOps.extOf(f.name) == "dex" -> show(Overlay.DexView(entry.path))
             FileOps.extOf(f.name) == "arsc" -> show(Overlay.ArscView(entry.path))
+            FileOps.extOf(f.name) in setOf("db", "sqlite", "sqlite3") -> show(Overlay.SqliteView(entry.path))
+            FileOps.extOf(f.name) == "xml" -> {
+                if (AxmlOps.isBinaryXml(f)) show(Overlay.AxmlView(entry.path))
+                else if (f.length() <= 2_000_000) show(Overlay.TextView(entry.path))
+                else show(Overlay.HexView(entry.path))
+            }
+            FileOps.extOf(f.name) in setOf("bin", "dat", "so", "o", "elf", "rom") -> show(Overlay.HexView(entry.path))
             FileOps.extOf(f.name) in setOf("docx", "xlsx", "pptx", "odt") -> show(Overlay.OfficeView(entry.path))
             FileOps.isTextFile(f) && f.length() <= 2_000_000 -> show(Overlay.TextView(entry.path))
             entry.category == Category.ARCHIVE -> {
@@ -2154,6 +2164,18 @@ fun SysFileApp() {
                         onBack = { overlay = overlayReturn; overlayReturn = null }
                     )
                     is Overlay.ArscView -> ArscBrowseScreen(
+                        path = ov.path,
+                        onBack = { overlay = overlayReturn; overlayReturn = null }
+                    )
+                    is Overlay.SqliteView -> SqliteViewerScreen(
+                        path = ov.path,
+                        onBack = { overlay = overlayReturn; overlayReturn = null }
+                    )
+                    is Overlay.AxmlView -> AxmlViewerScreen(
+                        path = ov.path,
+                        onBack = { overlay = overlayReturn; overlayReturn = null }
+                    )
+                    is Overlay.HexView -> HexViewerScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null }
                     )

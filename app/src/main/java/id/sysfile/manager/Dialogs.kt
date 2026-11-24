@@ -221,6 +221,7 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
     val scope = rememberCoroutineScope()
     var sums by remember(entry.path) { mutableStateOf<Pair<String, String>?>(null) }
     var computing by remember(entry.path) { mutableStateOf(false) }
+    var expectedHash by remember(entry.path) { mutableStateOf("") }
     LaunchedEffect(entry.path) {
         if (entry.isDir) {
             stats = withContext(Dispatchers.IO) { FileOps.folderStats(entry.file) }
@@ -319,6 +320,55 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                                 }) { Icon(Icons.Default.ContentCopy, t.copy, modifier = Modifier.size(18.dp)) }
                             }
                             Spacer(Modifier.height(8.dp))
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = expectedHash,
+                            onValueChange = { expectedHash = it },
+                            label = { Text(t.checksumVerifyHint) },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            trailingIcon = {
+                                if (expectedHash.isNotEmpty()) {
+                                    IconButton(onClick = { expectedHash = "" }) {
+                                        Icon(Icons.Default.Close, t.cancel, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        val cleanInput = expectedHash.trim().lowercase()
+                        if (cleanInput.isNotEmpty()) {
+                            val matchedAlgo = when (cleanInput) {
+                                currentSums.first.lowercase() -> "MD5"
+                                currentSums.second.lowercase() -> "SHA-256"
+                                else -> null
+                            }
+                            val statusColor = if (matchedAlgo != null) Color(0xFF10B981) else MaterialTheme.colorScheme.error
+                            Spacer(Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = statusColor.copy(alpha = 0.16f)
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        if (matchedAlgo != null) Icons.Default.Check else Icons.Default.Close,
+                                        null,
+                                        tint = statusColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        if (matchedAlgo != null) t.checksumMatch.format(matchedAlgo) else t.checksumMismatch,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = statusColor
+                                    )
+                                }
+                            }
                         }
                     }
                 } else {

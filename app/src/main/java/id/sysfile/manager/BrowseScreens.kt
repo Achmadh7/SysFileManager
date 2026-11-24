@@ -353,14 +353,21 @@ fun BrowseHeaderBar(
                         if (active) onSortPick(key, !sortAsc)
                         else onSortPick(key, key == SortKey.NAME)
                     },
-                    shape = if (isNothing) RoundedCornerShape(50) else FilterChipDefaults.shape,
+                    shape = RoundedCornerShape(50),
                     colors = if (isNothing) {
                         FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                             selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
                         )
-                    } else FilterChipDefaults.filterChipColors(),
+                    } else {
+                        FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    },
                     border = if (isNothing) {
                         FilterChipDefaults.filterChipBorder(
                             enabled = true,
@@ -368,7 +375,7 @@ fun BrowseHeaderBar(
                             borderColor = MaterialTheme.colorScheme.outlineVariant,
                             selectedBorderColor = MaterialTheme.colorScheme.primary
                         )
-                    } else FilterChipDefaults.filterChipBorder(enabled = true, selected = active),
+                    } else null,
                     label = { Text(label) },
                     leadingIcon = if (active) {
                         {
@@ -494,106 +501,20 @@ fun BrowseScreen(
                         )
                     }
                 }
-                else -> {
-                    val (dirs, files) = remember(entries) { entries.partition { it.isDir } }
-                    val groupBg = MaterialTheme.colorScheme.surfaceContainerLow
-                    val groupBorder = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                    val isId = appLocale().language == "id" || appLocale().language == "in"
-                    val dirGroupTitle = (if (isId) "FOLDER" else "FOLDERS") + " (${dirs.size})"
-                    val fileGroupTitle = (if (isId) "BERKAS" else "FILES") + " (${files.size})"
-                    LazyColumn(
-                        Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
-                    ) {
-                        if (dirs.isNotEmpty()) {
-                            item(key = "header_dirs") {
-                                Text(
-                                    text = dirGroupTitle,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 6.dp)
-                                )
-                            }
-                            itemsIndexed(dirs, key = { _, e -> e.path }) { idx, entry ->
-                                val isFirst = idx == 0
-                                val isLast = idx == dirs.lastIndex
-                                val shape = RoundedCornerShape(
-                                    topStart = if (isFirst) 24.dp else 0.dp,
-                                    topEnd = if (isFirst) 24.dp else 0.dp,
-                                    bottomStart = if (isLast) 24.dp else 0.dp,
-                                    bottomEnd = if (isLast) 24.dp else 0.dp
-                                )
-                                Box(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp)
-                                        .clip(shape)
-                                        .background(groupBg)
-                                        .padding(
-                                            top = if (isFirst) 8.dp else 1.dp,
-                                            bottom = if (isLast) 8.dp else 1.dp
-                                        )
-                                ) {
-                                    FileRow(
-                                        entry = entry,
-                                        selectionMode = selected.isNotEmpty(),
-                                        isSelected = selected.contains(entry.path),
-                                        itemCount = counts[entry.path],
-                                        onClick = { onOpenEntry(entry) },
-                                        onLongClick = { onLongPress(entry) },
-                                        locked = FileOps.isLockedFolder(entry.path, lockedPaths)
-                                    )
-                                }
-                            }
-                        }
-                        if (files.isNotEmpty()) {
-                            item(key = "header_files") {
-                                Text(
-                                    text = fileGroupTitle,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 6.dp)
-                                )
-                            }
-                            itemsIndexed(files, key = { _, e -> e.path }) { idx, entry ->
-                                val isFirst = idx == 0
-                                val isLast = idx == files.lastIndex
-                                val shape = RoundedCornerShape(
-                                    topStart = if (isFirst) 24.dp else 0.dp,
-                                    topEnd = if (isFirst) 24.dp else 0.dp,
-                                    bottomStart = if (isLast) 24.dp else 0.dp,
-                                    bottomEnd = if (isLast) 24.dp else 0.dp
-                                )
-                                Box(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp)
-                                        .clip(shape)
-                                        .background(groupBg)
-                                        .border(
-                                            width = if (isFirst && isLast) 1.dp else 0.dp,
-                                            color = if (isFirst && isLast) groupBorder else Color.Transparent,
-                                            shape = shape
-                                        )
-                                        .padding(
-                                            top = if (isFirst) 8.dp else 1.dp,
-                                            bottom = if (isLast) 8.dp else 1.dp
-                                        )
-                                ) {
-                                    FileRow(
-                                        entry = entry,
-                                        selectionMode = selected.isNotEmpty(),
-                                        isSelected = selected.contains(entry.path),
-                                        itemCount = counts[entry.path],
-                                        onClick = { onOpenEntry(entry) },
-                                        onLongClick = { onLongPress(entry) },
-                                        locked = FileOps.isLockedFolder(entry.path, lockedPaths)
-                                    )
-                                }
-                            }
-                        }
+                else -> LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = 6.dp, bottom = 96.dp)
+                ) {
+                    items(entries, key = { it.path }) { entry ->
+                        FileRow(
+                            entry = entry,
+                            selectionMode = selected.isNotEmpty(),
+                            isSelected = selected.contains(entry.path),
+                            itemCount = counts[entry.path],
+                            onClick = { onOpenEntry(entry) },
+                            onLongClick = { onLongPress(entry) },
+                            locked = FileOps.isLockedFolder(entry.path, lockedPaths)
+                        )
                     }
                 }
             }

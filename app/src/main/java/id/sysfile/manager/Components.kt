@@ -482,10 +482,10 @@ fun FileRow(
             BorderStroke(1.dp, if (isSelected) NothingSignalRed else MaterialTheme.colorScheme.outlineVariant)
         } else null,
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHighest
+            containerColor = when {
+                isSelected -> MaterialTheme.colorScheme.primaryContainer
+                isNothing -> MaterialTheme.colorScheme.surfaceContainerHighest
+                else -> MaterialTheme.colorScheme.surfaceContainer
             }
         ),
         modifier = Modifier.fillMaxWidth()
@@ -539,15 +539,15 @@ fun FileRow(
             } else if (isToday(entry.modified)) {
                 // RM1: badge New — folder yang berubah hari ini.
                 Box(
-                    Modifier.clip(RoundedCornerShape(if (isNothing) 50 else 10))
-                        .background(if (isNothing) NothingSignalRed else MaterialTheme.colorScheme.primary)
+                    Modifier.clip(RoundedCornerShape(50))
+                        .background(if (isNothing) NothingSignalRed else MaterialTheme.colorScheme.primaryContainer)
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         if (isNothing) t.newShort.uppercase() else t.newShort,
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isNothing) Color.White else MaterialTheme.colorScheme.onPrimary
+                        color = if (isNothing) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
@@ -561,18 +561,19 @@ fun FileThumbTile(entry: FEntry, sizeDp: Int) {
     val isMedia = entry.category == Category.IMAGE || entry.category == Category.VIDEO
     val apkIcon = rememberApkIcon(entry)
     val isNothing = LocalNothingTheme.current
-    if (entry.isDir && isNothing && apkIcon == null) {
+    if (entry.isDir && apkIcon == null) {
+        val dirShape = if (isNothing) CircleShape else RoundedCornerShape(14.dp)
         Box(
             Modifier.size(sizeDp.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                .clip(dirShape)
+                .background(if (isNothing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh)
+                .then(if (isNothing) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape) else Modifier),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 folderIcon(entry.name),
                 null,
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = if (isNothing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size((sizeDp * 0.48f).dp)
             )
         }
@@ -606,18 +607,17 @@ fun FileThumbTile(entry: FEntry, sizeDp: Int) {
             modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
         )
     } else {
-        val color = entryColor(entry)
-        val tileShape = if (isNothing) CircleShape else RoundedCornerShape(16.dp)
+        val tileShape = if (isNothing) CircleShape else RoundedCornerShape(14.dp)
         Box(
             Modifier.size(sizeDp.dp).clip(tileShape)
-                .background(if (isNothing) MaterialTheme.colorScheme.surfaceVariant else color.copy(alpha = 0.16f))
+                .background(if (isNothing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh)
                 .then(if (isNothing) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape) else Modifier),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 categoryIcon(entry.category, entry.name),
                 null,
-                tint = if (isNothing) MaterialTheme.colorScheme.onSurface else color,
+                tint = if (isNothing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size((sizeDp * 0.50f).dp)
             )
         }
