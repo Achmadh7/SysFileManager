@@ -294,7 +294,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             UiStylePreviewCard(
-                                label = "M3 Biru Senja",
+                                label = "M3 Pixel Indigo",
                                 nothingStyle = false,
                                 selected = uiStyle != "nothing",
                                 onClick = { onUiStyle("m3") },
@@ -478,7 +478,7 @@ fun SettingsScreen(
                         }
                     }
                     Text(
-                        if (isNothing) "NOTHING DOT-MATRIX • AMAN AMOLED" else "Jetpack Compose • Biru Senja",
+                        if (isNothing) "NOTHING DOT-MATRIX • AMAN AMOLED" else "Jetpack Compose • Pixel Indigo",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -516,7 +516,7 @@ private fun UiStylePreviewCard(
                 .fillMaxWidth()
                 .height(64.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (nothingStyle) Color(0xFF000000) else Color(0xFF101418))
+                .background(if (nothingStyle) Color(0xFF000000) else Color(0xFF0F111A))
                 .padding(8.dp)
         ) {
             Box(
@@ -524,10 +524,10 @@ private fun UiStylePreviewCard(
                     .fillMaxWidth()
                     .height(24.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF3A4857))
+                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF24293D))
                     .border(
                         1.dp,
-                        if (nothingStyle) Color(0xFF2A2A32) else Color(0xFF9ACBFA).copy(alpha = 0.35f),
+                        if (nothingStyle) Color(0xFF2A2A32) else Color.Transparent,
                         RoundedCornerShape(8.dp)
                     )
                     .padding(horizontal = 6.dp),
@@ -537,7 +537,7 @@ private fun UiStylePreviewCard(
                     Modifier
                         .size(width = 16.dp, height = 7.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (nothingStyle) NothingSignalRed else Color(0xFF9ACBFA))
+                        .background(if (nothingStyle) NothingSignalRed else Color(0xFFA6B8FF))
                 )
             }
             Box(
@@ -546,7 +546,7 @@ private fun UiStylePreviewCard(
                     .fillMaxWidth(0.72f)
                     .height(14.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF1C2024))
+                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF24293D))
                     .border(
                         1.dp,
                         if (nothingStyle) Color(0xFF2A2A32) else Color.Transparent,
@@ -559,7 +559,7 @@ private fun UiStylePreviewCard(
                         .fillMaxWidth(0.36f)
                         .padding(2.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (nothingStyle) Color(0xFFF5F5F7) else Color(0xFF9ACBFA))
+                        .background(if (nothingStyle) Color(0xFFF5F5F7) else Color(0xFFA6B8FF))
                 )
             }
         }

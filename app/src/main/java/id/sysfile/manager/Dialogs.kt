@@ -296,13 +296,14 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(14.dp))
-                    if (sums == null) {
+                    val currentSums = sums
+                    if (currentSums == null) {
                         Text(
                             if (computing) t.scanning else t.opFailed,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     } else {
-                        listOf("MD5" to sums!!.first, "SHA-256" to sums!!.second).forEach { (label, hash) ->
+                        listOf("MD5" to currentSums.first, "SHA-256" to currentSums.second).forEach { (label, hash) ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(label, style = MaterialTheme.typography.labelLarge)
@@ -338,10 +339,12 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                             )
                             PropGroupDivider()
                             PropGridRow(t.propType, if (entry.isDir) t.propFolder else t.propFile)
-                            if (imgType != null) {
+                            val type = imgType
+                            if (type != null) {
                                 PropGroupDivider()
-                                PropGridRow(t.imgTypeLabel, imgTypeName(imgType!!, t))
-                                if (imgType == ImgType.SPARSE || imgType == ImgType.EXT4) {
+                                PropGridRow(t.imgTypeLabel, imgTypeName(type, t))
+                                if (type == ImgType.SPARSE || type == ImgType.EXT4) {
+                                    val ext4 = ext4Info
                                     if (!ext4Loaded) {
                                         PropGroupDivider()
                                         PropGridRow(t.imgExt4Volume, "\u2026")
@@ -349,43 +352,46 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                                         PropGridRow(t.imgExt4BlockSize, "\u2026")
                                         PropGroupDivider()
                                         PropGridRow(t.imgExt4Label, "\u2026")
-                                    } else if (ext4Info != null) {
+                                    } else if (ext4 != null) {
                                         PropGroupDivider()
-                                        PropGridRow(t.imgExt4Volume, FileOps.formatSizeExact(ext4Info!!.totalBytes))
+                                        PropGridRow(t.imgExt4Volume, FileOps.formatSizeExact(ext4.totalBytes))
                                         PropGroupDivider()
-                                        PropGridRow(t.imgExt4BlockSize, FileOps.formatSizeExact(ext4Info!!.blockSize))
-                                        if (ext4Info!!.label.isNotEmpty()) {
+                                        PropGridRow(t.imgExt4BlockSize, FileOps.formatSizeExact(ext4.blockSize))
+                                        if (ext4.label.isNotEmpty()) {
                                             PropGroupDivider()
-                                            PropGridRow(t.imgExt4Label, ext4Info!!.label)
+                                            PropGridRow(t.imgExt4Label, ext4.label)
                                         }
                                     }
                                 }
                             }
+                            val dirStats = stats
+                            val st = stat
                             PropGroupDivider()
                             PropGridRow(
                                 t.propSize,
                                 if (entry.isDir) {
-                                    stats?.let { FileOps.formatSizeExact(it.totalSize) } ?: "\u2026"
+                                    dirStats?.let { FileOps.formatSizeExact(it.totalSize) } ?: "\u2026"
                                 } else {
                                     FileOps.formatSizeExact(entry.size)
                                 }
                             )
                             if (entry.isDir) {
                                 PropGroupDivider()
-                                PropGridRow(t.propFileCount, stats?.fileCount?.toString() ?: "\u2026")
+                                PropGridRow(t.propFileCount, dirStats?.fileCount?.toString() ?: "\u2026")
                                 PropGroupDivider()
-                                PropGridRow(t.propFolderCount, stats?.dirCount?.toString() ?: "\u2026")
-                                if (stats?.largestName != null) {
+                                PropGridRow(t.propFolderCount, dirStats?.dirCount?.toString() ?: "\u2026")
+                                val largest = dirStats?.largestName
+                                if (largest != null) {
                                     PropGroupDivider()
                                     PropGridRow(
                                         t.propLargest,
-                                        stats!!.largestName + " \u00b7 " + FileOps.formatSize(stats!!.largestSize)
+                                        largest + " \u00b7 " + FileOps.formatSize(dirStats.largestSize)
                                     )
                                 }
                             }
                             PropGroupDivider()
                             PropGridRow(t.propModified, FileOps.formatIsoTime(entry.modified))
-                            if (stat != null) {
+                            if (st != null) {
                                 PropGroupDivider()
                                 Row(
                                     Modifier.padding(start = 20.dp, top = 12.dp, bottom = 2.dp),
@@ -409,15 +415,15 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
-                                PropGridRow(t.propPerms, FileOps.formatPerms(stat!!.mode), monospace = true) {
+                                PropGridRow(t.propPerms, FileOps.formatPerms(st.mode), monospace = true) {
                                     IconButton(onClick = { showPerms = true }) {
                                         Icon(Icons.Default.Edit, t.edit, modifier = Modifier.size(18.dp))
                                     }
                                 }
                                 PropGroupDivider()
-                                PropGridRow(t.propOwner, FileOps.ownerName(stat!!.uid))
+                                PropGridRow(t.propOwner, FileOps.ownerName(st.uid))
                                 PropGroupDivider()
-                                PropGridRow(t.propGroup, FileOps.groupName(stat!!.gid))
+                                PropGridRow(t.propGroup, FileOps.groupName(st.gid))
                             }
                         }
                     }
@@ -437,15 +443,16 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                                         onNotify(t.copiedDone)
                                     }) { Icon(Icons.Default.ContentCopy, t.copy, modifier = Modifier.size(18.dp)) }
                                 }
-                                if (stat != null) {
+                                val stExp = stat
+                                if (stExp != null) {
                                     PropGroupDivider()
-                                    PropGridRow(t.propAccessed, FileOps.formatIsoTime(stat!!.atimeSec * 1000))
+                                    PropGridRow(t.propAccessed, FileOps.formatIsoTime(stExp.atimeSec * 1000))
                                     PropGroupDivider()
-                                    PropGridRow(t.propChanged, FileOps.formatIsoTime(stat!!.ctimeSec * 1000))
+                                    PropGridRow(t.propChanged, FileOps.formatIsoTime(stExp.ctimeSec * 1000))
                                     PropGroupDivider()
-                                    PropGridRow(t.propInode, stat!!.ino.toString())
+                                    PropGridRow(t.propInode, stExp.ino.toString())
                                     PropGroupDivider()
-                                    PropGridRow(t.propLinks, stat!!.nlink.toString())
+                                    PropGridRow(t.propLinks, stExp.nlink.toString())
                                 }
                             }
                         }
@@ -469,9 +476,10 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
             }
         }
     )
-    if (showPerms && stat != null) {
+    val permStat = stat
+    if (showPerms && permStat != null) {
         PermissionsDialog(
-            initialBits = stat!!.mode and 0xFFF,
+            initialBits = permStat.mode and 0xFFF,
             onDismiss = { showPerms = false },
             onApply = { bitsBaru ->
                 showPerms = false

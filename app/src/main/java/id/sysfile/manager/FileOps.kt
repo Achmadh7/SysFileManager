@@ -189,17 +189,25 @@ object FileOps {
      *    eskalasi ke RootShell.writeFile.
      */
     fun writeTextSafe(file: File, text: String, cacheDir: File): Boolean {
+        val parent = file.parentFile
+        if (parent != null && !parent.exists() && !RootShell.shouldUseShell(file.absolutePath)) {
+            return false
+        }
         try {
             file.writeText(text, Charsets.UTF_8)
             return true
-        } catch (_: Exception) {}
+        } catch (_: java.io.IOException) {
+        } catch (_: SecurityException) {
+        }
 
         try {
             if (file.setWritable(true)) {
                 file.writeText(text, Charsets.UTF_8)
                 return true
             }
-        } catch (_: Exception) {}
+        } catch (_: java.io.IOException) {
+        } catch (_: SecurityException) {
+        }
 
         return RootShell.writeFile(file, text, cacheDir)
     }

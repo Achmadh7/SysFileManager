@@ -27,10 +27,10 @@ android {
     // menimpa yang lama dan aplikasi harus di-uninstall dulu setiap update.
     signingConfigs {
         create("ci") {
-            storeFile = rootProject.file("sysfile.p12")
-            storePassword = "sysfile"
-            keyAlias = "sysfile"
-            keyPassword = "sysfile"
+            storeFile = System.getenv("SYSFILE_STORE_FILE")?.let { file(it) } ?: rootProject.file("sysfile.p12")
+            storePassword = System.getenv("SYSFILE_STORE_PASSWORD") ?: "sysfile"
+            keyAlias = System.getenv("SYSFILE_KEY_ALIAS") ?: "sysfile"
+            keyPassword = System.getenv("SYSFILE_KEY_PASSWORD") ?: "sysfile"
             storeType = "PKCS12"
         }
     }

@@ -475,8 +475,12 @@ fun FileRow(
     } else {
         shortDate(entry.modified, t)
     }
+    val isNothing = LocalNothingTheme.current
     Card(
         shape = RoundedCornerShape(16.dp),
+        border = if (isNothing) {
+            BorderStroke(1.dp, if (isSelected) NothingSignalRed else MaterialTheme.colorScheme.outlineVariant)
+        } else null,
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -486,15 +490,6 @@ fun FileRow(
         ),
         modifier = Modifier.fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
-            .then(
-                if (LocalNothingTheme.current) {
-                    Modifier.border(
-                        1.dp,
-                        if (isSelected) NothingSignalRed else MaterialTheme.colorScheme.outlineVariant,
-                        RoundedCornerShape(16.dp)
-                    )
-                } else Modifier
-            )
             .alpha(if (emptyDir && !isSelected) 0.6f else 1f)
     ) {
         Row(
@@ -544,15 +539,15 @@ fun FileRow(
             } else if (isToday(entry.modified)) {
                 // RM1: badge New — folder yang berubah hari ini.
                 Box(
-                    Modifier.clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF1D4367))
+                    Modifier.clip(RoundedCornerShape(if (isNothing) 50 else 10))
+                        .background(if (isNothing) NothingSignalRed else MaterialTheme.colorScheme.primary)
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        t.newShort,
+                        if (isNothing) t.newShort.uppercase() else t.newShort,
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color.White
+                        color = if (isNothing) Color.White else MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -565,7 +560,23 @@ fun FileRow(
 fun FileThumbTile(entry: FEntry, sizeDp: Int) {
     val isMedia = entry.category == Category.IMAGE || entry.category == Category.VIDEO
     val apkIcon = rememberApkIcon(entry)
-    if (entry.isDir) {
+    val isNothing = LocalNothingTheme.current
+    if (entry.isDir && isNothing && apkIcon == null) {
+        Box(
+            Modifier.size(sizeDp.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                folderIcon(entry.name),
+                null,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size((sizeDp * 0.48f).dp)
+            )
+        }
+    } else if (entry.isDir) {
         PocketFolderGraphic(
             entry = entry,
             apkIcon = apkIcon,
@@ -596,16 +607,18 @@ fun FileThumbTile(entry: FEntry, sizeDp: Int) {
         )
     } else {
         val color = entryColor(entry)
+        val tileShape = if (isNothing) CircleShape else RoundedCornerShape(16.dp)
         Box(
-            Modifier.size(sizeDp.dp).clip(RoundedCornerShape(16.dp))
-                .background(color.copy(alpha = 0.16f)),
+            Modifier.size(sizeDp.dp).clip(tileShape)
+                .background(if (isNothing) MaterialTheme.colorScheme.surfaceVariant else color.copy(alpha = 0.16f))
+                .then(if (isNothing) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape) else Modifier),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 categoryIcon(entry.category, entry.name),
                 null,
-                tint = color,
-                modifier = Modifier.size((sizeDp * 0.52f).dp)
+                tint = if (isNothing) MaterialTheme.colorScheme.onSurface else color,
+                modifier = Modifier.size((sizeDp * 0.50f).dp)
             )
         }
     }
@@ -692,10 +705,9 @@ fun StorageCard(
     Box(
         Modifier.fillMaxWidth().clip(cardShape)
             .background(scheme.secondaryContainer)
-            .border(
-                1.dp,
-                if (isNothing) scheme.outlineVariant else scheme.primary.copy(alpha = 0.22f),
-                cardShape
+            .then(
+                if (isNothing) Modifier.border(1.dp, scheme.outlineVariant, cardShape)
+                else Modifier
             )
             .clickable { onClick() }
     ) {
@@ -796,6 +808,7 @@ fun StorageCardContent(
  * kapsul warna solid murni (tanpa gradien) dengan celah pemisah 5dp
  * antara bagian progres terisi dan sisa track, serta titik ujung di dalam bar.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SplitGapSolidProgressBar(
     progress: Float?,
@@ -807,39 +820,19 @@ fun SplitGapSolidProgressBar(
         return
     }
     val scheme = MaterialTheme.colorScheme
-    val remain = (1f - clamped).coerceAtLeast(0f)
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier
-                .weight(clamped)
-                .height(12.dp)
-                .clip(CircleShape)
-                .background(scheme.primary)
-                .padding(end = 4.dp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            Box(
-                Modifier
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(scheme.surfaceContainerHighest)
-            )
-        }
-        if (remain > 0.02f) {
-            Box(
-                Modifier
-                    .weight(remain)
-                    .height(12.dp)
-                    .clip(CircleShape)
-                    .background(scheme.outlineVariant.copy(alpha = 0.45f))
-            )
-        }
+    if (progress != null) {
+        LinearWavyProgressIndicator(
+            progress = { clamped },
+            modifier = modifier.fillMaxWidth(),
+            color = scheme.primary,
+            trackColor = scheme.surfaceContainerHighest
+        )
+    } else {
+        LinearWavyProgressIndicator(
+            modifier = modifier.fillMaxWidth(),
+            color = scheme.primary,
+            trackColor = scheme.surfaceContainerHighest
+        )
     }
 }
 

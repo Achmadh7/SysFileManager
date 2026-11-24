@@ -24,6 +24,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -105,6 +106,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.FilledTonalIconButton
@@ -211,7 +213,7 @@ fun BrowseHeaderBar(
                 colors = SearchBarDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 ),
-                modifier = Modifier.weight(1f).nothingBorder(RoundedCornerShape(28.dp)),
+                modifier = Modifier.weight(1f),
                 // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
                 // status bar di atas pil (windowInsets default), padahal
                 // ia duduk di bawah TopAppBar yang inset-nya sudah
@@ -227,9 +229,8 @@ fun BrowseHeaderBar(
                 )
             }
         }
-        // Opsi 2 (Status Volume Banner tanpa switcher volume):
-        // menampilkan konteks penyimpanan aktif (Internal, Root /, atau USB OTG/SD).
-        if (currentRoot != null) {
+        // Opsi 2 (Status Volume Banner): tampil hanya untuk Root / USB OTG / SD (Internal dihapus).
+        if (currentRoot != null && currentRoot.kind != "internal") {
             val rootActive = RootShell.state == RootShell.GRANTED
             val bannerColor = when (currentRoot.kind) {
                 "root" -> if (rootActive) Color(0xFF10B981) else Color(0xFFF59E0B)
@@ -296,20 +297,27 @@ fun BrowseHeaderBar(
         ) {
             labels.forEachIndexed { index, label ->
                 val active = index == labels.lastIndex
+                val isNothing = LocalNothingTheme.current
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (active) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.nothingBorder(RoundedCornerShape(50)),
+                    color = when {
+                        isNothing && active -> MaterialTheme.colorScheme.primary
+                        active -> MaterialTheme.colorScheme.primaryContainer
+                        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    border = if (isNothing && !active) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active
                 ) {
                     Text(
-                        label,
+                        if (isNothing && active) label.uppercase() else label,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (active) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurface,
+                        color = when {
+                            isNothing && active -> MaterialTheme.colorScheme.onPrimary
+                            active -> MaterialTheme.colorScheme.onPrimaryContainer
+                            else -> MaterialTheme.colorScheme.onSurface
+                        },
                         maxLines = 1,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
@@ -338,12 +346,29 @@ fun BrowseHeaderBar(
                 SortKey.SIZE to t.sortSize
             ).forEach { (key, label) ->
                 val active = sortKey == key
+                val isNothing = LocalNothingTheme.current
                 FilterChip(
                     selected = active,
                     onClick = {
                         if (active) onSortPick(key, !sortAsc)
                         else onSortPick(key, key == SortKey.NAME)
                     },
+                    shape = if (isNothing) RoundedCornerShape(50) else FilterChipDefaults.shape,
+                    colors = if (isNothing) {
+                        FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else FilterChipDefaults.filterChipColors(),
+                    border = if (isNothing) {
+                        FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = active,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant,
+                            selectedBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    } else FilterChipDefaults.filterChipBorder(enabled = true, selected = active),
                     label = { Text(label) },
                     leadingIcon = if (active) {
                         {
@@ -583,6 +608,7 @@ fun BrowseScreen(
                             ) { fabOpen = false }
                     )
                 }
+                val isNothing = LocalNothingTheme.current
                 FloatingActionButtonMenu(
                     expanded = fabOpen,
                     button = {
@@ -590,8 +616,11 @@ fun BrowseScreen(
                         ExtendedFloatingActionButton(
                             onClick = { fabOpen = !fabOpen },
                             expanded = !fabOpen,
+                            shape = if (isNothing) CircleShape else FloatingActionButtonDefaults.extendedFabShape,
+                            containerColor = if (isNothing) NothingSignalRed else FloatingActionButtonDefaults.containerColor,
+                            contentColor = if (isNothing) Color.White else MaterialTheme.colorScheme.onPrimaryContainer,
                             icon = { Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null) },
-                            text = { Text(t.newShort) }
+                            text = { Text(if (isNothing) t.newShort.uppercase() else t.newShort) }
                         )
                     },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)

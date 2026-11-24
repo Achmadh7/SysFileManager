@@ -87,12 +87,9 @@ fun DexBrowseScreen(path: String, onBack: () -> Unit) {
     }
     BackHandler(enabled = selectedMethod != null || selectedClass != null) { back() }
 
-    val title = when {
-        selectedMethod != null -> selectedMethod!!.name
-        selectedClass != null -> dex?.classNames?.getOrNull(selectedClass!!)
-            ?.substringAfterLast('.') ?: File(path).name
-        else -> File(path).name
-    }
+    val title = selectedMethod?.name
+        ?: selectedClass?.let { dex?.classNames?.getOrNull(it)?.substringAfterLast('.') }
+        ?: File(path).name
 
     Scaffold(
         topBar = {

@@ -442,6 +442,7 @@ private fun storageVolumeAccent(kind: String, rootActive: Boolean, defaultPrimar
  * Split-Gap Solid Progress Bar (selaras Opsi 1A dengan titik stop di ujung kanan track),
  * dan baris ringkasan kapasitas terpakai & total.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PeekStorageHeroCard(
     root: RootInfo,
@@ -482,10 +483,9 @@ private fun PeekStorageHeroCard(
         modifier = modifier
             .clip(peekShape)
             .background(scheme.secondaryContainer)
-            .border(
-                1.dp,
-                if (isNothing) scheme.outlineVariant else accentColor.copy(alpha = 0.34f),
-                peekShape
+            .then(
+                if (isNothing) Modifier.border(1.dp, scheme.outlineVariant, peekShape)
+                else Modifier
             )
             .clickable { onOpenRoot(root.path) }
             .padding(horizontal = 18.dp, vertical = 16.dp),
@@ -556,43 +556,16 @@ private fun PeekStorageHeroCard(
             }
         }
 
-        // Baris tengah: Nothing Matrix Segmented Bar (tema 2) / Split-Gap Solid Progress Bar (tema 1)
+        // Baris tengah: Nothing Matrix Segmented Bar (tema 2) / M3 Expressive Wavy (tema 1, Opsi B)
         if (isNothing) {
             NothingMatrixProgressBar(fraction = clampedFraction)
         } else {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .height(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier
-                        .weight(clampedFraction)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(accentColor)
-                )
-                if (remainFraction > 0.02f) {
-                    Box(
-                        Modifier
-                            .weight(remainFraction)
-                            .fillMaxHeight()
-                            .clip(CircleShape)
-                            .background(scheme.surfaceContainerHighest)
-                            .padding(end = 4.dp),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        Box(
-                            Modifier
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(accentColor.copy(alpha = 0.75f))
-                        )
-                    }
-                }
-            }
+            LinearWavyProgressIndicator(
+                progress = { clampedFraction },
+                modifier = Modifier.fillMaxWidth(),
+                color = accentColor,
+                trackColor = scheme.surfaceContainerHighest
+            )
         }
 
         // Baris bawah: info kapasitas terpakai & total/bebas
@@ -653,11 +626,13 @@ private fun CategoryTile(
         modifier = modifier
             .height(74.dp)
             .clip(tileShape)
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .border(
-                1.dp,
-                if (isNothing) MaterialTheme.colorScheme.outlineVariant else color.copy(alpha = 0.25f),
-                tileShape
+            .background(
+                if (isNothing) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surfaceContainer
+            )
+            .then(
+                if (isNothing) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, tileShape)
+                else Modifier
             )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -668,7 +643,10 @@ private fun CategoryTile(
             Modifier
                 .size(44.dp)
                 .clip(icShape)
-                .background(if (isNothing) MaterialTheme.colorScheme.surfaceVariant else color.copy(alpha = 0.20f)),
+                .background(
+                    if (isNothing) MaterialTheme.colorScheme.surfaceVariant
+                    else MaterialTheme.colorScheme.surfaceContainerHigh
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -732,11 +710,11 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         Icons.Outlined.Home, Icons.Outlined.History, Icons.Outlined.Analytics
     )
     val isNothing = LocalNothingTheme.current
-    val barColor = MaterialTheme.colorScheme.surfaceContainer
-    val borderColor = if (isNothing) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-    val activeBg = if (isNothing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-    val activeBorder = if (isNothing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-    val activeFg = if (isNothing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+    val barColor = if (isNothing) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.secondaryContainer
+    val borderColor = MaterialTheme.colorScheme.outlineVariant
+    val activeBg = if (isNothing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
+    val activeBorder = MaterialTheme.colorScheme.primary
+    val activeFg = if (isNothing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
     val isDark = MaterialTheme.colorScheme.onSurface.luminance() > 0.5f
     val inactiveFg = if (isDark) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -772,7 +750,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
             .padding(horizontal = 28.dp, vertical = 12.dp)
             .clip(navShape)
             .background(barColor)
-            .border(1.dp, borderColor, navShape)
+            .then(if (isNothing) Modifier.border(1.dp, borderColor, navShape) else Modifier)
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         val gap = 8.dp
@@ -813,7 +791,7 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                 }
                 .clip(pillShape)
                 .background(activeBg)
-                .border(1.dp, activeBorder, pillShape)
+                .then(if (isNothing) Modifier.border(1.dp, activeBorder, pillShape) else Modifier)
         )
 
         Row(

@@ -91,12 +91,10 @@ fun ArscBrowseScreen(path: String, onBack: () -> Unit) {
         enabled = selectedGroup != null || selectedType != null || selectedPackage != null
     ) { back() }
 
-    val title = when {
-        selectedGroup != null -> selectedGroup!!.key
-        selectedType != null -> selectedType!!.name
-        selectedPackage != null -> selectedPackage!!.name
-        else -> File(path).name
-    }
+    val title = selectedGroup?.key
+        ?: selectedType?.name
+        ?: selectedPackage?.name
+        ?: File(path).name
 
     Scaffold(
         topBar = {
