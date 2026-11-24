@@ -222,30 +222,40 @@ fun Modifier.liquidGlass(
     val dark = LocalLiquidGlassDark.current
     val primary = MaterialTheme.colorScheme.primary
     val surfaceTint = when {
-        selected -> primary.copy(alpha = if (dark) 0.26f else 0.18f)
-        dark && floating -> Color(0x8C101624)
-        dark -> Color(0x66101624)
-        floating -> Color(0xA6FFFFFF)
-        else -> Color(0x80F4F8FF)
+        selected -> primary.copy(alpha = if (dark) 0.24f else 0.18f)
+        dark && floating -> Color.White.copy(alpha = 0.08f)
+        dark -> Color.White.copy(alpha = 0.05f)
+        floating -> Color.White.copy(alpha = 0.36f)
+        else -> Color.White.copy(alpha = 0.28f)
     }
     if (backdrop == null) {
         return this.clip(shape).background(surfaceTint)
     }
+    val topSheen = Color.White.copy(alpha = if (dark) (if (floating) 0.18f else 0.12f) else 0.48f)
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
         effects = {
             vibrancy()
-            blur(if (floating) 10.dp.toPx() else 6.dp.toPx())
+            blur(if (floating) 3.dp.toPx() else 2.dp.toPx())
             lens(
-                refractionHeight = if (floating) 14.dp.toPx() else 8.dp.toPx(),
-                refractionAmount = if (floating) 28.dp.toPx() else 14.dp.toPx(),
-                depthEffect = floating,
-                chromaticAberration = floating
+                refractionHeight = if (floating) 20.dp.toPx() else 12.dp.toPx(),
+                refractionAmount = if (floating) 42.dp.toPx() else 24.dp.toPx(),
+                depthEffect = true,
+                chromaticAberration = true
             )
         },
         shadow = if (floating) ({ Shadow.Default }) else null,
-        onDrawSurface = { drawRect(surfaceTint) }
+        onDrawSurface = {
+            drawRect(surfaceTint)
+            drawRect(
+                Brush.verticalGradient(
+                    colors = listOf(topSheen, Color.Transparent),
+                    startY = 0f,
+                    endY = size.height * 0.48f
+                )
+            )
+        }
     )
 }
 
@@ -256,12 +266,12 @@ fun Modifier.liquidGlassBg(): Modifier {
     var origin by remember { mutableStateOf(Offset.Zero) }
     if (!LocalLiquidGlass.current) return this
     val dark = LocalLiquidGlassDark.current
-    val base = if (dark) Color(0xFF070B16) else Color(0xFFEAF1FC)
+    val base = if (dark) Color(0xFF060B18) else Color(0xFFE6F0FF)
     return this
         .onGloballyPositioned { origin = it.positionInWindow() }
         .drawBehind {
             drawRect(base)
-            val a = if (dark) 0.58f else 0.36f
+            val a = if (dark) 0.68f else 0.42f
             val w = win.width.toFloat().takeIf { it > 0f } ?: size.width
             val h = win.height.toFloat().takeIf { it > 0f } ?: size.height
             fun orb(c: Color, x: Float, y: Float, r: Float) {
@@ -273,9 +283,10 @@ fun Modifier.liquidGlassBg(): Modifier {
                     center = center
                 )
             }
-            orb(Color(0xFF2563EB), 0.14f, 0.12f, 0.90f)
-            orb(Color(0xFFC026D3), 0.94f, 0.44f, 0.80f)
-            orb(Color(0xFF0EA5E9), 0.24f, 0.92f, 0.85f)
+            orb(Color(0xFF2563EB), 0.12f, 0.10f, 0.85f)
+            orb(Color(0xFFD946EF), 0.92f, 0.38f, 0.78f)
+            orb(Color(0xFF06B6D4), 0.18f, 0.86f, 0.82f)
+            orb(Color(0xFF6366F1), 0.82f, 0.92f, 0.65f)
         }
 }
 

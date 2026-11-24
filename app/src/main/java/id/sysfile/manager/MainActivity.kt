@@ -2171,7 +2171,6 @@ fun SysFileApp() {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
-                                        modifier = Modifier.liquidGlass(RoundedCornerShape(0.dp), floating = true),
                                         colors = TopAppBarDefaults.topAppBarColors(
                                             containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
                                         ),
@@ -2195,19 +2194,25 @@ fun SysFileApp() {
                                         actions = {
                                             val searchRoot = roots.firstOrNull { it.kind == "internal" }?.path
                                                 ?: roots.firstOrNull()?.path
-                                            if (searchRoot != null) {
-                                                IconButton(onClick = { overlay = Overlay.Search(searchRoot) }) {
-                                                    Icon(Icons.Default.Search, t.search)
+                                            Row(
+                                                Modifier
+                                                    .padding(end = if (LocalLiquidGlass.current) 10.dp else 0.dp)
+                                                    .liquidGlass(RoundedCornerShape(50), floating = true),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                if (searchRoot != null) {
+                                                    IconButton(onClick = { overlay = Overlay.Search(searchRoot) }) {
+                                                        Icon(Icons.Default.Search, t.search)
+                                                    }
                                                 }
-                                            }
-                                            IconButton(onClick = { showSettings = true }) {
-                                                Icon(Icons.Default.Settings, t.settings)
+                                                IconButton(onClick = { showSettings = true }) {
+                                                    Icon(Icons.Default.Settings, t.settings)
+                                                }
                                             }
                                         }
                                     )
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
-                                        modifier = Modifier.liquidGlass(RoundedCornerShape(0.dp), floating = true),
                                         colors = TopAppBarDefaults.topAppBarColors(
                                             containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
                                         ),
@@ -2223,7 +2228,6 @@ fun SysFileApp() {
                                     )
                                 } else {
                                     TopAppBar(
-                                        modifier = Modifier.liquidGlass(RoundedCornerShape(0.dp), floating = true),
                                         colors = TopAppBarDefaults.topAppBarColors(
                                             containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface)
                                         ),

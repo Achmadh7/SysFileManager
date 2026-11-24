@@ -205,7 +205,6 @@ fun SettingsScreen(
         modifier = Modifier.liquidGlassBg(),
         topBar = {
             TopAppBar(
-                modifier = Modifier.liquidGlass(RoundedCornerShape(0.dp), floating = true),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = liquidContainerColor(MaterialTheme.colorScheme.surface),
                     scrolledContainerColor = liquidContainerColor(MaterialTheme.colorScheme.surfaceContainer)

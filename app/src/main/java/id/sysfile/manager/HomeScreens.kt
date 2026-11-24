@@ -724,15 +724,18 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop
         }
     }
 
-    val navShape = RoundedCornerShape(26.dp)
+    val isGlass = LocalLiquidGlass.current
+    val navShape = if (isGlass) RoundedCornerShape(50) else RoundedCornerShape(26.dp)
+    val pillShape = if (isGlass) RoundedCornerShape(50) else RoundedCornerShape(20.dp)
+    val navBackdrop = backdrop ?: LocalBackdrop.current
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 28.dp, vertical = 12.dp)
+            .padding(horizontal = if (isGlass) 22.dp else 28.dp, vertical = 12.dp)
             .clip(navShape)
             .then(
-                if (LocalLiquidGlass.current) {
-                    Modifier.liquidGlass(navShape, floating = true, backdrop = backdrop ?: LocalBackdrop.current)
+                if (isGlass) {
+                    Modifier.liquidGlass(navShape, floating = true, backdrop = navBackdrop)
                 } else {
                     Modifier
                         .background(barColor)
@@ -747,11 +750,12 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop
         val pillX = stepWidth * pillProgress
         val targetX = stepWidth * safeTab.toFloat()
         val pillLift = (-3).dp * flightArc
-        val pillScale = 1f + 0.04f * flightArc
+        val pillScaleX = if (isGlass) 1f + 0.12f * flightArc else 1f + 0.04f * flightArc
+        val pillScaleY = if (isGlass) 1f - 0.04f * flightArc else 1f + 0.04f * flightArc
 
         // Cincin pulsa tonal Material 3 (Opsi 3: Flat M3 Tonal Ripple Ring saat mendarat)
         val p = pulseAnim.value
-        if (p < 0.99f) {
+        if (!isGlass && p < 0.99f) {
             Box(
                 Modifier
                     .offset(x = targetX)
@@ -762,23 +766,30 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, backdrop: LayerBackdrop
                         scaleY = 0.94f + 0.32f * p
                         alpha = (1f - p) * 0.75f
                     }
-                    .border(1.5.dp, activeFg, RoundedCornerShape(20.dp))
+                    .border(1.5.dp, activeFg, pillShape)
             )
         }
 
-        // Kapsul tonal solid Material 3 Expressive yang bergeser dengan pegas + lompatan halus
+        // Kapsul tab aktif: lensa Liquid Glass melar cair di tema 2, kapsul tonal di M3.
         Box(
             Modifier
                 .offset(x = pillX, y = pillLift)
                 .width(slotWidth)
                 .height(52.dp)
                 .graphicsLayer {
-                    scaleX = pillScale
-                    scaleY = pillScale
+                    scaleX = pillScaleX
+                    scaleY = pillScaleY
                 }
-                .clip(RoundedCornerShape(20.dp))
-                .background(activeBg)
-                .border(1.dp, activeBorder, RoundedCornerShape(20.dp))
+                .then(
+                    if (isGlass) {
+                        Modifier.liquidGlass(pillShape, floating = true, selected = true, backdrop = navBackdrop)
+                    } else {
+                        Modifier
+                            .clip(pillShape)
+                            .background(activeBg)
+                            .border(1.dp, activeBorder, pillShape)
+                    }
+                )
         )
 
         Row(
