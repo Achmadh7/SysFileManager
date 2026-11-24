@@ -40,9 +40,17 @@ jobs:
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Decode release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.SYSFILE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | tr -d '\r\n' | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "SYSFILE_STORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          fi
       - name: Build release APK
         env:
-          SYSFILE_STORE_FILE: ${{ secrets.SYSFILE_STORE_FILE }}
+          SYSFILE_STORE_FILE: ${{ env.SYSFILE_STORE_FILE || secrets.SYSFILE_STORE_FILE }}
           SYSFILE_STORE_PASSWORD: ${{ secrets.SYSFILE_STORE_PASSWORD }}
           SYSFILE_KEY_ALIAS: ${{ secrets.SYSFILE_KEY_ALIAS }}
           SYSFILE_KEY_PASSWORD: ${{ secrets.SYSFILE_KEY_PASSWORD }}
