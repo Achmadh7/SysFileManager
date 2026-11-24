@@ -10,15 +10,6 @@ An Android file manager written in Kotlin with Jetpack Compose and Material 3 Ex
 
 Previous release notes in [CHANGELOG.md](CHANGELOG.md).
 
-## What's new in 1.3.0
-
-- **Biru Senja theme** — the interface now uses a fixed dusk-blue palette with solid cards throughout (no glass, no aurora, no dynamic colour), and the bottom navigation is a floating surfaceContainer capsule whose primary pill hugs the active tab.
-- **Settings, reorganised** — the quick tiles are gone; Settings is now a grouped list (Display, Files, Apps). Theme and language switch with a single tap, no picker dialog.
-- **Specialist tools** — encrypted RAR archives open with a password prompt, the APK dialog lists the app's permissions, and the payload screen reports the payload version, block size, and per-partition operation counts.
-- **Smoother first run** — a permission dialog appears at launch instead of a static card, and the bottom bar no longer jumps on cold start.
-
-Full details in [CHANGELOG.md](CHANGELOG.md).
-
 ## Features
 
 - **Browse everything** — internal storage plus removable SD card and USB/OTG volumes, with list or grid view and a search bar scoped to the current folder (the full path shown as a line of text under it). A **Root (Sistem)** entry (enabled in Settings → Files) browses `/`: a limited Android-permitted view without root, and the full filesystem through the root shell when Magisk/su grants access (the prompt appears only when you actually enter it). Recently opened folders are cached per session, so going back into a folder is instant while fresh data loads behind it.
