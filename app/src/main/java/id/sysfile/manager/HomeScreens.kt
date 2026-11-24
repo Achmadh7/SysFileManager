@@ -223,8 +223,15 @@ fun HomeScreen(
     onOpenRoot: (String) -> Unit,
     onOpenCategory: (Category) -> Unit,
     onOpenTrash: () -> Unit,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
 ) {
     val t = txt()
+    IosSpokesPullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
+    ) {
     LazyColumn(
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -423,6 +430,7 @@ fun HomeScreen(
                 }
             }
         }
+    }
     }
 }
 

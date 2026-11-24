@@ -159,7 +159,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 fun RecentScreen(
     files: List<FEntry>,
     accessGranted: Boolean,
-    onOpenEntry: (FEntry) -> Unit
+    onOpenEntry: (FEntry) -> Unit,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     val t = txt()
     if (!accessGranted) {
@@ -187,6 +189,11 @@ fun RecentScreen(
     // T2 (r58): daftar datar terbaru dulu + pembatas tanggal kecil saat
     // hari berganti — tanpa kartu grup per folder.
     val sorted = remember(files) { files.sortedByDescending { it.modified } }
+    IosSpokesPullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
+    ) {
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -241,6 +248,7 @@ fun RecentScreen(
                 )
             }
         }
+    }
     }
 }
 
@@ -306,9 +314,12 @@ fun CategoryScreen(
     // DAN tidak ada perubahan berkas sejak pindai itu (reloadKey) —
     // buka-tutup kategori berulang tidak lagi menelusuri ulang.
     var files by remember { mutableStateOf<List<FEntry>?>(categoryCache[category]) }
-    LaunchedEffect(category, accessGranted, reloadKey) {
+    var localRefreshTick by remember { mutableStateOf(0) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    LaunchedEffect(category, accessGranted, reloadKey, localRefreshTick) {
         if (!accessGranted) {
             files = emptyList()
+            isRefreshing = false
             return@LaunchedEffect
         }
         val cached = categoryCache[category]
@@ -318,6 +329,7 @@ fun CategoryScreen(
             System.currentTimeMillis() - at < CATEGORY_CACHE_FRESH_MS
         ) {
             files = cached
+            isRefreshing = false
             return@LaunchedEffect
         }
         val fresh = withContext(Dispatchers.IO) {
@@ -330,6 +342,7 @@ fun CategoryScreen(
         categoryCacheAt[category] = System.currentTimeMillis()
         categoryCacheKey[category] = reloadKey
         files = fresh
+        isRefreshing = false
     }
     Scaffold(
         topBar = {
@@ -351,7 +364,15 @@ fun CategoryScreen(
             )
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        IosSpokesPullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                categoryCache.remove(category)
+                localRefreshTick++
+            },
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
             val loaded = files
             val contentState = when {
                 loaded == null -> 0

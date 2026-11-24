@@ -411,7 +411,9 @@ fun BrowseScreen(
     lockedPaths: Set<String> = emptySet(),
     safHasGrant: Boolean = false,
     onSafAction: (() -> Unit)? = null,
-    safSubtreeBlocked: Boolean = false
+    safSubtreeBlocked: Boolean = false,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     val t = txt()
     Column(Modifier.fillMaxSize()) {
@@ -427,7 +429,11 @@ fun BrowseScreen(
                 Text("..", style = MaterialTheme.typography.bodyLarge)
             }
         }
-        Box(Modifier.fillMaxSize()) {
+        IosSpokesPullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier.fillMaxSize()
+        ) {
             when {
                 !loaded -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 entries.isEmpty() -> Column(

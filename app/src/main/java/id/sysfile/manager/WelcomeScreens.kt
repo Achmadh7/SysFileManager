@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,8 +41,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -60,13 +66,15 @@ fun SysFileLogo(
     cornerRadius: Dp = 22.dp
 ) {
     val isNothing = LocalNothingTheme.current
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val shape = if (isNothing) RoundedCornerShape(50) else RoundedCornerShape(cornerRadius)
     Box(
         modifier = modifier
             .clip(shape)
             .background(
                 if (isNothing) {
-                    Brush.linearGradient(listOf(NothingSignalRed, Color(0xFF9E1117)))
+                    val bg = if (isDark) Color(0xFF131317) else Color(0xFFEAEAE5)
+                    Brush.linearGradient(listOf(bg, bg))
                 } else {
                     Brush.linearGradient(
                         listOf(Color(0xFF1A2148), Color(0xFF0E1122))
@@ -76,13 +84,63 @@ fun SysFileLogo(
             .nothingBorder(shape),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = "SysFile Logo",
-            modifier = Modifier
-                .fillMaxSize()
-                .scale(1.28f)
-        )
+        if (isNothing) {
+            // Split-Pocket Nothing Monochrome + Red Dot (Opsi 1)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val u = size.minDimension / 64f
+                val cardColor = if (isDark) Color(0xFFF5F5F7) else Color.White
+                val pocketColor = if (isDark) Color(0xFF23232A) else Color(0xFF18181D)
+                val pocketBorder = if (isDark) Color(0xFF454552) else Color.Transparent
+
+                // Peeking top card
+                drawRoundRect(
+                    color = cardColor,
+                    topLeft = Offset(18f * u, 18f * u),
+                    size = Size(28f * u, 13f * u),
+                    cornerRadius = CornerRadius(4f * u, 4f * u)
+                )
+                if (!isDark) {
+                    drawRoundRect(
+                        color = Color(0xFFD2D2CA),
+                        topLeft = Offset(18f * u, 18f * u),
+                        size = Size(28f * u, 13f * u),
+                        cornerRadius = CornerRadius(4f * u, 4f * u),
+                        style = Stroke(width = 1.2f * u)
+                    )
+                }
+                // Front pocket
+                drawRoundRect(
+                    color = pocketColor,
+                    topLeft = Offset(15f * u, 26f * u),
+                    size = Size(34f * u, 21f * u),
+                    cornerRadius = CornerRadius(6f * u, 6f * u)
+                )
+                if (isDark) {
+                    drawRoundRect(
+                        color = pocketBorder,
+                        topLeft = Offset(15f * u, 26f * u),
+                        size = Size(34f * u, 21f * u),
+                        cornerRadius = CornerRadius(6f * u, 6f * u),
+                        style = Stroke(width = 1.4f * u)
+                    )
+                }
+                // Red signal slot
+                drawRoundRect(
+                    color = NothingSignalRed,
+                    topLeft = Offset(26f * u, 34.5f * u),
+                    size = Size(12f * u, 3.2f * u),
+                    cornerRadius = CornerRadius(1.6f * u, 1.6f * u)
+                )
+            }
+        } else {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = "SysFile Logo",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scale(1.28f)
+            )
+        }
     }
 }
 

@@ -2564,6 +2564,8 @@ fun SysFileApp() {
                                             },
                                             label = "tabAnim"
                                         ) { tab -> Box(Modifier.fillMaxSize()) {
+                                            var homeRefreshing by remember { mutableStateOf(false) }
+                                            var recentRefreshing by remember { mutableStateOf(false) }
                                             when (tab) {
                                                 1 -> RecentScreen(
                                                     files = recentFiles,
@@ -2573,6 +2575,15 @@ fun SysFileApp() {
                                                             openFolderGuarded(entry.path) { browseStack = listOf(entry.path) }
                                                         } else {
                                                             openEntry(entry, recentFiles)
+                                                        }
+                                                    },
+                                                    isRefreshing = recentRefreshing,
+                                                    onRefresh = {
+                                                        recentRefreshing = true
+                                                        reloadKey++
+                                                        scope.launch {
+                                                            kotlinx.coroutines.delay(550)
+                                                            recentRefreshing = false
                                                         }
                                                     }
                                                 )
@@ -2590,11 +2601,21 @@ fun SysFileApp() {
                                                     onOpenRoot = { browseStack = listOf(it) },
                                                     onOpenCategory = { cat -> overlay = Overlay.CategoryView(cat) },
                                                     onOpenTrash = { showTrash = true },
+                                                    isRefreshing = homeRefreshing,
+                                                    onRefresh = {
+                                                        homeRefreshing = true
+                                                        refreshRoots()
+                                                        scope.launch {
+                                                            kotlinx.coroutines.delay(550)
+                                                            homeRefreshing = false
+                                                        }
+                                                    }
                                                 )
                                             }
                                         }
                                         }
                                     } else {
+                                        var browseRefreshing by remember { mutableStateOf(false) }
                                         BrowseScreen(
                                         currentPath = animatedPath,
                                         entries = entries,
@@ -2647,7 +2668,16 @@ fun SysFileApp() {
                                                 safLauncher.launch(SafOps.initialUriFor(animatedPath))
                                             }
                                         },
-                                        safSubtreeBlocked = SafPath.isSubtreeBlocked(Build.VERSION.SECURITY_PATCH)
+                                        safSubtreeBlocked = SafPath.isSubtreeBlocked(Build.VERSION.SECURITY_PATCH),
+                                        isRefreshing = browseRefreshing,
+                                        onRefresh = {
+                                            browseRefreshing = true
+                                            invalidateRootCaches()
+                                            scope.launch {
+                                                kotlinx.coroutines.delay(550)
+                                                browseRefreshing = false
+                                            }
+                                        }
                                         )
                                     }
                                 }

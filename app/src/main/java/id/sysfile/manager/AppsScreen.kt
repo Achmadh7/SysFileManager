@@ -183,11 +183,14 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
     var usageAccess by remember { mutableStateOf(AppOps.hasUsageAccess(context)) }
     var actionApp by remember { mutableStateOf<AppEntry?>(null) }
     var copyTarget by remember { mutableStateOf<AppEntry?>(null) }
+    var isRefreshing by remember { mutableStateOf(false) }
 
     fun reload() {
         scope.launch {
+            isRefreshing = true
             usageAccess = AppOps.hasUsageAccess(context)
             apps = withContext(Dispatchers.IO) { AppOps.listApps(context) }
+            isRefreshing = false
         }
     }
     LaunchedEffect(Unit) { reload() }
@@ -263,6 +266,11 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                     }
                 }
             }
+            IosSpokesPullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { reload() },
+                modifier = Modifier.fillMaxSize()
+            ) {
             when {
                 apps == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     LoadingIndicator(Modifier.size(52.dp))
@@ -333,6 +341,7 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                         )
                     }
                 }
+            }
             }
         }
     }

@@ -1,5 +1,11 @@
 package id.sysfile.manager
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -10,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -46,12 +53,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +73,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -70,6 +82,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -835,4 +852,147 @@ fun SplitGapSolidProgressBar(
         )
     }
 }
+
+/**
+ * Indikator putar iOS Spokes (12 bilah radial):
+ * - Saat ditarik (`!isRefreshing`): bilah muncul bertahap searah jarum jam mengikuti `pullProgress`.
+ * - Saat menyegarkan (`isRefreshing`): gelombang opasitas berputar halus searah jarum jam.
+ * Menyesuaikan Tema 1 (M3 Pixel Indigo) dan Tema 2 (Nothing Dot-Matrix + aksen Signal Red).
+ */
+@Composable
+fun IosSpokesSpinner(
+    isRefreshing: Boolean,
+    pullProgress: Float,
+    modifier: Modifier = Modifier
+) {
+    val isNothing = LocalNothingTheme.current
+    val baseColor = if (isNothing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
+    val transition = rememberInfiniteTransition(label = "iosSpokes")
+    val activeFloat by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 840, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "iosSpokesPhase"
+    )
+    val clamped = pullProgress.coerceIn(0f, 1f)
+    val visibleCount = (clamped * 12f).roundToInt().coerceIn(0, 12)
+
+    Canvas(modifier = modifier.size(22.dp)) {
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val outerR = size.minDimension * 0.46f
+        val innerR = size.minDimension * 0.23f
+        val strokeW = size.minDimension * 0.095f
+        val activeStep = activeFloat.toInt() % 12
+
+        for (i in 0 until 12) {
+            // Mulai dari jam 12 (-90 deg) searah jarum jam
+            val angleRad = ((-90.0 + i * 30.0) * PI / 180.0).toFloat()
+            val cosA = cos(angleRad)
+            val sinA = sin(angleRad)
+
+            val alpha: Float
+            val spokeColor: Color
+            if (isRefreshing) {
+                // Jarak mundur dari bilah paling terang
+                val dist = (activeStep - i + 12) % 12
+                alpha = when (dist) {
+                    0 -> 1f
+                    1 -> 0.80f
+                    2 -> 0.62f
+                    3 -> 0.46f
+                    4 -> 0.34f
+                    else -> 0.18f
+                }
+                spokeColor = if (isNothing && dist <= 1) NothingSignalRed else baseColor
+            } else {
+                if (i >= visibleCount) continue
+                alpha = 0.35f + 0.65f * ((i + 1f) / 12f)
+                spokeColor = if (isNothing && i == visibleCount - 1) NothingSignalRed else baseColor
+            }
+
+            drawLine(
+                color = spokeColor.copy(alpha = alpha),
+                start = Offset(cx + innerR * cosA, cy + innerR * sinA),
+                end = Offset(cx + outerR * cosA, cy + outerR * sinA),
+                strokeWidth = strokeW,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+
+/**
+ * Pembungkus Pull-to-Refresh dengan indikator iOS Spokes untuk kedua tema.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun IosSpokesPullToRefreshBox(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    state: PullToRefreshState = rememberPullToRefreshState(),
+    content: @Composable BoxScope.() -> Unit
+) {
+    val isNothing = LocalNothingTheme.current
+    val containerColor = if (isNothing) {
+        MaterialTheme.colorScheme.surfaceContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        state = state,
+        modifier = modifier,
+        indicator = {
+            val fraction = state.distanceFraction
+            val show = isRefreshing || fraction > 0.02f
+            if (show) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer {
+                            val pullPx = if (isRefreshing) {
+                                16.dp.toPx()
+                            } else {
+                                (-36.dp.toPx()) + (52.dp.toPx() * fraction.coerceAtMost(1.25f))
+                            }
+                            translationY = pullPx
+                            alpha = if (isRefreshing) 1f else (fraction * 1.8f).coerceIn(0f, 1f)
+                            val scale = if (isRefreshing) 1f else (0.78f + 0.22f * fraction.coerceIn(0f, 1f))
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .size(40.dp)
+                        .then(
+                            if (isNothing) {
+                                Modifier
+                                    .clip(CircleShape)
+                                    .background(containerColor)
+                                    .nothingBorder(CircleShape)
+                            } else {
+                                Modifier
+                                    .shadow(4.dp, CircleShape, clip = false)
+                                    .clip(CircleShape)
+                                    .background(containerColor)
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IosSpokesSpinner(
+                        isRefreshing = isRefreshing,
+                        pullProgress = fraction
+                    )
+                }
+            }
+        },
+        content = content
+    )
+}
+
 
