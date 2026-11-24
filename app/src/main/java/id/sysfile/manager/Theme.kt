@@ -1,6 +1,5 @@
 package id.sysfile.manager
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,34 +8,26 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialExpressiveTheme
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.shadow.Shadow
+import id.liquidglass.theme.LiquidGlassDarkColorScheme
+import id.liquidglass.theme.LiquidGlassLightColorScheme
+import id.liquidglass.theme.LiquidGlassVariant
+import id.liquidglass.theme.LocalLiquidBackdrop
+import id.liquidglass.theme.LocalLiquidGlassDark
+import id.liquidglass.theme.LocalLiquidGlassEnabled
+import id.liquidglass.theme.LocalLiquidGlassVariant
+import id.liquidglass.theme.liquidGlass as libLiquidGlass
+import id.liquidglass.theme.liquidGlassContainerColor
+import id.liquidglass.theme.liquidGlassWallpaper
 
 // Skema seed biru senja (r80, pilihan Achmad 2026-11-19 dari papan
 // warna WN2): nilai di bawah DIBANGKITKAN oleh Material Color
@@ -151,144 +142,34 @@ private val SenjaDarkScheme: ColorScheme = ColorScheme(
     onTertiaryFixedVariant = Color(0xFF4F4061),
 )
 
-// Tema 2 Liquid Glass (Kyant0/AndroidLiquidGlass): skema transparan dengan
-// refraksi AGSL (API 33+), blur RenderEffect (API 31+), dan fallback tint pekat.
-private val LiquidGlassDarkScheme: ColorScheme = SenjaDarkScheme.copy(
-    primary = Color(0xFF5AC8FA),
-    onPrimary = Color(0xFF002A3D),
-    primaryContainer = Color(0x4D5AC8FA),
-    onPrimaryContainer = Color(0xFFD9F3FF),
-    secondaryContainer = Color(0x8A101624),
-    onSecondaryContainer = Color(0xFFF0F4FC),
-    surfaceTint = Color(0xFF5AC8FA),
-    background = Color.Transparent,
-    surface = Color.Transparent,
-    surfaceContainerLowest = Color(0x52101624),
-    surfaceContainerLow = Color(0x66101624),
-    surfaceContainer = Color(0x7A101624),
-    surfaceContainerHigh = Color(0xA6101624),
-    surfaceContainerHighest = Color(0x7A101624),
-    outlineVariant = Color.White.copy(alpha = 0.22f),
-)
-
-private val LiquidGlassLightScheme: ColorScheme = SenjaLightScheme.copy(
-    primary = Color(0xFF0A84FF),
-    onPrimary = Color.White,
-    primaryContainer = Color(0x380A84FF),
-    onPrimaryContainer = Color(0xFF003875),
-    secondaryContainer = Color(0xA3F4F8FF),
-    onSecondaryContainer = Color(0xFF0F172A),
-    surfaceTint = Color(0xFF0A84FF),
-    background = Color.Transparent,
-    surface = Color.Transparent,
-    surfaceContainerLowest = Color(0x66F4F8FF),
-    surfaceContainerLow = Color(0x7AF4F8FF),
-    surfaceContainer = Color(0x94F4F8FF),
-    surfaceContainerHigh = Color(0xB8FFFFFF),
-    surfaceContainerHighest = Color(0x94F4F8FF),
-    outlineVariant = Color.White.copy(alpha = 0.86f),
-)
-
-/** true bila tema 2 (Liquid Glass) aktif. */
-val LocalLiquidGlass = staticCompositionLocalOf { false }
-
-/** Mode gelap aktif di tema Liquid Glass. */
-val LocalLiquidGlassDark = staticCompositionLocalOf { false }
-
-/** LayerBackdrop latar wallpaper untuk refraksi kaca real-time. */
-val LocalBackdrop = compositionLocalOf<LayerBackdrop?> { null }
+// Tema 2 Liquid Glass — didelegasikan ke module library :liquidglass (id.liquidglass.theme).
+val LocalLiquidGlass = LocalLiquidGlassEnabled
+val LocalBackdrop = LocalLiquidBackdrop
 
 /** Inset bawah navbar melayang agar konten mengalir di bawah kaca. */
 val LocalNavInset = compositionLocalOf { 0.dp }
 
 /** Warna container transparan saat Liquid Glass aktif agar efek backdrop tidak tertutup. */
 @Composable
-fun liquidContainerColor(fallback: Color): Color =
-    if (LocalLiquidGlass.current) Color.Transparent else fallback
+fun liquidContainerColor(fallback: Color): Color = liquidGlassContainerColor(fallback)
 
-/**
- * Modifier Liquid Glass terpadu (Kyant0/AndroidLiquidGlass):
- * vibrancy + blur + AGSL lens refraction (+ chromatic aberration pada kontrol mengambang)
- * + highlight specular bawaan.
- */
+/** Modifier Liquid Glass terpadu (mendelegasikan ke library :liquidglass). */
 @Composable
 fun Modifier.liquidGlass(
     shape: RoundedCornerShape,
     floating: Boolean = false,
     selected: Boolean = false,
     backdrop: LayerBackdrop? = LocalBackdrop.current
-): Modifier {
-    if (!LocalLiquidGlass.current) return this
-    val dark = LocalLiquidGlassDark.current
-    val primary = MaterialTheme.colorScheme.primary
-    val surfaceTint = when {
-        selected -> primary.copy(alpha = if (dark) 0.24f else 0.18f)
-        dark && floating -> Color.White.copy(alpha = 0.08f)
-        dark -> Color.White.copy(alpha = 0.05f)
-        floating -> Color.White.copy(alpha = 0.36f)
-        else -> Color.White.copy(alpha = 0.28f)
-    }
-    if (backdrop == null) {
-        return this.clip(shape).background(surfaceTint)
-    }
-    val topSheen = Color.White.copy(alpha = if (dark) (if (floating) 0.18f else 0.12f) else 0.48f)
-    return this.drawBackdrop(
-        backdrop = backdrop,
-        shape = { shape },
-        effects = {
-            vibrancy()
-            blur(if (floating) 3.dp.toPx() else 2.dp.toPx())
-            lens(
-                refractionHeight = if (floating) 20.dp.toPx() else 12.dp.toPx(),
-                refractionAmount = if (floating) 42.dp.toPx() else 24.dp.toPx(),
-                depthEffect = true,
-                chromaticAberration = true
-            )
-        },
-        shadow = if (floating) ({ Shadow.Default }) else null,
-        onDrawSurface = {
-            drawRect(surfaceTint)
-            drawRect(
-                Brush.verticalGradient(
-                    colors = listOf(topSheen, Color.Transparent),
-                    startY = 0f,
-                    endY = size.height * 0.48f
-                )
-            )
-        }
-    )
-}
+): Modifier = libLiquidGlass(
+    shape = shape,
+    floating = floating,
+    selected = selected,
+    backdrop = backdrop
+)
 
 /** Wallpaper gradien ambient untuk memunculkan refraksi Liquid Glass. */
 @Composable
-fun Modifier.liquidGlassBg(): Modifier {
-    val win = LocalWindowInfo.current.containerSize
-    var origin by remember { mutableStateOf(Offset.Zero) }
-    if (!LocalLiquidGlass.current) return this
-    val dark = LocalLiquidGlassDark.current
-    val base = if (dark) Color(0xFF060B18) else Color(0xFFE6F0FF)
-    return this
-        .onGloballyPositioned { origin = it.positionInWindow() }
-        .drawBehind {
-            drawRect(base)
-            val a = if (dark) 0.68f else 0.42f
-            val w = win.width.toFloat().takeIf { it > 0f } ?: size.width
-            val h = win.height.toFloat().takeIf { it > 0f } ?: size.height
-            fun orb(c: Color, x: Float, y: Float, r: Float) {
-                val center = Offset(w * x, h * y) - origin
-                val radius = minOf(w, h) * r
-                drawCircle(
-                    Brush.radialGradient(listOf(c.copy(alpha = a), Color.Transparent), center, radius),
-                    radius = radius,
-                    center = center
-                )
-            }
-            orb(Color(0xFF2563EB), 0.12f, 0.10f, 0.85f)
-            orb(Color(0xFFD946EF), 0.92f, 0.38f, 0.78f)
-            orb(Color(0xFF06B6D4), 0.18f, 0.86f, 0.82f)
-            orb(Color(0xFF6366F1), 0.82f, 0.92f, 0.65f)
-        }
-}
+fun Modifier.liquidGlassBg(): Modifier = liquidGlassWallpaper()
 
 /** Tema aplikasi: mode "light" / "dark" / "system"; uiStyle "m3" / "glass". */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -301,8 +182,8 @@ fun SysFileTheme(themeMode: String, uiStyle: String = "m3", content: @Composable
     }
     val glass = uiStyle == "glass"
     val scheme = when {
-        glass && dark -> LiquidGlassDarkScheme
-        glass -> LiquidGlassLightScheme
+        glass && dark -> LiquidGlassDarkColorScheme
+        glass -> LiquidGlassLightColorScheme
         dark -> SenjaDarkScheme
         else -> SenjaLightScheme
     }
@@ -313,9 +194,10 @@ fun SysFileTheme(themeMode: String, uiStyle: String = "m3", content: @Composable
         val bgBackdrop = if (glass) rememberLayerBackdrop() else null
         CompositionLocalProvider(
             LocalContentColor provides scheme.onSurface,
-            LocalLiquidGlass provides glass,
+            LocalLiquidGlassEnabled provides glass,
             LocalLiquidGlassDark provides dark,
-            LocalBackdrop provides bgBackdrop
+            LocalLiquidGlassVariant provides LiquidGlassVariant.Clear,
+            LocalLiquidBackdrop provides bgBackdrop
         ) {
             if (glass && bgBackdrop != null) {
                 Box(Modifier.fillMaxSize()) {

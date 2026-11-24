@@ -19,4 +19,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "SysFileManager"
-include(":app")
+include(":app", ":liquidglass")

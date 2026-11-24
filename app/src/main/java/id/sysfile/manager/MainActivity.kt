@@ -172,6 +172,7 @@ import androidx.core.content.FileProvider
 import androidx.core.view.drawToBitmap
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import id.liquidglass.theme.liquidGlassTouchGlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -2197,6 +2198,7 @@ fun SysFileApp() {
                                             Row(
                                                 Modifier
                                                     .padding(end = if (LocalLiquidGlass.current) 10.dp else 0.dp)
+                                                    .liquidGlassTouchGlow(enabled = LocalLiquidGlass.current)
                                                     .liquidGlass(RoundedCornerShape(50), floating = true),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {

@@ -1,6 +1,7 @@
 package id.sysfile.manager
 
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import id.liquidglass.theme.liquidGlassTouchGlow
 
 import android.Manifest
 import android.content.Context
@@ -451,6 +452,7 @@ private fun PeekStorageHeroCard(
     val peekShape = RoundedCornerShape(26.dp)
     Column(
         modifier = modifier
+            .liquidGlassTouchGlow(enabled = LocalLiquidGlass.current)
             .clip(peekShape)
             .then(
                 if (LocalLiquidGlass.current) {
@@ -614,6 +616,7 @@ private fun CategoryTile(
     Row(
         modifier = modifier
             .height(74.dp)
+            .liquidGlassTouchGlow(enabled = LocalLiquidGlass.current)
             .clip(tileShape)
             .then(
                 if (LocalLiquidGlass.current) {

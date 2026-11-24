@@ -1,5 +1,7 @@
 package id.sysfile.manager
 
+import id.liquidglass.theme.LiquidGlassToggle
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -376,7 +378,10 @@ fun SettingsScreen(
                             circleColor = MaterialTheme.colorScheme.primary,
                             title = t.showHidden,
                             subtitle = if (language == "id") "Berkas berawalan titik (.)" else "Dotfiles (.)",
-                            trailing = { Switch(checked = showHidden, onCheckedChange = onHidden) }
+                            trailing = {
+                                if (LocalLiquidGlass.current) LiquidGlassToggle(checked = showHidden, onCheckedChange = onHidden)
+                                else Switch(checked = showHidden, onCheckedChange = onHidden)
+                            }
                         )
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -389,7 +394,10 @@ fun SettingsScreen(
                             subtitle = t.rootAccessDesc,
                             badge = "SU",
                             badgeColor = MaterialTheme.colorScheme.error,
-                            trailing = { Switch(checked = showRootEntry, onCheckedChange = onRootEntry) }
+                            trailing = {
+                                if (LocalLiquidGlass.current) LiquidGlassToggle(checked = showRootEntry, onCheckedChange = onRootEntry)
+                                else Switch(checked = showRootEntry, onCheckedChange = onRootEntry)
+                            }
                         )
                         HorizontalDivider(
                             Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -400,7 +408,10 @@ fun SettingsScreen(
                             circleColor = MaterialTheme.colorScheme.primary,
                             title = t.trash,
                             subtitle = if (trashEnabled) t.trashHintOn else t.trashHintOff,
-                            trailing = { Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled) }
+                            trailing = {
+                                if (LocalLiquidGlass.current) LiquidGlassToggle(checked = trashEnabled, onCheckedChange = onTrashEnabled)
+                                else Switch(checked = trashEnabled, onCheckedChange = onTrashEnabled)
+                            }
                         )
                     }
                 }
