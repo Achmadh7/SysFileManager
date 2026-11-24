@@ -324,7 +324,11 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                     // PR1 Grid (r111, pilihannya): semua baris jadi grid
                     // 2 kolom (label kiri, nilai kanan) dalam SATU kartu —
                     // info + izin; dialog jadi jauh lebih pendek.
-                    Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                    Card(
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                        modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp))
+                    ) {
                         Column {
                             PropGridRow(
                                 t.propParent,
@@ -421,7 +425,11 @@ fun PropertiesDialog(entry: FEntry, onDismiss: () -> Unit, onNotify: (String) ->
                         // Isi tombol LAGI: jalur lengkap (dengan salin) +
                         // rincian stat lanjutan bila tersedia.
                         Spacer(Modifier.height(12.dp))
-                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                        Card(
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                        modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp))
+                    ) {
                             Column {
                                 PropGridRow(t.propPath, ellipsizeMiddle(entry.path)) {
                                     IconButton(onClick = {
@@ -541,7 +549,11 @@ fun ExifDialog(entry: FEntry, onDismiss: () -> Unit) {
                     if (rows.isEmpty()) {
                         Text(t.exifNoData, style = MaterialTheme.typography.bodyMedium)
                     } else {
-                        Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                        Card(
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                        modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp))
+                    ) {
                             Column {
                                 rows.forEachIndexed { i, (label, value) ->
                                     if (i > 0) PropGroupDivider()

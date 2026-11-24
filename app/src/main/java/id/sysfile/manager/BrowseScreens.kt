@@ -112,8 +112,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import dev.chrisbanes.haze.HazeState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -207,7 +209,10 @@ fun BrowseHeaderBar(
                 },
                 expanded = false,
                 onExpandedChange = {},
-                modifier = Modifier.weight(1f),
+                colors = SearchBarDefaults.colors(
+                    containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
+                ),
+                modifier = Modifier.weight(1f).obsidianGlass(RoundedCornerShape(28.dp), strong = true),
                 // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
                 // status bar di atas pil (windowInsets default), padahal
                 // ia duduk di bawah TopAppBar yang inset-nya sudah
@@ -294,8 +299,11 @@ fun BrowseHeaderBar(
                 val active = index == labels.lastIndex
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (active) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color = glassContainerColor(
+                        if (active) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    modifier = Modifier.obsidianGlass(RoundedCornerShape(50), strong = !active, selected = active),
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active
                 ) {
@@ -340,6 +348,8 @@ fun BrowseHeaderBar(
                         else onSortPick(key, key == SortKey.NAME)
                     },
                     label = { Text(label) },
+                    colors = obsidianFilterChipColors(),
+                    border = obsidianFilterChipBorder(active),
                     leadingIcon = if (active) {
                         {
                             Icon(
@@ -629,7 +639,8 @@ fun SelectionBar(
     onSelectAll: () -> Unit,
     singleIsDir: Boolean = false,
     singleLocked: Boolean = false,
-    onToggleLock: () -> Unit = {}
+    onToggleLock: () -> Unit = {},
+    hazeState: HazeState? = LocalHazeState.current
 ) {
     val t = txt()
     var menuOpen by remember { mutableStateOf(false) }
@@ -639,9 +650,10 @@ fun SelectionBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 3.dp,
-            shadowElevation = 6.dp
+            color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+            tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
+            shadowElevation = 6.dp,
+            modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp), strong = true, hazeState = hazeState)
         ) {
             Row(
                 Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -745,16 +757,22 @@ private fun PillExtractAction(enabled: Boolean, label: String, onClick: () -> Un
 }
 
 @Composable
-fun ClipboardBar(count: Int, onPaste: () -> Unit, onClear: () -> Unit) {
+fun ClipboardBar(
+    count: Int,
+    onPaste: () -> Unit,
+    onClear: () -> Unit,
+    hazeState: HazeState? = LocalHazeState.current
+) {
     val t = txt()
     Box(
         Modifier.fillMaxWidth().padding(bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                .obsidianGlass(RoundedCornerShape(28.dp), strong = true, hazeState = hazeState),
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.secondaryContainer
+            color = glassContainerColor(MaterialTheme.colorScheme.secondaryContainer)
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -808,9 +826,10 @@ fun MiniPlayerBar(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            tonalElevation = 3.dp,
-            shadowElevation = 6.dp
+            color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+            tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
+            shadowElevation = 6.dp,
+            modifier = Modifier.obsidianGlass(RoundedCornerShape(28.dp), strong = true)
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),

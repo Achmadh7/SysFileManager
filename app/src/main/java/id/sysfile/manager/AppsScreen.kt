@@ -236,7 +236,9 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
                     FilterChip(
                         selected = filter == idx,
                         onClick = { filter = idx },
-                        label = { Text(label) }
+                        label = { Text(label) },
+                        colors = obsidianFilterChipColors(),
+                        border = obsidianFilterChipBorder(filter == idx)
                     )
                 }
                 Spacer(Modifier.weight(1f))

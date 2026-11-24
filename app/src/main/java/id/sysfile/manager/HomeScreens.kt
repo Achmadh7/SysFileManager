@@ -450,11 +450,19 @@ private fun PeekStorageHeroCard(
     }
     val remainFraction = (1f - clampedFraction).coerceAtLeast(0f)
 
+    val peekShape = RoundedCornerShape(26.dp)
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(26.dp))
-            .background(scheme.secondaryContainer)
-            .border(1.dp, accentColor.copy(alpha = 0.34f), RoundedCornerShape(26.dp))
+            .clip(peekShape)
+            .then(
+                if (LocalGlass.current) {
+                    Modifier.obsidianGlass(peekShape)
+                } else {
+                    Modifier
+                        .background(scheme.secondaryContainer)
+                        .border(1.dp, accentColor.copy(alpha = 0.34f), peekShape)
+                }
+            )
             .clickable { onOpenRoot(root.path) }
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -604,12 +612,20 @@ private fun CategoryTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val tileShape = RoundedCornerShape(22.dp)
     Row(
         modifier = modifier
             .height(74.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(22.dp))
+            .clip(tileShape)
+            .then(
+                if (LocalGlass.current) {
+                    Modifier.obsidianGlass(tileShape)
+                } else {
+                    Modifier
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .border(1.dp, color.copy(alpha = 0.25f), tileShape)
+                }
+            )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -711,28 +727,20 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit, hazeState: HazeState? =
         }
     }
 
+    val navShape = RoundedCornerShape(26.dp)
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 28.dp, vertical = 12.dp)
-            .clip(RoundedCornerShape(26.dp))
+            .clip(navShape)
             .then(
-                if (glass && hazeState != null) {
-                    Modifier.hazeEffect(
-                        state = hazeState,
-                        style = HazeStyle(
-                            backgroundColor = glassBaseColor(isDark),
-                            blurRadius = 22.dp,
-                            tint = HazeTint(if (isDark) Color(0x991A2030) else Color(0xB8F4F7FD))
-                        )
-                    )
+                if (glass) {
+                    Modifier.obsidianGlass(navShape, strong = true, hazeState = hazeState ?: LocalHazeState.current)
                 } else {
-                    Modifier.background(barColor)
+                    Modifier
+                        .background(barColor)
+                        .border(1.dp, borderColor, navShape)
                 }
-            )
-            .then(
-                if (glass) Modifier.border(1.dp, glassRim(), RoundedCornerShape(26.dp))
-                else Modifier.border(1.dp, borderColor, RoundedCornerShape(26.dp))
             )
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {

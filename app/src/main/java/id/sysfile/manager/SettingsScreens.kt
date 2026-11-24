@@ -131,6 +131,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.MutableTransitionState
@@ -204,6 +205,11 @@ fun SettingsScreen(
         modifier = Modifier.glassScreenBg(),
         topBar = {
             TopAppBar(
+                modifier = Modifier.obsidianGlass(RoundedCornerShape(0.dp), strong = true),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = glassContainerColor(MaterialTheme.colorScheme.surface),
+                    scrolledContainerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainer)
+                ),
                 title = { Text(t.settings) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
             )
@@ -223,8 +229,8 @@ fun SettingsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(16.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -362,8 +368,8 @@ fun SettingsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(16.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -404,8 +410,8 @@ fun SettingsScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(16.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                         SettingsRow(
@@ -727,8 +733,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Archive, t.formatGroupStandard)
@@ -750,8 +756,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Android, t.formatGroupSpecial)
@@ -778,8 +784,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Image, t.formatGroupMedia)
@@ -806,8 +812,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                         FormatGroupHeader(Icons.Default.Description, t.formatGroupDocs)
@@ -908,8 +914,8 @@ fun AboutScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
+                    modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
                         SettingsRow(
@@ -1086,9 +1092,9 @@ private fun SpecGroup(
     rows: List<Pair<String, String>>
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().obsidianGlass(RoundedCornerShape(28.dp)),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+        colors = CardDefaults.cardColors(containerColor = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest))
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

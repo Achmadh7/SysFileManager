@@ -134,6 +134,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -2170,6 +2171,10 @@ fun SysFileApp() {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
+                                        modifier = Modifier.obsidianGlass(RoundedCornerShape(0.dp), strong = true),
+                                        colors = TopAppBarDefaults.topAppBarColors(
+                                            containerColor = glassContainerColor(MaterialTheme.colorScheme.surface)
+                                        ),
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 SysFileLogo(
@@ -2202,6 +2207,10 @@ fun SysFileApp() {
                                     )
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
+                                        modifier = Modifier.obsidianGlass(RoundedCornerShape(0.dp), strong = true),
+                                        colors = TopAppBarDefaults.topAppBarColors(
+                                            containerColor = glassContainerColor(MaterialTheme.colorScheme.surface)
+                                        ),
                                         title = { Text(t.selected(selected.size)) },
                                         navigationIcon = {
                                             IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, t.cancel) }
@@ -2214,6 +2223,10 @@ fun SysFileApp() {
                                     )
                                 } else {
                                     TopAppBar(
+                                        modifier = Modifier.obsidianGlass(RoundedCornerShape(0.dp), strong = true),
+                                        colors = TopAppBarDefaults.topAppBarColors(
+                                            containerColor = glassContainerColor(MaterialTheme.colorScheme.surface)
+                                        ),
                                         title = {
                                             Column {
                                                 Text(
@@ -2476,7 +2489,8 @@ fun SysFileApp() {
                                                         notify(t.folderLockedDone)
                                                     }
                                                 }
-                                            }
+                                            },
+                                            hazeState = hazeState
                                         )
                                     }
                                     if (selected.isEmpty() || currentPath == null) {
@@ -2497,7 +2511,8 @@ fun SysFileApp() {
                                                         else FileOps.moveInto(files, destDir) > 0
                                                     }
                                                 },
-                                                onClear = { clipboard = null }
+                                                onClear = { clipboard = null },
+                                                hazeState = hazeState
                                             )
                                         }
                                     } else {
@@ -2680,10 +2695,13 @@ fun SysFileApp() {
                     ) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            tonalElevation = 3.dp,
+                            color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                            tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
                             shadowElevation = 6.dp,
-                            modifier = Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(20.dp)).clickable { pillVisible = false }
+                            modifier = Modifier.widthIn(max = 320.dp)
+                                .obsidianGlass(RoundedCornerShape(20.dp), strong = true)
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable { pillVisible = false }
                         ) {
                             Row(
                                 Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -2744,10 +2762,11 @@ fun SysFileApp() {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    tonalElevation = 3.dp,
+                    color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                        .obsidianGlass(RoundedCornerShape(24.dp), strong = true)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2804,10 +2823,11 @@ fun SysFileApp() {
             androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    tonalElevation = 3.dp,
+                    color = glassContainerColor(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    tonalElevation = if (LocalGlass.current) 0.dp else 3.dp,
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth()
+                        .obsidianGlass(RoundedCornerShape(24.dp), strong = true)
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
