@@ -998,6 +998,7 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
                                 },
                             contentAlignment = Alignment.Center
                         ) {
+                            val pageBmp = bitmap
                             when {
                                 renderFailed -> Text(
                                     t.pdfOpenFailed,
@@ -1006,8 +1007,8 @@ fun PdfViewerScreen(path: String, onBack: () -> Unit, onOpenExternal: () -> Unit
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.padding(24.dp)
                                 )
-                                bitmap != null -> Image(
-                                    bitmap = bitmap!!.asImageBitmap(),
+                                pageBmp != null -> Image(
+                                    bitmap = pageBmp.asImageBitmap(),
                                     contentDescription = null,
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier.fillMaxSize().graphicsLayer {

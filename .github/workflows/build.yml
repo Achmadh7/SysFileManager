@@ -47,6 +47,7 @@ jobs:
           if [ -n "$KEYSTORE_B64" ]; then
             printf '%s' "$KEYSTORE_B64" | tr -d '\r\n' | base64 -d > "$RUNNER_TEMP/release.p12"
             echo "SYSFILE_STORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+            echo "SYSFILE_STRICT_SIGNING=true" >> "$GITHUB_ENV"
           fi
       - name: Build release APK
         env:

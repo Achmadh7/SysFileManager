@@ -273,11 +273,12 @@ fun SafBrowseScreen(
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
+            val docs = children
             when {
-                children == null -> LoadingIndicator(
+                docs == null -> LoadingIndicator(
                     Modifier.align(Alignment.Center).size(52.dp)
                 )
-                children!!.isEmpty() -> Text(
+                docs.isEmpty() -> Text(
                     t.emptyFolder,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -287,7 +288,7 @@ fun SafBrowseScreen(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(children!!, key = { it.uri.toString() }) { doc ->
+                    items(docs, key = { it.uri.toString() }) { doc ->
                         SafRow(
                             doc = doc,
                             onClick = {

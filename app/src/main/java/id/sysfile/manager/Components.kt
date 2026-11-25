@@ -496,9 +496,10 @@ fun FileRow(
     val isNothing = LocalNothingTheme.current
     Card(
         shape = RoundedCornerShape(16.dp),
-        border = if (isNothing) {
-            BorderStroke(1.dp, if (isSelected) NothingSignalRed else MaterialTheme.colorScheme.outlineVariant)
-        } else null,
+        border = BorderStroke(
+            1.dp,
+            if (isNothing && isSelected) NothingSignalRed else MaterialTheme.colorScheme.outlineVariant
+        ),
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isSelected -> MaterialTheme.colorScheme.primaryContainer

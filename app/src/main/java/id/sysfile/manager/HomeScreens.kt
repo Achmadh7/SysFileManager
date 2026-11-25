@@ -104,7 +104,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -134,6 +133,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -709,7 +709,6 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     )
     val isNothing = LocalNothingTheme.current
     val barColor = if (isNothing) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.secondaryContainer
-    val borderColor = MaterialTheme.colorScheme.outlineVariant
     val activeBg = if (isNothing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
     val activeBorder = MaterialTheme.colorScheme.primary
     val activeFg = if (isNothing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
@@ -746,9 +745,10 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 28.dp, vertical = 12.dp)
+            .shadow(if (isNothing) 0.dp else 6.dp, navShape, clip = false)
             .clip(navShape)
             .background(barColor)
-            .then(if (isNothing) Modifier.border(1.dp, borderColor, navShape) else Modifier)
+            .themeCardBorder(navShape)
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         val gap = 8.dp

@@ -112,7 +112,6 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -203,7 +202,7 @@ private sealed interface Overlay {
     data class PayloadView(val path: String) : Overlay
     data class DexView(val path: String) : Overlay
     data class ArscView(val path: String) : Overlay
-    data class ProfView(val path: String) : Overlay
+    data class ProfView(val path: String, val originalPath: String? = null) : Overlay
     data class SqliteView(val path: String) : Overlay
     data class AxmlView(val path: String) : Overlay
     data class HexView(val path: String) : Overlay
@@ -1307,6 +1306,8 @@ fun SysFileApp() {
                 if (staged != null) {
                     if (FileOps.isTextFile(f)) {
                         show(Overlay.TextView(staged.absolutePath, originalPath = f.absolutePath))
+                    } else if (FileOps.extOf(f.name) in setOf("prof", "profm")) {
+                        show(Overlay.ProfView(staged.absolutePath, originalPath = f.absolutePath))
                     } else {
                         openEntry(FileOps.entryOf(staged))
                     }
@@ -2185,7 +2186,7 @@ fun SysFileApp() {
                     is Overlay.ProfView -> ProfBrowseScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null },
-                        onOpenAsText = { overlay = Overlay.TextView(ov.path) },
+                        onOpenAsText = { overlay = Overlay.TextView(ov.path, originalPath = ov.originalPath) },
                         onOpenAsHex = { overlay = Overlay.HexView(ov.path) }
                     )
                     is Overlay.SqliteView -> SqliteViewerScreen(

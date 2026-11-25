@@ -112,7 +112,6 @@ import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.SearchBar
@@ -368,14 +367,12 @@ fun BrowseHeaderBar(
                             selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     },
-                    border = if (isNothing) {
-                        FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = active,
-                            borderColor = MaterialTheme.colorScheme.outlineVariant,
-                            selectedBorderColor = MaterialTheme.colorScheme.primary
-                        )
-                    } else null,
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = active,
+                        borderColor = MaterialTheme.colorScheme.outlineVariant,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary
+                    ),
                     label = { Text(label) },
                     leadingIcon = if (active) {
                         {
