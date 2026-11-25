@@ -76,23 +76,22 @@ fun SysFileLogo(
                     val bg = if (isDark) Color(0xFF131317) else Color(0xFFEAEAE5)
                     Brush.linearGradient(listOf(bg, bg))
                 } else {
-                    Brush.linearGradient(
-                        listOf(Color(0xFF1A2148), Color(0xFF0E1122))
-                    )
+                    val bgTop = if (isDark) Color(0xFF162238) else Color(0xFF1E3A8A)
+                    val bgBot = if (isDark) Color(0xFF0F172A) else Color(0xFF1D4ED8)
+                    Brush.linearGradient(listOf(bgTop, bgBot))
                 }
             )
-            .nothingBorder(shape),
+            .themeCardBorder(shape),
         contentAlignment = Alignment.Center
     ) {
-        if (isNothing) {
-            // Split-Pocket Nothing Monochrome + Red Dot (Opsi 1)
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val u = size.minDimension / 64f
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val u = size.minDimension / 64f
+            if (isNothing) {
+                // Split-Pocket Nothing Monochrome + Red Dot (Opsi 1 Tema 2)
                 val cardColor = if (isDark) Color(0xFFF5F5F7) else Color.White
                 val pocketColor = if (isDark) Color(0xFF23232A) else Color(0xFF18181D)
                 val pocketBorder = if (isDark) Color(0xFF454552) else Color.Transparent
 
-                // Peeking top card
                 drawRoundRect(
                     color = cardColor,
                     topLeft = Offset(18f * u, 18f * u),
@@ -108,7 +107,6 @@ fun SysFileLogo(
                         style = Stroke(width = 1.2f * u)
                     )
                 }
-                // Front pocket
                 drawRoundRect(
                     color = pocketColor,
                     topLeft = Offset(15f * u, 26f * u),
@@ -124,22 +122,33 @@ fun SysFileLogo(
                         style = Stroke(width = 1.4f * u)
                     )
                 }
-                // Red signal slot
                 drawRoundRect(
                     color = NothingSignalRed,
                     topLeft = Offset(26f * u, 34.5f * u),
                     size = Size(12f * u, 3.2f * u),
                     cornerRadius = CornerRadius(1.6f * u, 1.6f * u)
                 )
+            } else {
+                // Split-Pocket Nordic Slate & Cobalt (Opsi 1 Tema 1)
+                drawRoundRect(
+                    color = Color(0xFF93C5FD),
+                    topLeft = Offset(18f * u, 18f * u),
+                    size = Size(28f * u, 13f * u),
+                    cornerRadius = CornerRadius(4f * u, 4f * u)
+                )
+                drawRoundRect(
+                    color = Color(0xFF3B82F6),
+                    topLeft = Offset(15f * u, 26f * u),
+                    size = Size(34f * u, 21f * u),
+                    cornerRadius = CornerRadius(6f * u, 6f * u)
+                )
+                drawRoundRect(
+                    color = Color.White,
+                    topLeft = Offset(26f * u, 34.5f * u),
+                    size = Size(12f * u, 3.2f * u),
+                    cornerRadius = CornerRadius(1.6f * u, 1.6f * u)
+                )
             }
-        } else {
-            Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = "SysFile Logo",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .scale(1.28f)
-            )
         }
     }
 }

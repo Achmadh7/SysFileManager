@@ -377,6 +377,13 @@ class Txt {
     var manageApksSubtitle: String = ""
     var infoEngineSubtitle: String = ""
     var biometricUnavailable: String = ""
+    var profVersion: String = ""
+    var profAndroidTarget: String = ""
+    var profDexCount: String = ""
+    var profCompression: String = ""
+    var profDexEntries: String = ""
+    var profSearchHint: String = ""
+    var fmtProfDesc: String = ""
 }
 
 val TxtId = Txt().apply {
@@ -693,7 +700,7 @@ val TxtId = Txt().apply {
     fmtImageDesc = "JPG, PNG, GIF, WebP, BMP, HEIC, HEIF, SVG, AVIF — penampil gambar di aplikasi dengan cubit-zoom dan geser antar foto."
     fmtVideoDesc = "MP4, MKV, AVI, MOV, WebM, 3GP, M4V, WMV, TS — pemutar video di aplikasi; geser untuk pindah ke video berikutnya."
     fmtAudioDesc = "MP3, WAV, OGG, M4A, FLAC, AAC, Opus, AMR, MIDI — pemutar audio di aplikasi dengan bilah mini; ketuk untuk putar/jeda, audio tetap berjalan saat pindah layar."
-    fmtTextDesc = "TXT, MD, LOG, JSON, XML, CSV, HTML, kode sumber dan sejenisnya — penampil teks di aplikasi untuk berkas sampai 2 MB."
+    fmtTextDesc = "TXT, MD, LOG, JSON, XML, CSV, HTML, LIST, SHA256, MF, kode sumber dan sejenisnya — penampil teks di aplikasi untuk berkas sampai 2 MB."
     pdfOpenFailed = "PDF tidak bisa dibuka"
     pdfOpenExternal = "Buka dengan aplikasi lain"
     formatGroupDocs = "Dokumen"
@@ -753,6 +760,13 @@ val TxtId = Txt().apply {
     manageApksSubtitle = "Kelola APK"
     infoEngineSubtitle = "Info & Mesin"
     biometricUnavailable = "Kunci layar atau biometrik perangkat belum diatur."
+    profVersion = "Versi Format"
+    profAndroidTarget = "Target Android"
+    profDexCount = "Jumlah DEX"
+    profCompression = "Kompresi Zlib"
+    profDexEntries = "Entri DEX"
+    profSearchHint = "Cari DEX atau identifier…"
+    fmtProfDesc = "ART Baseline Profile (.prof) & Profile Metadata (.profm) — inspeksi header, versi Android target, stream zlib, dan entri DEX."
 }
 
 val TxtEn = Txt().apply {
@@ -1069,7 +1083,7 @@ val TxtEn = Txt().apply {
     fmtImageDesc = "JPG, PNG, GIF, WebP, BMP, HEIC, HEIF, SVG, AVIF — in-app image viewer with pinch-zoom and swipe between photos."
     fmtVideoDesc = "MP4, MKV, AVI, MOV, WebM, 3GP, M4V, WMV, TS — in-app video player; swipe to move to the next video."
     fmtAudioDesc = "MP3, WAV, OGG, M4A, FLAC, AAC, Opus, AMR, MIDI — in-app audio player with a mini-player bar; tap to play/pause, audio keeps playing while you browse."
-    fmtTextDesc = "TXT, MD, LOG, JSON, XML, CSV, HTML, source code and similar — in-app text viewer for files up to 2 MB."
+    fmtTextDesc = "TXT, MD, LOG, JSON, XML, CSV, HTML, LIST, SHA256, MF, source code and similar — in-app text viewer for files up to 2 MB."
     pdfOpenFailed = "Could not open this PDF"
     pdfOpenExternal = "Open with another app"
     formatGroupDocs = "Documents"
@@ -1129,6 +1143,13 @@ val TxtEn = Txt().apply {
     manageApksSubtitle = "Manage APKs"
     infoEngineSubtitle = "Info & Engine"
     biometricUnavailable = "Device screen lock or biometrics is not set up."
+    profVersion = "Format Version"
+    profAndroidTarget = "Android Target"
+    profDexCount = "DEX Count"
+    profCompression = "Zlib Compression"
+    profDexEntries = "DEX Entries"
+    profSearchHint = "Search DEX or identifiers…"
+    fmtProfDesc = "ART Baseline Profile (.prof) & Profile Metadata (.profm) — inspects header, target Android version, zlib streams, and DEX entries."
 }
 
 /** Tabel teks aktif; diganti oleh pengalih bahasa di layar utama. */

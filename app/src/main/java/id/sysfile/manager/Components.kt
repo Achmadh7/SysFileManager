@@ -1,5 +1,6 @@
 package id.sysfile.manager
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -59,7 +60,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -94,6 +94,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -801,16 +802,10 @@ fun StorageCardContent(
                 Modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (LocalNothingTheme.current) {
-                    NothingMatrixProgressBar(fraction = usedFraction)
-                } else {
-                    LinearWavyProgressIndicator(
-                        progress = { usedFraction.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = scheme.primary,
-                        trackColor = scheme.surfaceContainerHighest
-                    )
-                }
+                SplitGapSolidProgressBar(
+                    progress = usedFraction,
+                    height = 8.dp
+                )
                 Text(
                     percentText + " " + usedWord,
                     style = MaterialTheme.typography.titleSmall,
@@ -821,35 +816,86 @@ fun StorageCardContent(
 }
 
 /**
- * Progress bar operasi berkas Variasi 1A (Split-Gap Solid Capsule):
- * kapsul warna solid murni (tanpa gradien) dengan celah pemisah 5dp
- * antara bagian progres terisi dan sisa track, serta titik ujung di dalam bar.
+ * Progress bar Opsi A (Precision Split-Track + Terminal Dot):
+ * batang solid terpisah celah 4dp dari sisa track dengan titik stop halus di ujung kanan,
+ * serta slider Cobalt halus saat mode indeterminate (`progress == null`).
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SplitGapSolidProgressBar(
     progress: Float?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    height: Dp = 8.dp
 ) {
     val clamped = (progress ?: 0.35f).coerceIn(0.06f, 1f)
     if (LocalNothingTheme.current) {
         NothingMatrixProgressBar(fraction = clamped, modifier = modifier)
         return
     }
-    val scheme = MaterialTheme.colorScheme
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
     if (progress != null) {
-        LinearWavyProgressIndicator(
-            progress = { clamped },
-            modifier = modifier.fillMaxWidth(),
-            color = scheme.primary,
-            trackColor = scheme.surfaceContainerHighest
-        )
+        Canvas(modifier = modifier.fillMaxWidth().height(height)) {
+            val h = size.height
+            val r = h / 2f
+            val corner = CornerRadius(r, r)
+            val gap = 4.dp.toPx()
+            val fillWidth = (size.width * clamped).coerceIn(h, size.width)
+            drawRoundRect(
+                color = accentColor,
+                topLeft = Offset.Zero,
+                size = Size(fillWidth, h),
+                cornerRadius = corner
+            )
+            val restStart = fillWidth + gap
+            if (restStart + h <= size.width) {
+                drawRoundRect(
+                    color = trackColor,
+                    topLeft = Offset(restStart, 0f),
+                    size = Size(size.width - restStart, h),
+                    cornerRadius = corner
+                )
+                val dotRadius = (h * 0.22f).coerceAtLeast(1.5f)
+                drawCircle(
+                    color = accentColor.copy(alpha = 0.78f),
+                    radius = dotRadius,
+                    center = Offset(size.width - h * 0.48f, h / 2f)
+                )
+            }
+        }
     } else {
-        LinearWavyProgressIndicator(
-            modifier = modifier.fillMaxWidth(),
-            color = scheme.primary,
-            trackColor = scheme.surfaceContainerHighest
+        val transition = rememberInfiniteTransition(label = "splitBarIndet")
+        val phase by transition.animateFloat(
+            initialValue = -0.35f,
+            targetValue = 1.05f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1250, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "splitBarPhase"
         )
+        Canvas(modifier = modifier.fillMaxWidth().height(height)) {
+            val h = size.height
+            val r = h / 2f
+            val corner = CornerRadius(r, r)
+            drawRoundRect(
+                color = trackColor,
+                topLeft = Offset.Zero,
+                size = size,
+                cornerRadius = corner
+            )
+            val segW = size.width * 0.34f
+            val rawStart = size.width * phase
+            val clippedStart = rawStart.coerceIn(0f, size.width)
+            val clippedEnd = (rawStart + segW).coerceIn(0f, size.width)
+            if (clippedEnd > clippedStart) {
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(clippedStart, 0f),
+                    size = Size(clippedEnd - clippedStart, h),
+                    cornerRadius = corner
+                )
+            }
+        }
     }
 }
 
@@ -857,7 +903,7 @@ fun SplitGapSolidProgressBar(
  * Indikator putar iOS Spokes (12 bilah radial):
  * - Saat ditarik (`!isRefreshing`): bilah muncul bertahap searah jarum jam mengikuti `pullProgress`.
  * - Saat menyegarkan (`isRefreshing`): gelombang opasitas berputar halus searah jarum jam.
- * Menyesuaikan Tema 1 (M3 Pixel Indigo) dan Tema 2 (Nothing Dot-Matrix + aksen Signal Red).
+ * Menyesuaikan Tema 1 (Nordic Slate & Cobalt) dan Tema 2 (Nothing Dot-Matrix + aksen Signal Red).
  */
 @Composable
 fun IosSpokesSpinner(

@@ -1011,7 +1011,11 @@ fun ImgBrowseScreen(
                         Text(t.scanning, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                         val bytes = ramdiskBytes
                         if (bytes != null) {
-                            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 12.dp))
+                            SplitGapSolidProgressBar(
+                                progress = null,
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                                height = 6.dp
+                            )
                             Text(
                                 t.ramdiskProgress(FileOps.formatSize(bytes)),
                                 style = MaterialTheme.typography.bodySmall,
@@ -1714,18 +1718,10 @@ fun AnalysisScreen(
                                                     )
                                                 }
                                                 Spacer(Modifier.height(7.dp))
-                                                if (LocalNothingTheme.current) {
-                                                    NothingMatrixProgressBar(
-                                                        fraction = (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f)
-                                                    )
-                                                } else {
-                                                    LinearWavyProgressIndicator(
-                                                        progress = { (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f) },
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        color = MaterialTheme.colorScheme.primary,
-                                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                                    )
-                                                }
+                                                SplitGapSolidProgressBar(
+                                                    progress = (size.toFloat() / maxCat.toFloat()).coerceIn(0f, 1f),
+                                                    height = 5.dp
+                                                )
                                             }
                                         }
                                     }

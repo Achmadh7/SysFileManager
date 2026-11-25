@@ -485,16 +485,13 @@ private fun PeekStorageHeroCard(
     val remainFraction = (1f - clampedFraction).coerceAtLeast(0f)
 
     val isNothing = LocalNothingTheme.current
-    val peekShape = RoundedCornerShape(if (isNothing) 22.dp else 26.dp)
-    val iconShape = if (isNothing) CircleShape else RoundedCornerShape(14.dp)
+    val peekShape = RoundedCornerShape(if (isNothing) 22.dp else 18.dp)
+    val iconShape = if (isNothing) CircleShape else RoundedCornerShape(12.dp)
     Column(
         modifier = modifier
             .clip(peekShape)
             .background(scheme.secondaryContainer)
-            .then(
-                if (isNothing) Modifier.border(1.dp, scheme.outlineVariant, peekShape)
-                else Modifier
-            )
+            .themeCardBorder(peekShape)
             .clickable { onOpenRoot(root.path) }
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -564,17 +561,12 @@ private fun PeekStorageHeroCard(
             }
         }
 
-        // Baris tengah: Nothing Matrix Segmented Bar (tema 2) / M3 Expressive Wavy (tema 1, Opsi B)
-        if (isNothing) {
-            NothingMatrixProgressBar(fraction = clampedFraction)
-        } else {
-            LinearWavyProgressIndicator(
-                progress = { clampedFraction },
-                modifier = Modifier.fillMaxWidth(),
-                color = accentColor,
-                trackColor = scheme.surfaceContainerHighest
-            )
-        }
+        // Baris tengah: Nothing Matrix Segmented Bar (tema 2) / Split-Track Terminal Dot Opsi A (tema 1)
+        SplitGapSolidProgressBar(
+            progress = clampedFraction,
+            accentColor = accentColor,
+            height = 8.dp
+        )
 
         // Baris bawah: info kapasitas terpakai & total/bebas
         Row(
@@ -628,20 +620,14 @@ private fun CategoryTile(
     onClick: () -> Unit
 ) {
     val isNothing = LocalNothingTheme.current
-    val tileShape = RoundedCornerShape(if (isNothing) 18.dp else 22.dp)
-    val icShape = if (isNothing) CircleShape else RoundedCornerShape(14.dp)
+    val tileShape = RoundedCornerShape(if (isNothing) 18.dp else 14.dp)
+    val icShape = if (isNothing) CircleShape else RoundedCornerShape(10.dp)
     Row(
         modifier = modifier
             .height(74.dp)
             .clip(tileShape)
-            .background(
-                if (isNothing) MaterialTheme.colorScheme.secondaryContainer
-                else MaterialTheme.colorScheme.surfaceContainer
-            )
-            .then(
-                if (isNothing) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, tileShape)
-                else Modifier
-            )
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .themeCardBorder(tileShape)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -652,8 +638,11 @@ private fun CategoryTile(
                 .size(44.dp)
                 .clip(icShape)
                 .background(
-                    if (isNothing) MaterialTheme.colorScheme.surfaceVariant
-                    else MaterialTheme.colorScheme.surfaceContainerHigh
+                    when {
+                        isNothing -> MaterialTheme.colorScheme.surfaceVariant
+                        highlightRed -> MaterialTheme.colorScheme.errorContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -662,8 +651,9 @@ private fun CategoryTile(
                 null,
                 tint = when {
                     isNothing && highlightRed -> NothingSignalRed
+                    highlightRed -> MaterialTheme.colorScheme.error
                     isNothing -> MaterialTheme.colorScheme.onSurface
-                    else -> color
+                    else -> MaterialTheme.colorScheme.onSecondaryFixedVariant
                 },
                 modifier = Modifier.size(22.dp)
             )

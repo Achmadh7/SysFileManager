@@ -7,12 +7,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - **Nothing Dot-Matrix theme (Tema 2):** `#000000` AMOLED dark / `#F2F2EF` light palette with `#D71921` Signal Red accents, `1dp` hardware borders (`nothingBorder`), dot-matrix background, monospace typography, and dedicated Split-Pocket Monochrome + Red Dot `SysFileLogo`.
-- **iOS Spokes Pull-to-Refresh:** custom 12-spoke radial spinner (`IosSpokesPullToRefreshBox` & `IosSpokesSpinner`) wired across Home, Browse, Recent, Category, and App Manager screens, adapted for both M3 Pixel Indigo and Nothing Matrix.
+- **iOS Spokes Pull-to-Refresh:** custom 12-spoke radial spinner (`IosSpokesPullToRefreshBox` & `IosSpokesSpinner`) wired across Home, Browse, Recent, Category, and App Manager screens, adapted for both Nordic Slate & Cobalt and Nothing Matrix.
 - **Peek Storage Hero Carousel & Split-Gap Progress Bar:** swipeable multi-volume storage hero cards (`HorizontalPager` with neighbor peek) plus `SplitGapSolidProgressBar` / `NothingMatrixProgressBar`.
 - **Root text saving (`RootShell.writeFile`):** save edited text/config files in root/system paths via `su` while preserving existing file permissions on overwrite.
+- **Additional formats (`.prof`, `.profm`, `.list`, `.sha256`, `.mf`):** ART Baseline Profile & Metadata inspector (`ProfOps` / `ProfBrowseScreen` with zlib stream decoding, DEX entry extraction, search, plain-text fallback, and raw HEX toggle) plus built-in text viewer/editor & syntax highlighting for `.list`, `.sha256`, and `.mf` (`MANIFEST.MF`).
 
 ### Changed
-- **Tema 1 updated to M3 Pixel Indigo (`SenjaLightScheme` / `SenjaDarkScheme`):** `#3B52B0` / `#A6B8FF` palette with tiered surface containers (`surfaceContainerLow` → `surfaceContainerHighest`), Split-Pocket Indigo logo, and redesigned Settings Bento grid (with dual UI style preview cards) & About screen.
+- **Tema 1 updated to Nordic Slate & Cobalt (`SenjaLightScheme` / `SenjaDarkScheme`):** `#0B0E14` dark / `#F8FAFC` light slate palette, `1dp` card borders (`themeCardBorder`), unified monochrome category icons (semantic red only for Trash), Cobalt Split-Pocket `SysFileLogo`, cold-launch window `#0B0E14`, and matching Settings preview card.
+- **Precision Split-Track Progress Bar (`Opsi A`):** `SplitGapSolidProgressBar` renders solid Cobalt filled track separated by a `4dp` gap from the remaining track with a terminal stop dot (plus animated Cobalt runner when indeterminate) across Storage Hero, Analysis, Ramdisk, and file operation dialogs.
 - **Settings & Spec strings:** moved Settings tile/row subtitles into `Strings.kt` (`Txt`/`TxtId`/`TxtEn`) with `StringsTest` coverage, and aligned `SpecScreen` target Android label with `15 (API 35)`.
 - **Release APK artifact name:** CI build outputs `Sysfile Manager 1.4.0-Release.apk` (artifact `Sysfile Manager`).
 

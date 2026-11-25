@@ -1480,6 +1480,30 @@ private fun highlightSyntax(
                         addStyle(SpanStyle(color = tertiaryColor), m.range.first, m.range.last + 1)
                     }
                 }
+                lowerExt == "mf" -> {
+                    Regex("(?m)^([A-Za-z0-9_-]+):").findAll(code).forEach { m ->
+                        val key = m.groups[1]
+                        if (key != null) {
+                            addStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.SemiBold), key.range.first, key.range.last + 1)
+                        }
+                    }
+                }
+                lowerExt == "sha256" -> {
+                    Regex("\\b[0-9a-fA-F]{64}\\b").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.SemiBold), m.range.first, m.range.last + 1)
+                    }
+                    Regex("(?m)^\\s*#.*$").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = outlineColor, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                    }
+                }
+                lowerExt == "list" -> {
+                    Regex("(?m)^\\s*#.*$").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = outlineColor, fontStyle = FontStyle.Italic), m.range.first, m.range.last + 1)
+                    }
+                    Regex("https?://\\S+").findAll(code).forEach { m ->
+                        addStyle(SpanStyle(color = primaryColor), m.range.first, m.range.last + 1)
+                    }
+                }
             }
 
             // Penyorotan kata kunci pencarian

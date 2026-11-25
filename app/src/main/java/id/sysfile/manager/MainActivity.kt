@@ -203,6 +203,7 @@ private sealed interface Overlay {
     data class PayloadView(val path: String) : Overlay
     data class DexView(val path: String) : Overlay
     data class ArscView(val path: String) : Overlay
+    data class ProfView(val path: String) : Overlay
     data class SqliteView(val path: String) : Overlay
     data class AxmlView(val path: String) : Overlay
     data class HexView(val path: String) : Overlay
@@ -1499,6 +1500,7 @@ fun SysFileApp() {
             FileOps.extOf(f.name) == "ttf" -> show(Overlay.FontView(entry.path))
             FileOps.extOf(f.name) == "dex" -> show(Overlay.DexView(entry.path))
             FileOps.extOf(f.name) == "arsc" -> show(Overlay.ArscView(entry.path))
+            FileOps.extOf(f.name) in setOf("prof", "profm") -> show(Overlay.ProfView(entry.path))
             FileOps.extOf(f.name) in setOf("db", "sqlite", "sqlite3") -> show(Overlay.SqliteView(entry.path))
             FileOps.extOf(f.name) == "xml" -> {
                 if (AxmlOps.isBinaryXml(f)) show(Overlay.AxmlView(entry.path))
@@ -1718,7 +1720,8 @@ fun SysFileApp() {
                         initialState is Overlay.LpView || targetState is Overlay.LpView ||
                         initialState is Overlay.PayloadView || targetState is Overlay.PayloadView ||
                         initialState is Overlay.DexView || targetState is Overlay.DexView ||
-                        initialState is Overlay.ArscView || targetState is Overlay.ArscView) {
+                        initialState is Overlay.ArscView || targetState is Overlay.ArscView ||
+                        initialState is Overlay.ProfView || targetState is Overlay.ProfView) {
                         fadeIn(animationSpec = fadeSpec) togetherWith
                             fadeOut(animationSpec = fadeSpec)
                     } else {
@@ -2178,6 +2181,12 @@ fun SysFileApp() {
                     is Overlay.ArscView -> ArscBrowseScreen(
                         path = ov.path,
                         onBack = { overlay = overlayReturn; overlayReturn = null }
+                    )
+                    is Overlay.ProfView -> ProfBrowseScreen(
+                        path = ov.path,
+                        onBack = { overlay = overlayReturn; overlayReturn = null },
+                        onOpenAsText = { overlay = Overlay.TextView(ov.path) },
+                        onOpenAsHex = { overlay = Overlay.HexView(ov.path) }
                     )
                     is Overlay.SqliteView -> SqliteViewerScreen(
                         path = ov.path,

@@ -249,14 +249,14 @@ fun SettingsScreen(
                     Card(
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = cardColor),
-                        modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(20.dp))
+                        modifier = Modifier.fillMaxWidth().themeCardBorder(RoundedCornerShape(20.dp))
                     ) {
                         Row(
                             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             UiStylePreviewCard(
-                                label = "M3 Pixel Indigo",
+                                label = "Nordic Cobalt",
                                 nothingStyle = false,
                                 selected = uiStyle != "nothing",
                                 onClick = { onUiStyle("m3") },
@@ -360,12 +360,12 @@ private fun SettingsBentoTile(
     val isNothing = LocalNothingTheme.current
     val cardColor = if (isNothing) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer
     val iconTint = if (isNothing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(18.dp)
     Card(
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = cardColor),
         modifier = modifier
-            .nothingBorder(shape)
+            .themeCardBorder(shape)
             .clip(shape)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
     ) {
@@ -438,7 +438,7 @@ private fun UiStylePreviewCard(
                 .fillMaxWidth()
                 .height(64.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (nothingStyle) Color(0xFF000000) else Color(0xFF0F111A))
+                .background(if (nothingStyle) Color(0xFF000000) else Color(0xFF0B0E14))
                 .padding(8.dp)
         ) {
             Box(
@@ -446,10 +446,10 @@ private fun UiStylePreviewCard(
                     .fillMaxWidth()
                     .height(24.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF24293D))
+                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF131823))
                     .border(
                         1.dp,
-                        if (nothingStyle) Color(0xFF2A2A32) else Color.Transparent,
+                        if (nothingStyle) Color(0xFF2A2A32) else Color(0xFF232B3B),
                         RoundedCornerShape(8.dp)
                     )
                     .padding(horizontal = 6.dp),
@@ -459,7 +459,7 @@ private fun UiStylePreviewCard(
                     Modifier
                         .size(width = 16.dp, height = 7.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (nothingStyle) NothingSignalRed else Color(0xFFA6B8FF))
+                        .background(if (nothingStyle) NothingSignalRed else Color(0xFF3B82F6))
                 )
             }
             Box(
@@ -468,10 +468,10 @@ private fun UiStylePreviewCard(
                     .fillMaxWidth(0.72f)
                     .height(14.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF24293D))
+                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF131823))
                     .border(
                         1.dp,
-                        if (nothingStyle) Color(0xFF2A2A32) else Color.Transparent,
+                        if (nothingStyle) Color(0xFF2A2A32) else Color(0xFF232B3B),
                         RoundedCornerShape(50)
                     )
             ) {
@@ -481,7 +481,7 @@ private fun UiStylePreviewCard(
                         .fillMaxWidth(0.36f)
                         .padding(2.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (nothingStyle) Color(0xFFF5F5F7) else Color(0xFFA6B8FF))
+                        .background(if (nothingStyle) Color(0xFFF5F5F7) else Color(0xFF3B82F6))
                 )
             }
         }
@@ -720,6 +720,11 @@ fun FormatsScreen(onBack: () -> Unit) {
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
                         FormatRow("DEX (.dex)", listOf(t.chipInspect), t.fmtDexDesc)
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        FormatRow("ART Profile (.prof, .profm)", listOf(t.chipInspect), t.fmtProfDesc)
                     }
                 }
             }
