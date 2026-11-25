@@ -1120,4 +1120,74 @@ class FileOpsTest {
         assertTrue(ArchiveOps.extract(archive, dest))
         assertArrayEquals(content, File(dest, "big.txt").readBytes())
     }
+
+    @Test
+    fun copyAndMove_blockSelfAndDescendantDir() {
+        val src = tmp.newFolder("selfdir")
+        val sub = File(src, "nested").apply { mkdirs() }
+        File(src, "keep.txt").writeText("data")
+
+        org.junit.Assert.assertEquals(0, FileOps.copyInto(listOf(src), src))
+        org.junit.Assert.assertEquals(0, FileOps.copyInto(listOf(src), sub))
+        org.junit.Assert.assertEquals(0, FileOps.moveInto(listOf(src), src))
+        org.junit.Assert.assertEquals(0, FileOps.moveInto(listOf(src), sub))
+        assertTrue(File(src, "keep.txt").exists())
+    }
+
+    @Test
+    fun blockingLockedInside_detectsLockedDescendantUntilUnlocked() {
+        val docs = tmp.newFolder("Docs")
+        val secret = File(docs, "Secret").apply { mkdirs() }
+        val other = tmp.newFolder("DocsOther")
+        val locked = setOf(secret.canonicalPath)
+        org.junit.Assert.assertEquals(
+            secret.canonicalPath,
+            FileOps.blockingLockedInside(docs.canonicalPath, locked, emptySet())
+        )
+        org.junit.Assert.assertNull(
+            FileOps.blockingLockedInside(docs.canonicalPath, locked, locked)
+        )
+        org.junit.Assert.assertNull(
+            FileOps.blockingLockedInside(other.canonicalPath, locked, emptySet())
+        )
+    }
+
+    @Test
+    fun extractTar_rejectsSymbolicLinkEntry() {
+        val archive = tmp.newFile("sym.tar")
+        TarArchiveOutputStream(java.io.FileOutputStream(archive)).use { tos ->
+            val entry = TarArchiveEntry(
+                "evil",
+                org.apache.commons.compress.archivers.tar.TarConstants.LF_SYMLINK
+            )
+            entry.linkName = "../outside"
+            tos.putArchiveEntry(entry)
+            tos.closeArchiveEntry()
+        }
+        val dest = tmp.newFolder("symout")
+        org.junit.Assert.assertFalse(ArchiveOps.extract(archive, dest))
+        org.junit.Assert.assertFalse(File(dest, "evil").exists())
+    }
+
+    @Test
+    fun extractEncryptedZip_extractsValidEntryAndRejectsUnsafePaths() {
+        assertTrue(FileOps.isUnsafeEntryName("/abs.txt"))
+        assertTrue(FileOps.isUnsafeEntryName("\\abs.txt"))
+        assertTrue(FileOps.isUnsafeEntryName("C:drive.txt"))
+        assertTrue(FileOps.isUnsafeEntryName("   "))
+        org.junit.Assert.assertFalse(FileOps.isUnsafeEntryName("ok/file.txt"))
+
+        val archive = File(tmp.newFolder("enczipsrc"), "secret.zip")
+        net.lingala.zip4j.ZipFile(archive, "pw123".toCharArray()).use { zip ->
+            val params = net.lingala.zip4j.model.ZipParameters().apply {
+                isEncryptFiles = true
+                encryptionMethod = net.lingala.zip4j.model.enums.EncryptionMethod.AES
+                fileNameInZip = "inside/note.txt"
+            }
+            zip.addStream(java.io.ByteArrayInputStream("hello".toByteArray()), params)
+        }
+        val dest = tmp.newFolder("enczipout")
+        assertTrue(ArchiveOps.extractEncryptedZip(archive, dest, "pw123"))
+        org.junit.Assert.assertEquals("hello", File(dest, "inside/note.txt").readText())
+    }
 }

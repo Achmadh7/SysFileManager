@@ -1825,6 +1825,7 @@ fun SysFileApp() {
                         roots = roots,
                         showHidden = showHidden,
                         accessGranted = accessGranted,
+                        lockedFolders = lockedFolders,
                         onBack = { overlay = null; overlayReturn = null },
                         onOpenEntry = { entry, siblings ->
                             overlayReturn = null
@@ -2519,6 +2520,8 @@ fun SysFileApp() {
                                                             unlockedSession = unlockedSession.filterNot {
                                                                 it == entry.path || (canon != null && it == canon)
                                                             }.toSet()
+                                                            categoryCache.clear()
+                                                            reloadKey++
                                                             selected = emptySet()
                                                             notify(t.folderUnlockedDone)
                                                         }
@@ -2526,6 +2529,8 @@ fun SysFileApp() {
                                                         val updated = FileOps.canonicalizeLocked(lockedFolders + entry.path)
                                                         lockedFolders = updated
                                                         prefs.edit().putStringSet("locked_folders", updated).apply()
+                                                        categoryCache.clear()
+                                                        reloadKey++
                                                         selected = emptySet()
                                                         notify(t.folderLockedDone)
                                                     }
@@ -2605,6 +2610,8 @@ fun SysFileApp() {
                                                 )
                                                 2 -> AnalysisScreen(
                                                     roots = roots,
+                                                    lockedFolders = lockedFolders,
+                                                    reloadKey = reloadKey,
                                                     onOpenFolder = { path -> homeTab = 0; openFolderGuarded(path) { browseStack = listOf(path) } },
                                                     onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                                 )
@@ -3014,12 +3021,11 @@ fun SysFileApp() {
                         // butuh biometrik dulu — bila beberapa folder
                         // terkunci dipilih, minta satu per satu.
                         fun doDelete() {
-                            val stillLocked = d.entries.firstOrNull {
-                                FileOps.isLockedFolder(it.path, lockedFolders) &&
-                                    !FileOps.isUnlockedPath(it.path, unlockedSession)
+                            val blockingLocked = d.entries.firstNotNullOfOrNull { entry ->
+                                FileOps.blockingLockedInside(entry.path, lockedFolders, unlockedSession)
                             }
-                            if (stillLocked != null) {
-                                requestUnlock(stillLocked.path, ::doDelete)
+                            if (blockingLocked != null) {
+                                requestUnlock(blockingLocked, ::doDelete)
                             } else {
                                 runCardOp(
                                     name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),

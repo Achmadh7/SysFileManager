@@ -191,21 +191,12 @@ class FatReader private constructor(
             )
         }
 
-        private fun readBytes(src: RandomSource, offset: Long, size: Int): ByteArray? {
-            if (offset < 0L || size < 0) return null
-            val len = try { src.length() } catch (_: Exception) { return null }
-            if (offset > len || size > len - offset) return null
-            return try { src.readAt(offset, size) } catch (_: Exception) { null }
-        }
+        private fun readBytes(src: RandomSource, offset: Long, size: Int): ByteArray? =
+            readSourceBytes(src, offset, size)
 
-        private fun u16le(b: ByteArray, off: Int): Int =
-            (b[off].toInt() and 0xFF) or ((b[off + 1].toInt() and 0xFF) shl 8)
+        private fun u16le(b: ByteArray, off: Int): Int = leU16(b, off)
 
-        private fun u32le(b: ByteArray, off: Int): Long =
-            (b[off].toLong() and 0xFF) or
-                ((b[off + 1].toLong() and 0xFF) shl 8) or
-                ((b[off + 2].toLong() and 0xFF) shl 16) or
-                ((b[off + 3].toLong() and 0xFF) shl 24)
+        private fun u32le(b: ByteArray, off: Int): Long = leU32(b, off)
     }
 
     private val lock = Any()

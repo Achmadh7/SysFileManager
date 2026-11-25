@@ -51,6 +51,7 @@ jobs:
           fi
       - name: Build release APK
         env:
+          SYSFILE_STRICT_SIGNING: "true"
           SYSFILE_STORE_FILE: ${{ env.SYSFILE_STORE_FILE || secrets.SYSFILE_STORE_FILE }}
           SYSFILE_STORE_PASSWORD: ${{ secrets.SYSFILE_STORE_PASSWORD }}
           SYSFILE_KEY_ALIAS: ${{ secrets.SYSFILE_KEY_ALIAS }}

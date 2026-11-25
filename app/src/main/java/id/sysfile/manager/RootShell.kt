@@ -32,6 +32,13 @@ object RootShell {
     @Volatile
     private var mountMasterProbed: Boolean = false
 
+    /** Jalankan perintah lewat su; keluaran mentah ByteArray (menjaga `\r\n` di nama berkas), atau null bila gagal/timeout. */
+    private fun runSuBytes(script: String, timeoutSec: Long): ByteArray? {
+        val argv = if (mountMaster) listOf("su", "--mount-master", "-c", script)
+        else listOf("su", "-c", script)
+        return runSuCmdBytes(argv, timeoutSec)
+    }
+
     /** Jalankan perintah lewat su; daftar baris keluaran, atau null bila gagal/timeout. */
     private fun runSu(script: String, timeoutSec: Long): List<String>? {
         val argv = if (mountMaster) listOf("su", "--mount-master", "-c", script)
@@ -39,17 +46,16 @@ object RootShell {
         return runSuCmd(argv, timeoutSec)
     }
 
-    private fun runSuCmd(argv: List<String>, timeoutSec: Long): List<String>? {
+    private fun runSuCmdBytes(argv: List<String>, timeoutSec: Long): ByteArray? {
         return try {
             val proc = ProcessBuilder(argv)
                 .redirectErrorStream(true)
                 .start()
-            val lines = java.util.Collections.synchronizedList(mutableListOf<String>())
+            var data = ByteArray(0)
             val reader = Thread {
                 try {
-                    proc.inputStream.bufferedReader().forEachLine { lines.add(it) }
-                } catch (e: Exception) {
-                    // abaikan: proses mungkin dimatikan paksa
+                    data = proc.inputStream.readBytes()
+                } catch (_: Exception) {
                 }
             }
             reader.isDaemon = true
@@ -59,10 +65,15 @@ object RootShell {
                 return null
             }
             reader.join(2000)
-            if (proc.exitValue() != 0) null else lines
-        } catch (e: Exception) {
+            if (proc.exitValue() != 0) null else data
+        } catch (_: Exception) {
             null
         }
+    }
+
+    private fun runSuCmd(argv: List<String>, timeoutSec: Long): List<String>? {
+        val raw = runSuCmdBytes(argv, timeoutSec) ?: return null
+        return raw.toString(Charsets.UTF_8).lines().dropLastWhile { it.isEmpty() }
     }
 
     /** L28: kunci untuk check-and-run [ensureRoot] — dulu dua pemanggil
@@ -132,11 +143,11 @@ object RootShell {
 
     // L15: record stat berformat length-prefixed (T|size|mtime|len|path)
     // sehingga nama file yang mengandung newline tidak lagi menyamar
-    // sebagai record baru — dulu parser berbasis Regex per baris membuat
-    // record hantu (baris lanjutan nama yang kebetulan cocok pola
-    // "D|angka|angka|" dianggap record baru dengan nama/saat salah).
-    internal fun groupStatLines(lines: List<String>): List<String> {
-        val bytes = (lines.joinToString("\n") + "\n").toByteArray(Charsets.UTF_8)
+    // sebagai record baru. Varian ByteArray menjaga urutan byte `\r\n` mentah.
+    internal fun groupStatLines(lines: List<String>): List<String> =
+        groupStatBytes((lines.joinToString("\n") + "\n").toByteArray(Charsets.UTF_8))
+
+    internal fun groupStatBytes(bytes: ByteArray): List<String> {
         val result = mutableListOf<String>()
         var i = 0
         while (i < bytes.size) {
@@ -191,15 +202,15 @@ object RootShell {
 
     private fun listDirRaw(dir: File, showHidden: Boolean, sort: SortKey, ascending: Boolean): List<FEntry>? {
         val q = quote(dir.absolutePath)
-        val script = "for f in $q/* $q/.[!.]*; do " +
+        val script = "for f in $q/* $q/.[!.]* $q/..?*; do " +
             "[ -e \"\$f\" ] || [ -L \"\$f\" ] || continue; " +
             "if [ -d \"\$f\" ]; then t=D; elif [ -f \"\$f\" ]; then t=F; else t=O; fi; " +
             "s=\$(stat -c %s \"\$f\" 2>/dev/null); m=\$(stat -c %Y \"\$f\" 2>/dev/null); " +
             "n=\$(printf '%s' \"\$f\" | wc -c); " +
             "printf '%s|%s|%s|%s|%s\\n' \"\$t\" \"\${s:-0}\" \"\${m:-0}\" \"\$n\" \"\$f\"; done"
-        val lines = runSu(script, 30) ?: return null
+        val raw = runSuBytes(script, 30) ?: return null
         val entries = mutableListOf<FEntry>()
-        for (line in groupStatLines(lines)) {
+        for (line in groupStatBytes(raw)) {
             val parts = line.split("|", limit = 4)
             if (parts.size < 4) continue
             val path = parts[3]
@@ -237,7 +248,7 @@ object RootShell {
     private fun childCountRaw(dir: File): Int? {
         if (state != GRANTED) return null
         val q = quote(dir.absolutePath)
-        val script = "n=0; for f in $q/* $q/.[!.]*; do " +
+        val script = "n=0; for f in $q/* $q/.[!.]* $q/..?*; do " +
             "[ -e \"\$f\" ] || [ -L \"\$f\" ] || continue; n=\$((n+1)); done; echo \$n"
         val lines = runSu(script, 20) ?: return null
         return lines.firstOrNull()?.trim()?.toIntOrNull()
@@ -295,9 +306,11 @@ object RootShell {
         val dir = File(cacheDir, "rootsave").apply { mkdirs() }
         FileOps.evictStaleCache(dir)
         val temp = File(dir, "save-" + System.nanoTime() + ".tmp")
+        val bak = File(dir, "bak-" + System.nanoTime() + ".tmp")
         return try {
             temp.writeText(text, Charsets.UTF_8)
             val qSrc = quote(temp.absolutePath)
+            val qBak = quote(bak.absolutePath)
             val qDst = quote(target.absolutePath)
             val parent = target.parentFile
             val qParent = if (parent != null) quote(parent.absolutePath) else null
@@ -306,9 +319,10 @@ object RootShell {
                 if (qParent != null) {
                     append("mkdir -p $qParent && ")
                 }
-                append("EXISTED=0; [ -e $qDst ] && EXISTED=1; ")
+                append("EXISTED=0; if [ -e $qDst ]; then EXISTED=1; cp -p $qDst $qBak 2>/dev/null || true; fi; ")
                 append("(cat $qSrc > $qDst 2>/dev/null || ")
-                append("(mount -o remount,rw / 2>/dev/null; mount -o remount,rw /system 2>/dev/null; cat $qSrc > $qDst 2>/dev/null || cp -f $qSrc $qDst)) && ")
+                append("(mount -o remount,rw / 2>/dev/null; mount -o remount,rw /system 2>/dev/null; cat $qSrc > $qDst 2>/dev/null || cp -f $qSrc $qDst) || ")
+                append("{ [ -e $qBak ] && cp -f $qBak $qDst 2>/dev/null; false; }) && ")
                 append("([ \$EXISTED -eq 1 ] || chmod 644 $qDst)")
             }
             val res = runSu(script, 30)
@@ -316,6 +330,7 @@ object RootShell {
         } catch (e: Exception) {
             false
         } finally {
+            try { bak.delete() } catch (_: Exception) {}
             try { temp.delete() } catch (_: Exception) {}
         }
     }

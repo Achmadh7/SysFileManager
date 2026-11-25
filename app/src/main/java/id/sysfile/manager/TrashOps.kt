@@ -26,6 +26,8 @@ data class TrashItem(
  */
 object TrashOps {
 
+    private val indexLock = Any()
+
     fun trashDir(): File = File(Environment.getExternalStorageDirectory(), FileOps.TRASH_DIR_NAME)
 
     private fun indexFile(dir: File): File = File(dir, "index.json")
@@ -44,22 +46,41 @@ object TrashOps {
     }
 
     private fun writeIndex(dir: File, items: List<JSONObject>) {
+        val tmp = FileOps.tempFileIn(dir)
         try {
             val arr = JSONArray()
             items.forEach { arr.put(it) }
-            indexFile(dir).writeText(arr.toString())
+            val text = arr.toString()
+            if (tmp != null) {
+                tmp.writeText(text)
+                if (!tmp.renameTo(indexFile(dir))) {
+                    indexFile(dir).writeText(text)
+                }
+            } else {
+                indexFile(dir).writeText(text)
+            }
         } catch (e: Exception) {
             // Indeks gagal ditulis tidak boleh menggagalkan operasi berkasnya.
+        } finally {
+            if (tmp != null && tmp.exists()) runCatching { tmp.delete() }
         }
     }
 
     fun isInTrash(file: File): Boolean {
-        val dir = trashDir().absolutePath + "/"
-        return file.absolutePath.startsWith(dir)
+        val trashCanon = FileOps.canonicalOrNull(trashDir().absolutePath) ?: return false
+        val fileCanon = FileOps.canonicalOrNull(file.absolutePath) ?: return false
+        return FileOps.isPathInside(trashCanon, fileCanon)
+    }
+
+    private fun isTrashRoot(file: File): Boolean {
+        val trashCanon = FileOps.canonicalOrNull(trashDir().absolutePath) ?: return false
+        val fileCanon = FileOps.canonicalOrNull(file.absolutePath) ?: return false
+        return trashCanon == fileCanon
     }
 
     /** Pindahkan berkas/folder ke Tempat Sampah; yang sudah di sampah dihapus permanen. */
     fun moveToTrash(file: File): Boolean {
+        if (isTrashRoot(file)) return false
         if (isInTrash(file)) return FileOps.deleteRecursively(file)
         val dir = trashDir()
         if (!dir.mkdirs() && !dir.isDirectory) return false
@@ -79,29 +100,32 @@ object TrashOps {
             false
         }
         if (!ok) return false
-        val items = readIndex(dir)
-        items += JSONObject()
-            .put("t", trashName)
-            .put("o", originalPath)
-            .put("d", System.currentTimeMillis())
-            .put("s", size)
-            .put("dir", isDir)
-        writeIndex(dir, items)
+        synchronized(indexLock) {
+            val items = readIndex(dir)
+            items += JSONObject()
+                .put("t", trashName)
+                .put("o", originalPath)
+                .put("d", System.currentTimeMillis())
+                .put("s", size)
+                .put("dir", isDir)
+            writeIndex(dir, items)
+        }
         return true
     }
 
     /** Benar bila item sampah harus disembunyikan: jalur asalnya di
-     *  dalam folder terkunci yang belum dibuka pada sesi ini (M13).
-     *  Nama + jalur asal tidak boleh bocor lewat layar sampah. */
+     *  dalam folder terkunci (atau induknya) yang belum dibuka pada sesi ini (M13). */
     internal fun isHiddenLocked(item: TrashItem, locked: Set<String>, unlocked: Set<String>): Boolean {
-        if (item.originalPath.isBlank()) return false
-        return FileOps.isLockedPath(item.originalPath, locked) &&
+        if (item.originalPath.isBlank() || locked.isEmpty()) return false
+        if (FileOps.isLockedPath(item.originalPath, locked) &&
             !FileOps.isUnlockedPath(item.originalPath, unlocked)
+        ) return true
+        return item.isDir && FileOps.blockingLockedInside(item.originalPath, locked, unlocked) != null
     }
 
     /** Entri indeks yang berkasnya masih ada, terbaru dulu; entri yang
      *  berkasnya hilang dibersihkan dari indeks. */
-    private fun indexedItems(dir: File): List<TrashItem> {
+    private fun indexedItems(dir: File): List<TrashItem> = synchronized(indexLock) {
         val items = readIndex(dir)
         val result = mutableListOf<TrashItem>()
         var changed = false
@@ -122,7 +146,7 @@ object TrashOps {
         if (changed) {
             writeIndex(dir, items.filter { it.optString("t").isNotBlank() && File(dir, it.optString("t")).exists() })
         }
-        return result.sortedByDescending { it.deletedAt }
+        result.sortedByDescending { it.deletedAt }
     }
 
     /** Semua isi Tempat Sampah, terbaru dulu. M13: item yang jalur
@@ -174,7 +198,7 @@ object TrashOps {
      *  folder terkunci yang belum dibuka sesi ini TIDAK ikut terhapus
      *  (dan tetap tercatat di indeks) — menghapusnya tanpa biometrik
      *  sama saja melewati kunci. */
-    fun emptyTrash(locked: Set<String> = emptySet(), unlocked: Set<String> = emptySet()): Boolean {
+    fun emptyTrash(locked: Set<String> = emptySet(), unlocked: Set<String> = emptySet()): Boolean = synchronized(indexLock) {
         val dir = trashDir()
         if (!dir.isDirectory) return true
         val keep = indexedItems(dir)
@@ -185,10 +209,10 @@ object TrashOps {
             if (child.name != "index.json" && child.name !in keep && !FileOps.deleteRecursively(child)) ok = false
         }
         writeIndex(dir, readIndex(dir).filter { it.optString("t") in keep })
-        return ok
+        ok
     }
 
-    private fun removeFromIndex(trashName: String) {
+    private fun removeFromIndex(trashName: String) = synchronized(indexLock) {
         val dir = trashDir()
         writeIndex(dir, readIndex(dir).filter { it.optString("t") != trashName })
     }

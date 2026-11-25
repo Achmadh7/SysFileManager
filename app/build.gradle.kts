@@ -29,7 +29,10 @@ android {
         val envStorePass = System.getenv("SYSFILE_STORE_PASSWORD")
         val envAlias = System.getenv("SYSFILE_KEY_ALIAS")
         val envKeyPass = System.getenv("SYSFILE_KEY_PASSWORD")
-        val usingDemoKeystore = envStoreFile.isNullOrBlank() || envStorePass.isNullOrBlank()
+        val usingDemoKeystore = envStoreFile.isNullOrBlank() ||
+            envStorePass.isNullOrBlank() ||
+            envAlias.isNullOrBlank() ||
+            envKeyPass.isNullOrBlank()
 
         create("ci") {
             storeFile = envStoreFile?.takeIf { it.isNotBlank() }?.let { file(it) } ?: rootProject.file("sysfile.p12")
@@ -41,7 +44,7 @@ android {
         create("releaseSigning") {
             if (usingDemoKeystore) {
                 if (System.getenv("SYSFILE_STRICT_SIGNING") == "true") {
-                    throw GradleException("SYSFILE_STORE_FILE dan SYSFILE_STORE_PASSWORD wajib diisi saat SYSFILE_STRICT_SIGNING=true")
+                    throw GradleException("SYSFILE_STORE_FILE, SYSFILE_STORE_PASSWORD, SYSFILE_KEY_ALIAS, dan SYSFILE_KEY_PASSWORD wajib diisi saat SYSFILE_STRICT_SIGNING=true")
                 }
                 logger.warn("PERINGATAN: Build release memakai keystore demo repo (sysfile.p12). Set SYSFILE_* env/secrets untuk rilis publik.")
             }

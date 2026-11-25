@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
@@ -103,17 +104,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import android.content.Intent
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.key
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import coil.compose.AsyncImage
@@ -375,8 +370,7 @@ fun TextViewerScreen(
             return@LaunchedEffect
         }
         val text = withContext(Dispatchers.IO) {
-            try {
-                val f = File(path)
+            fun readPrefixCapped(f: File): String {
                 val buf = ByteArray(8192)
                 val out = ByteArrayOutputStream()
                 f.inputStream().use { input ->
@@ -388,15 +382,22 @@ fun TextViewerScreen(
                         remaining -= n
                     }
                 }
-                String(out.toByteArray(), Charsets.UTF_8)
+                return String(out.toByteArray(), Charsets.UTF_8)
+            }
+            try {
+                readPrefixCapped(File(path))
             } catch (e: Exception) {
-                // Fallback: berkas sistem izin 0600 dibaca lewat staging root
+                // Fallback: berkas sistem izin 0600 dibaca lewat staging root (tetap dicap 2 MB).
                 if (RootShell.state == RootShell.GRANTED || RootShell.ensureRoot()) {
                     val staged = RootShell.stageToCache(File(path), context.cacheDir)
                     if (staged != null && staged.exists()) {
                         try {
-                            staged.readText(Charsets.UTF_8)
-                        } catch (_: Exception) { null }
+                            readPrefixCapped(staged)
+                        } catch (_: Exception) {
+                            null
+                        } finally {
+                            runCatching { staged.delete() }
+                        }
                     } else null
                 } else null
             }
@@ -695,76 +696,12 @@ fun TextViewerScreen(
                     failed -> Text(t.readFailed, Modifier.align(Alignment.Center))
                     content == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                     preview && (isHtml || isMarkdown) -> key(previewTick) {
-                        AndroidView(
-                            factory = { ctx ->
-                                WebView(ctx).apply {
-                                    settings.javaScriptEnabled = false
-                                    settings.allowFileAccess = false
-                                    settings.allowFileAccessFromFileURLs = false
-                                    settings.allowUniversalAccessFromFileURLs = false
-                                    settings.domStorageEnabled = false
-                                    settings.blockNetworkLoads = true
-                                    val allowedDir = File(path).parent
-                                        ?.takeIf { it.isNotEmpty() }?.let { File(it) }
-                                    webViewClient = object : WebViewClient() {
-                                        override fun shouldOverrideUrlLoading(
-                                            view: WebView,
-                                            request: WebResourceRequest
-                                        ): Boolean {
-                                            if (WebViewPolicy.isExternalHttpLink(request.url.toString())) {
-                                                try {
-                                                    ctx.startActivity(
-                                                        Intent.createChooser(
-                                                            Intent(Intent.ACTION_VIEW, request.url),
-                                                            null
-                                                        )
-                                                    )
-                                                } catch (_: Exception) {
-                                                    notify(t.openFailed)
-                                                }
-                                            }
-                                            return true
-                                        }
-
-                                        override fun shouldInterceptRequest(
-                                            view: WebView,
-                                            request: WebResourceRequest
-                                        ): WebResourceResponse? {
-                                            if (request.isForMainFrame) return null
-                                            val scheme = request.url.scheme?.lowercase()
-                                            if (scheme != "file" && scheme != "http" && scheme != "https") return null
-                                            val file = WebViewPolicy.resolveAllowedSubresource(
-                                                request.url.toString(), allowedDir
-                                            )
-                                            if (file != null) {
-                                                return try {
-                                                    val mime = WebViewPolicy.mimeTypeFor(file.name)
-                                                    val encoding = if (mime.startsWith("text/") ||
-                                                        mime == "image/svg+xml" ||
-                                                        mime == "application/json"
-                                                    ) "UTF-8" else null
-                                                    WebResourceResponse(mime, encoding, FileInputStream(file))
-                                                } catch (_: Exception) {
-                                                    WebResourceResponse(
-                                                        "text/plain", "UTF-8",
-                                                        ByteArrayInputStream(ByteArray(0))
-                                                    )
-                                                }
-                                            }
-                                            return WebResourceResponse(
-                                                "text/plain", "UTF-8",
-                                                ByteArrayInputStream(ByteArray(0))
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            update = { wv ->
-                                val baseUrl = "file://" + (File(path).parent ?: "") + "/"
-                                val html = if (isMarkdown) Markdown.toHtml(content ?: "") else (content ?: "")
-                                wv.loadDataWithBaseURL(baseUrl, html, "text/html", "UTF-8", null)
-                            },
-                            onRelease = { it.stopLoading(); it.destroy() },
+                        val allowedDir = File(path).parent?.takeIf { it.isNotEmpty() }?.let { File(it) }
+                        val html = if (isMarkdown) Markdown.toHtml(content ?: "") else (content ?: "")
+                        HardenedLocalWebView(
+                            allowedDir = allowedDir,
+                            html = html,
+                            onOpenLinkFailed = { notify(t.openFailed) },
                             modifier = Modifier.fillMaxSize()
                         )
                     }

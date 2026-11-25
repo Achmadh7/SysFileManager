@@ -518,7 +518,7 @@ object FileOps {
         return unlocked.any { isPathInside(it, canon) }
     }
 
-    /** Benar bila [path] adalah persis salah satu folder terkunci
+    /** True bila [path] adalah persis salah satu folder terkunci
      *  (bukan anaknya) — ejaan mentah atau kanonis. Dipakai ikon kunci
      *  + toggle kunci/buka, yang bekerja per folder, bukan per subtree. */
     internal fun isLockedFolder(path: String, locked: Set<String>): Boolean {
@@ -527,6 +527,33 @@ object FileOps {
         val canon = canonicalOrNull(path) ?: return false
         if (canon == path) return false
         return canon in locked
+    }
+
+    /** Mengembalikan jalur folder terkunci yang menghalangi penghapusan [path]:
+     *  baik karena [path] berada di dalam/sama dengan folder terkunci maupun
+     *  karena [path] adalah folder induk yang memuat folder terkunci yang belum
+     *  dibuka pada sesi [unlocked]. Null bila aman dihapus. */
+    internal fun blockingLockedInside(
+        path: String,
+        locked: Set<String>,
+        unlocked: Set<String>
+    ): String? {
+        if (locked.isEmpty()) return null
+        if (isLockedPath(path, locked) && !isUnlockedPath(path, unlocked)) return path
+        val canon = canonicalOrNull(path) ?: return null
+        for (raw in locked) {
+            val lCanon = canonicalOrNull(raw) ?: raw
+            val inside = isPathInside(canon, raw) || isPathInside(canon, lCanon)
+            if (inside && !isUnlockedPath(raw, unlocked) && !isUnlockedPath(lCanon, unlocked)) return lCanon
+        }
+        return null
+    }
+
+    /** True bila nama entri arsip bersifat absolut (`/`/`\`/drive `C:`) atau kosong. */
+    internal fun isUnsafeEntryName(name: String): Boolean {
+        if (name.isBlank()) return true
+        return name.startsWith("/") || name.startsWith("\\") ||
+            (name.length >= 2 && name[1] == ':')
     }
 
     /** Nama unik di dalam folder tujuan: "nama (1).ext", "nama (2).ext", dst. */
@@ -621,11 +648,24 @@ object FileOps {
         }
     }
 
+    private fun isSameParent(src: File, destDir: File, destCanon: String?): Boolean {
+        if (src.parentFile?.absolutePath == destDir.absolutePath) return true
+        val parentCanon = src.parentFile?.let { canonicalOrNull(it.absolutePath) } ?: return false
+        return destCanon != null && parentCanon == destCanon
+    }
+
+    private fun isSelfOrDescendantCopy(src: File, destCanon: String?): Boolean {
+        if (!src.isDirectory || destCanon == null) return false
+        val srcCanon = canonicalOrNull(src.absolutePath) ?: return false
+        return isPathInside(srcCanon, destCanon)
+    }
+
     /** Salin banyak entri ke folder tujuan. Mengembalikan jumlah yang berhasil. */
     fun copyInto(sources: List<File>, destDir: File): Int {
+        val destCanon = canonicalOrNull(destDir.absolutePath)
         var ok = 0
         for (src in sources) {
-            if (src.parentFile?.absolutePath == destDir.absolutePath) continue
+            if (isSameParent(src, destDir, destCanon) || isSelfOrDescendantCopy(src, destCanon)) continue
             if (copyOne(src, destDir)) ok++
         }
         return ok
@@ -633,9 +673,11 @@ object FileOps {
 
     /** Pindah banyak entri ke folder tujuan (rename bila bisa, else salin+hapus). */
     fun moveInto(sources: List<File>, destDir: File): Int {
+        val destCanon = canonicalOrNull(destDir.absolutePath)
         var ok = 0
         for (src in sources) {
-            if (src.parentFile?.absolutePath == destDir.absolutePath) { ok++; continue }
+            if (isSameParent(src, destDir, destCanon)) { ok++; continue }
+            if (isSelfOrDescendantCopy(src, destCanon)) continue
             val dest = File(destDir, uniqueName(destDir, src.name))
             val moved = try { src.renameTo(dest) } catch (e: Exception) { false }
             if (moved) { ok++; continue }
@@ -1126,71 +1168,25 @@ object FileOps {
         destDir: File,
         onEntry: () -> Unit = {},
         cancelFlag: AtomicBoolean? = null
-    ): Boolean {
-        val written = mutableListOf<File>()
-        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
-        val createdDirs = mutableListOf<File>()
-        var ok = true
-        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
-        fun cleanup() {
-            written.forEach { it.delete() }
-            deleteCreatedDirs(createdDirs)
-        }
-        try {
-            val destCanonical = destDir.canonicalPath
-            val budget = ExtractBudget()
-            ZipInputStream(BufferedInputStream(FileInputStream(zip))).use { zis ->
-                var entry = zis.nextEntry
-                while (entry != null) {
-                    if (cancelFlag?.get() == true) throw ImgCancelledException()
-                    if (!budget.allowEntry()) { ok = false; break }
-                    // Nama entri absolut bukan path relatif yang valid — tolak.
-                    // (File(dest, "/abs/...") diam-diam merelatifkannya ke dalam
-                    // dest, jadi penjaga isPathInside tidak melihatnya lolos.)
-                    if (entry.name.startsWith("/") || entry.name.startsWith("\\")
-                        || (entry.name.length >= 2 && entry.name[1] == ':')
-                    ) { ok = false; break }
-                    val outFile = File(destDir, entry.name)
-                    if (!isPathInside(destCanonical, outFile.canonicalPath)) { ok = false; break }
-                    if (entry.isDirectory) {
-                        noteCreatedDir(outFile, destCanonical, createdDirs)
-                        outFile.mkdirs()
-                        // L1: validasi ulang canonical SETELAH mkdirs —
-                        // symlink di dest yang ditukar di antara cek dan
-                        // tulis (TOCTOU) tertangkap di sini.
-                        val dirCanon = try { outFile.canonicalPath } catch (e: Exception) { null }
-                        if (dirCanon == null || !isPathInside(destCanonical, dirCanon)) { ok = false; break }
-                    } else {
-                        val existed = outFile.exists()
-                        noteCreatedDir(outFile.parentFile, destCanonical, createdDirs)
-                        outFile.parentFile?.mkdirs()
-                        // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
-                        val parentCanon = try { outFile.parentFile?.canonicalPath } catch (e: Exception) { null }
-                        if (parentCanon == null || !isPathInside(destCanonical, parentCanon)) { ok = false; break }
-                        // M1: tolak entri yang ukuran deklarasinya sudah
-                        // melewati sisa anggaran SEBELUM membuka output;
-                        // stream juga berhenti di tengah copy bila anggaran
-                        // terlampaui (dulu seluruh entri ditulis dulu baru
-                        // anggaran diperiksa).
-                        if (entry.size >= 0L && entry.size > budget.remaining()) { ok = false; break }
-                        if (!existed) written += outFile
-                        val counting = CountingOutputStream(FileOutputStream(outFile), budget.remaining())
-                        counting.use { out -> zis.copyTo(out, 64 * 1024) }
-                        if (!budget.addBytes(counting.count)) { ok = false; break }
+    ): Boolean = runGuardedExtraction(destDir, cancelFlag) { runner ->
+        ZipInputStream(BufferedInputStream(FileInputStream(zip))).use { zis ->
+            var entry = zis.nextEntry
+            while (entry != null) {
+                runner.checkCancel()
+                val ok = if (entry.isDirectory) {
+                    runner.prepareDir(entry.name)
+                } else {
+                    runner.writeFile(entry.name, entry.size) { out ->
+                        zis.copyTo(out, 64 * 1024)
                     }
-                    zis.closeEntry()
-                    onEntry()
-                    entry = zis.nextEntry
                 }
+                if (!ok) return@runGuardedExtraction false
+                zis.closeEntry()
+                onEntry()
+                entry = zis.nextEntry
             }
-        } catch (e: ImgCancelledException) {
-            cleanup()
-            throw e
-        } catch (e: Exception) {
-            ok = false
         }
-        if (!ok) cleanup()
-        return ok
+        true
     }
 
     /** Pindai satu volume: ukuran per kategori + file terbesar. */
@@ -1294,6 +1290,74 @@ internal class CountingOutputStream(out: java.io.OutputStream, private val limit
     }
 }
 
+/** Pelaksana bersama untuk seluruh ekstraktor arsip: menegakkan batas entri
+ *  & byte (zip-bomb), menolak nama absolut/traversal, cek TOCTOU pasca-mkdirs,
+ *  serta membersihkan berkas/folder baru jika gagal atau dibatalkan. */
+internal class ExtractRunner(
+    private val destDir: File,
+    private val destCanonical: String,
+    private val cancelFlag: AtomicBoolean?
+) {
+    val budget = ExtractBudget()
+    private val written = mutableListOf<File>()
+    private val createdDirs = mutableListOf<File>()
+
+    fun checkCancel() {
+        if (cancelFlag?.get() == true) throw ImgCancelledException()
+    }
+
+    fun cleanup() {
+        written.forEach { it.delete() }
+        FileOps.deleteCreatedDirs(createdDirs)
+    }
+
+    fun prepareDir(entryName: String): Boolean {
+        if (!budget.allowEntry() || FileOps.isUnsafeEntryName(entryName)) return false
+        val out = File(destDir, entryName)
+        if (!FileOps.isPathInside(destCanonical, out.canonicalPath)) return false
+        FileOps.noteCreatedDir(out, destCanonical, createdDirs)
+        out.mkdirs()
+        val dirCanon = try { out.canonicalPath } catch (_: Exception) { null }
+        return dirCanon != null && FileOps.isPathInside(destCanonical, dirCanon)
+    }
+
+    fun writeFile(entryName: String, declaredSize: Long, writeTo: (CountingOutputStream) -> Unit): Boolean {
+        if (!budget.allowEntry() || FileOps.isUnsafeEntryName(entryName)) return false
+        val out = File(destDir, entryName)
+        if (!FileOps.isPathInside(destCanonical, out.canonicalPath)) return false
+        val existed = out.exists()
+        FileOps.noteCreatedDir(out.parentFile, destCanonical, createdDirs)
+        out.parentFile?.mkdirs()
+        val parentCanon = try { out.parentFile?.canonicalPath } catch (_: Exception) { null }
+        if (parentCanon == null || !FileOps.isPathInside(destCanonical, parentCanon)) return false
+        if (declaredSize >= 0L && declaredSize > budget.remaining()) return false
+        if (!existed) written += out
+        val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
+        counting.use { writeTo(it) }
+        return budget.addBytes(counting.count)
+    }
+}
+
+internal fun runGuardedExtraction(
+    destDir: File,
+    cancelFlag: AtomicBoolean?,
+    block: (ExtractRunner) -> Boolean
+): Boolean {
+    val destCanonical = try { destDir.canonicalPath } catch (_: Exception) { return false }
+    val runner = ExtractRunner(destDir, destCanonical, cancelFlag)
+    return try {
+        val ok = block(runner)
+        if (!ok) runner.cleanup()
+        ok
+    } catch (e: ImgCancelledException) {
+        runner.cleanup()
+        throw e
+    } catch (_: Exception) {
+        runner.cleanup()
+        false
+    }
+}
+
 /** Mesin arsip tambahan: TAR (Commons Compress), 7Z ekstrak, ZIP terenkripsi (zip4j). */
 object ArchiveOps {
 
@@ -1372,7 +1436,7 @@ object ArchiveOps {
     private fun createTar(sources: List<File>, destDir: File, baseName: String, kind: String): File? {
         val clean = baseName.trim().trimEnd('.')
         if (clean.isBlank()) return null
-        val dest = uniqueDest(destDir, "$clean.$kind")
+        val dest = File(destDir, FileOps.uniqueName(destDir, "$clean.$kind"))
         // L4: hapus output sebagian bila gagal (dulu tertinggal, tidak
         // seperti zipFiles); L29: raw ditutup bila konstruktor wrapper
         // melempar (dulu bocor).
@@ -1420,63 +1484,23 @@ object ArchiveOps {
         destDir: File,
         onEntry: () -> Unit = {},
         cancelFlag: AtomicBoolean? = null
-    ): Boolean {
-        val destPath = destDir.canonicalPath
-        val budget = ExtractBudget()
-        val written = mutableListOf<File>()
-        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
-        val createdDirs = mutableListOf<File>()
-        var ok = true
-        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
-        fun cleanup() {
-            written.forEach { file -> file.delete() }
-            FileOps.deleteCreatedDirs(createdDirs)
-        }
-        return try {
-            val raw = BufferedInputStream(FileInputStream(archive))
-            org.apache.commons.compress.archivers.tar.TarArchiveInputStream(raw).use { tis ->
-                while (true) {
-                    if (cancelFlag?.get() == true) throw ImgCancelledException()
-                    val entry = tis.nextEntry ?: break
-                    if (!budget.allowEntry()) { ok = false; break }
-                    val out = File(destDir, entry.name)
-                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
-                    // L1: entri symlink/hardlink ditolak eksplisit — dulu
-                    // dimaterialisasi sebagai berkas biasa berisi target link.
-                    if (entry.isLink) { ok = false; break }
-                    if (entry.isDirectory) {
-                        FileOps.noteCreatedDir(out, destPath, createdDirs)
-                        out.mkdirs()
-                        // L1: validasi ulang canonical SETELAH mkdirs (TOCTOU).
-                        val dirCanon = try { out.canonicalPath } catch (e: Exception) { null }
-                        if (dirCanon == null || !FileOps.isPathInside(destPath, dirCanon)) { ok = false; break }
-                    } else {
-                        val existed = out.exists()
-                        FileOps.noteCreatedDir(out.parentFile, destPath, createdDirs)
-                        out.parentFile?.mkdirs()
-                        // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
-                        val parentCanon = try { out.parentFile?.canonicalPath } catch (e: Exception) { null }
-                        if (parentCanon == null || !FileOps.isPathInside(destPath, parentCanon)) { ok = false; break }
-                        // M1: cek ukuran deklarasi dulu; stream berhenti di
-                        // tengah copy bila anggaran terlampaui.
-                        if (entry.size >= 0L && entry.size > budget.remaining()) { ok = false; break }
-                        if (!existed) written += out
-                        val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
-                        counting.use { tis.copyTo(it, ARCHIVE_COPY_BUFFER_SIZE) }
-                        if (!budget.addBytes(counting.count)) { ok = false; break }
-                    }
-                    onEntry()
+    ): Boolean = runGuardedExtraction(destDir, cancelFlag) { runner ->
+        openTar(archive).use { tis ->
+            while (true) {
+                runner.checkCancel()
+                val entry = tis.nextEntry ?: break
+                // L1: entri hardlink maupun symlink ditolak eksplisit.
+                if (entry.isLink || entry.isSymbolicLink) return@runGuardedExtraction false
+                val ok = if (entry.isDirectory) {
+                    runner.prepareDir(entry.name)
+                } else {
+                    runner.writeFile(entry.name, entry.size) { tis.copyTo(it, ARCHIVE_COPY_BUFFER_SIZE) }
                 }
+                if (!ok) return@runGuardedExtraction false
+                onEntry()
             }
-            if (!ok) cleanup()
-            ok
-        } catch (e: ImgCancelledException) {
-            cleanup()
-            throw e
-        } catch (e: Exception) {
-            cleanup()
-            false
         }
+        true
     }
 
     /** LD3 r160: seperti unzip — [onEntry] per entri, [cancelFlag]
@@ -1487,135 +1511,76 @@ object ArchiveOps {
         destDir: File,
         onEntry: () -> Unit = {},
         cancelFlag: AtomicBoolean? = null
-    ): Boolean {
-        val destPath = destDir.canonicalPath
-        val budget = ExtractBudget()
-        val written = mutableListOf<File>()
-        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
-        val createdDirs = mutableListOf<File>()
-        var ok = true
-        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
-        fun cleanup() {
-            written.forEach { file -> file.delete() }
-            FileOps.deleteCreatedDirs(createdDirs)
-        }
-        return try {
-            org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
-                while (true) {
-                    if (cancelFlag?.get() == true) throw ImgCancelledException()
-                    val entry = seven.nextEntry ?: break
-                    if (!budget.allowEntry()) { ok = false; break }
-                    val out = File(destDir, entry.name)
-                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
-                    if (entry.isDirectory) {
-                        FileOps.noteCreatedDir(out, destPath, createdDirs)
-                        out.mkdirs()
-                        // L1: validasi ulang canonical SETELAH mkdirs (TOCTOU).
-                        val dirCanon = try { out.canonicalPath } catch (e: Exception) { null }
-                        if (dirCanon == null || !FileOps.isPathInside(destPath, dirCanon)) { ok = false; break }
-                    } else {
-                        val existed = out.exists()
-                        FileOps.noteCreatedDir(out.parentFile, destPath, createdDirs)
-                        out.parentFile?.mkdirs()
-                        // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
-                        val parentCanon = try { out.parentFile?.canonicalPath } catch (e: Exception) { null }
-                        if (parentCanon == null || !FileOps.isPathInside(destPath, parentCanon)) { ok = false; break }
-                        // M1: cek ukuran deklarasi dulu; stream berhenti di
-                        // tengah copy bila anggaran terlampaui.
-                        if (entry.size >= 0L && entry.size > budget.remaining()) { ok = false; break }
-                        if (!existed) written += out
-                        val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
-                        counting.use { cos ->
-                            val buffer = ByteArray(SEVENZ_READ_BUFFER_SIZE)
-                            var remaining = entry.size
-                            while (remaining > 0) {
-                                if (cancelFlag?.get() == true) throw ImgCancelledException()
-                                val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
-                                if (read <= 0) break
-                                cos.write(buffer, 0, read)
-                                remaining -= read
-                            }
+    ): Boolean = runGuardedExtraction(destDir, cancelFlag) { runner ->
+        org.apache.commons.compress.archivers.sevenz.SevenZFile(archive).use { seven ->
+            while (true) {
+                runner.checkCancel()
+                val entry = seven.nextEntry ?: break
+                val ok = if (entry.isDirectory) {
+                    runner.prepareDir(entry.name)
+                } else {
+                    runner.writeFile(entry.name, entry.size) { cos ->
+                        val buffer = ByteArray(SEVENZ_READ_BUFFER_SIZE)
+                        var remaining = entry.size
+                        while (remaining > 0) {
+                            runner.checkCancel()
+                            val read = seven.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                            if (read <= 0) break
+                            cos.write(buffer, 0, read)
+                            remaining -= read
                         }
-                        if (!budget.addBytes(counting.count)) { ok = false; break }
                     }
-                    onEntry()
                 }
+                if (!ok) return@runGuardedExtraction false
+                onEntry()
             }
-            if (!ok) cleanup()
-            ok
-        } catch (e: ImgCancelledException) {
-            cleanup()
-            throw e
-        } catch (e: Exception) {
-            cleanup()
-            false
         }
+        true
     }
 
     /** Ekstrak arsip RAR (junrar) dengan penjaga path-slip; arsip terenkripsi butuh kata sandi (lihat extractEncryptedRar). */
-    /** LD3 r160: seperti unzip — [onEntry] per entri, [cancelFlag]
-     *  membatalkan lewat ImgCancelledException; berkas yang sudah
-     *  tertulis dilacak dan dibersihkan saat batal/gagal. */
     private fun extractRar(
         archive: File,
         destDir: File,
         onEntry: () -> Unit = {},
         cancelFlag: AtomicBoolean? = null
-    ): Boolean {
-        val destPath = destDir.canonicalPath
-        val budget = ExtractBudget()
-        val written = mutableListOf<File>()
-        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
-        val createdDirs = mutableListOf<File>()
-        var ok = true
-        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
-        fun cleanup() {
-            written.forEach { file -> file.delete() }
-            FileOps.deleteCreatedDirs(createdDirs)
-        }
-        return try {
-            com.github.junrar.Archive(archive).use { rar ->
-                while (true) {
-                    if (cancelFlag?.get() == true) throw ImgCancelledException()
-                    val header = rar.nextFileHeader() ?: break
-                    val name = header.fileName.replace('\\', '/')
-                    if (name.isBlank()) continue
-                    if (!budget.allowEntry()) { ok = false; break }
-                    val out = File(destDir, name)
-                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
-                    if (header.isDirectory) {
-                        FileOps.noteCreatedDir(out, destPath, createdDirs)
-                        out.mkdirs()
-                        // L1: validasi ulang canonical SETELAH mkdirs (TOCTOU).
-                        val dirCanon = try { out.canonicalPath } catch (e: Exception) { null }
-                        if (dirCanon == null || !FileOps.isPathInside(destPath, dirCanon)) { ok = false; break }
-                    } else {
-                        val existed = out.exists()
-                        FileOps.noteCreatedDir(out.parentFile, destPath, createdDirs)
-                        out.parentFile?.mkdirs()
-                        // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
-                        val parentCanon = try { out.parentFile?.canonicalPath } catch (e: Exception) { null }
-                        if (parentCanon == null || !FileOps.isPathInside(destPath, parentCanon)) { ok = false; break }
-                        // M1: cek ukuran deklarasi dulu; stream berhenti di
-                        // tengah copy bila anggaran terlampaui.
-                        if (header.unpSize >= 0L && header.unpSize > budget.remaining()) { ok = false; break }
-                        if (!existed) written += out
-                        val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
-                        counting.use { fos -> rar.extractFile(header, fos) }
-                        if (!budget.addBytes(counting.count)) { ok = false; break }
-                    }
-                    onEntry()
+    ): Boolean = extractRarImpl(
+        archive = archive,
+        destDir = destDir,
+        password = null,
+        totalForProgress = 0L,
+        onProgress = { _, _ -> onEntry() },
+        cancelFlag = cancelFlag
+    )
+
+    private fun extractRarImpl(
+        archive: File,
+        destDir: File,
+        password: String?,
+        totalForProgress: Long,
+        onProgress: (Long, Long) -> Unit,
+        cancelFlag: AtomicBoolean?
+    ): Boolean = runGuardedExtraction(destDir, cancelFlag) { runner ->
+        var done = 0L
+        val rar = if (password == null) com.github.junrar.Archive(archive)
+        else com.github.junrar.Archive(archive, password)
+        rar.use { arc ->
+            while (true) {
+                runner.checkCancel()
+                val header = arc.nextFileHeader() ?: break
+                val name = header.fileName.replace('\\', '/')
+                if (name.isBlank()) continue
+                val ok = if (header.isDirectory) {
+                    runner.prepareDir(name)
+                } else {
+                    runner.writeFile(name, header.unpSize) { fos -> arc.extractFile(header, fos) }
                 }
+                if (!ok) return@runGuardedExtraction false
+                done++
+                onProgress(done, totalForProgress)
             }
-            if (!ok) cleanup()
-            ok
-        } catch (e: ImgCancelledException) {
-            cleanup()
-            throw e
-        } catch (e: Exception) {
-            cleanup()
-            false
         }
+        true
     }
 
 
@@ -1889,7 +1854,7 @@ object ArchiveOps {
     fun extractSingle(file: File, entryName: String, destDir: File, maxBytes: Long = FileOps.MAX_EXTRACT_BYTES): File? {
         val base = entryName.substringAfterLast('/')
         if (base.isBlank()) return null
-        val out = uniqueDest(destDir, base)
+        val out = File(destDir, FileOps.uniqueName(destDir, base))
         val ok = try {
             when (kindOf(file.name)) {
                 "zip" -> extractSingleZip(file, entryName, out, maxBytes)
@@ -1988,34 +1953,30 @@ object ArchiveOps {
     private fun createEncryptedZip(sources: List<File>, destDir: File, baseName: String, password: String): File? {
         val clean = baseName.trim().trimEnd('.')
         if (clean.isBlank()) return null
-        val dest = uniqueDest(destDir, "$clean.zip")
+        val dest = File(destDir, FileOps.uniqueName(destDir, "$clean.zip"))
         // L4: hapus output sebagian bila gagal (dulu tertinggal).
         return try {
-            val zipFile = net.lingala.zip4j.ZipFile(dest, password.toCharArray())
-            // r183: params dibuat per berkas (zip4j tidak punya clone())
-            // — DEFLATE level FASTEST, STORED untuk ekstensi tak
-            // terkompresi (diukur: zip terenkripsi campuran 200 MB
-            // 5864 -> 1106 ms). Struktur folder dipertahankan lewat
-            // fileNameInZip + entri direktori eksplisit (diuji).
-            fun paramsFor(store: Boolean) = net.lingala.zip4j.model.ZipParameters().apply {
-                isEncryptFiles = true
-                encryptionMethod = net.lingala.zip4j.model.enums.EncryptionMethod.AES
-                compressionMethod = if (store) net.lingala.zip4j.model.enums.CompressionMethod.STORE
+            net.lingala.zip4j.ZipFile(dest, password.toCharArray()).use { zipFile ->
+                fun paramsFor(store: Boolean) = net.lingala.zip4j.model.ZipParameters().apply {
+                    isEncryptFiles = true
+                    encryptionMethod = net.lingala.zip4j.model.enums.EncryptionMethod.AES
+                    compressionMethod = if (store) net.lingala.zip4j.model.enums.CompressionMethod.STORE
                     else net.lingala.zip4j.model.enums.CompressionMethod.DEFLATE
-                compressionLevel = net.lingala.zip4j.model.enums.CompressionLevel.FASTEST
-            }
-            fun addEncrypted(src: File, zipName: String) {
-                if (src.isDirectory) {
-                    val dirParams = paramsFor(true).apply { fileNameInZip = "$zipName/" }
-                    zipFile.addStream(java.io.ByteArrayInputStream(ByteArray(0)), dirParams)
-                    src.listFiles()?.forEach { addEncrypted(it, "$zipName/${it.name}") }
-                } else {
-                    val p = paramsFor(FileOps.isIncompressibleEntry(src.name))
-                    p.fileNameInZip = zipName
-                    zipFile.addFile(src, p)
+                    compressionLevel = net.lingala.zip4j.model.enums.CompressionLevel.FASTEST
                 }
+                fun addEncrypted(src: File, zipName: String) {
+                    if (src.isDirectory) {
+                        val dirParams = paramsFor(true).apply { fileNameInZip = "$zipName/" }
+                        zipFile.addStream(java.io.ByteArrayInputStream(ByteArray(0)), dirParams)
+                        src.listFiles()?.forEach { addEncrypted(it, "$zipName/${it.name}") }
+                    } else {
+                        val p = paramsFor(FileOps.isIncompressibleEntry(src.name))
+                        p.fileNameInZip = zipName
+                        zipFile.addFile(src, p)
+                    }
+                }
+                for (src in sources) addEncrypted(src, src.name)
             }
-            for (src in sources) addEncrypted(src, src.name)
             dest
         } catch (e: Exception) {
             dest.delete()
@@ -2024,7 +1985,7 @@ object ArchiveOps {
     }
 
     fun isZipEncrypted(file: File): Boolean = try {
-        net.lingala.zip4j.ZipFile(file).isEncrypted
+        net.lingala.zip4j.ZipFile(file).use { it.isEncrypted }
     } catch (e: Exception) {
         false
     }
@@ -2036,10 +1997,7 @@ object ArchiveOps {
         false
     }
 
-    /** Ekstrak arsip RAR terenkripsi (junrar) dengan kata sandi; false bila sandi salah/gagal.
-     *  M2: seperti unzip — lacak berkas tertulis (kecuali yang sudah ada),
-     *  bersihkan bila gagal/batal, dan bisa dibatalkan lewat [cancelFlag];
-     *  [onProgress] melaporkan (entri selesai, total entri). */
+    /** Ekstrak arsip RAR terenkripsi (junrar) dengan kata sandi; false bila sandi salah/gagal. */
     fun extractEncryptedRar(
         file: File,
         destDir: File,
@@ -2047,142 +2005,37 @@ object ArchiveOps {
         onProgress: (Long, Long) -> Unit = { _, _ -> },
         cancelFlag: AtomicBoolean? = null
     ): Boolean {
-        val destPath = destDir.canonicalPath
-        val budget = ExtractBudget()
-        val written = mutableListOf<File>()
-        var ok = true
-        // Total entri untuk progres (daftar header tanpa kata sandi);
-        // 0 bila tidak bisa dibaca — bar tak tentu seperti extract().
-        val total = try { listRar(file)?.size?.toLong() ?: 0L } catch (e: Exception) { 0L }
-        var done = 0L
-        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
-        val createdDirs = mutableListOf<File>()
-        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
-        fun cleanup() {
-            written.forEach { file -> file.delete() }
-            FileOps.deleteCreatedDirs(createdDirs)
-        }
-        return try {
-            com.github.junrar.Archive(file, password).use { rar ->
-                while (true) {
-                    if (cancelFlag?.get() == true) throw ImgCancelledException()
-                    val header = rar.nextFileHeader() ?: break
-                    val name = header.fileName.replace('\\', '/')
-                    if (name.isBlank()) continue
-                    if (!budget.allowEntry()) { ok = false; break }
-                    val out = File(destDir, name)
-                    if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
-                    if (header.isDirectory) {
-                        FileOps.noteCreatedDir(out, destPath, createdDirs)
-                        out.mkdirs()
-                        // L1: validasi ulang canonical SETELAH mkdirs (TOCTOU).
-                        val dirCanon = try { out.canonicalPath } catch (e: Exception) { null }
-                        if (dirCanon == null || !FileOps.isPathInside(destPath, dirCanon)) { ok = false; break }
-                    } else {
-                        val existed = out.exists()
-                        FileOps.noteCreatedDir(out.parentFile, destPath, createdDirs)
-                        out.parentFile?.mkdirs()
-                        // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
-                        val parentCanon = try { out.parentFile?.canonicalPath } catch (e: Exception) { null }
-                        if (parentCanon == null || !FileOps.isPathInside(destPath, parentCanon)) { ok = false; break }
-                        if (header.unpSize >= 0L && header.unpSize > budget.remaining()) { ok = false; break }
-                        if (!existed) written += out
-                        val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
-                        counting.use { fos -> rar.extractFile(header, fos) }
-                        if (!budget.addBytes(counting.count)) { ok = false; break }
-                    }
-                    done++
-                    onProgress(done, total)
-                }
-            }
-            if (!ok) cleanup()
-            ok
-        } catch (e: ImgCancelledException) {
-            cleanup()
-            throw e
-        } catch (e: Exception) {
-            cleanup()
-            false
-        }
+        val total = try { listRar(file)?.size?.toLong() ?: 0L } catch (_: Exception) { 0L }
+        return extractRarImpl(file, destDir, password, total, onProgress, cancelFlag)
     }
 
-    /** Ekstrak arsip ZIP terenkripsi (zip4j) dengan kata sandi; false bila sandi salah/gagal.
-     *  M2: seperti unzip — lacak berkas tertulis (kecuali yang sudah ada),
-     *  bersihkan bila gagal/batal, dan bisa dibatalkan lewat [cancelFlag];
-     *  [onProgress] melaporkan (entri selesai, total entri). */
+    /** Ekstrak arsip ZIP terenkripsi (zip4j) dengan kata sandi; false bila sandi salah/gagal. */
     fun extractEncryptedZip(
         file: File,
         destDir: File,
         password: String,
         onProgress: (Long, Long) -> Unit = { _, _ -> },
         cancelFlag: AtomicBoolean? = null
-    ): Boolean {
-        val destPath = destDir.canonicalPath
-        val budget = ExtractBudget()
-        val written = mutableListOf<File>()
-        // L7: direktori yang dibuat selama ekstraksi ini (dihapus bila gagal).
-        val createdDirs = mutableListOf<File>()
-        var ok = true
-        // L7: bersihkan berkas + direktori yang dibuat selama ekstraksi ini.
-        fun cleanup() {
-            written.forEach { file -> file.delete() }
-            FileOps.deleteCreatedDirs(createdDirs)
-        }
-        return try {
-            val zipFile = net.lingala.zip4j.ZipFile(file, password.toCharArray())
+    ): Boolean = runGuardedExtraction(destDir, cancelFlag) { runner ->
+        net.lingala.zip4j.ZipFile(file, password.toCharArray()).use { zipFile ->
             val total = zipFile.fileHeaders.size.toLong()
             var done = 0L
             for (header in zipFile.fileHeaders) {
-                if (cancelFlag?.get() == true) throw ImgCancelledException()
-                if (!budget.allowEntry()) { ok = false; break }
-                val out = File(destDir, header.fileName)
-                if (!FileOps.isPathInside(destPath, out.canonicalPath)) { ok = false; break }
-                if (header.isDirectory) {
-                    FileOps.noteCreatedDir(out, destPath, createdDirs)
-                    out.mkdirs()
-                    // L1: validasi ulang canonical SETELAH mkdirs (TOCTOU).
-                    val dirCanon = try { out.canonicalPath } catch (e: Exception) { null }
-                    if (dirCanon == null || !FileOps.isPathInside(destPath, dirCanon)) { ok = false; break }
+                runner.checkCancel()
+                val ok = if (header.isDirectory) {
+                    runner.prepareDir(header.fileName)
                 } else {
-                    val existed = out.exists()
-                    FileOps.noteCreatedDir(out.parentFile, destPath, createdDirs)
-                    out.parentFile?.mkdirs()
-                    // L1: validasi ulang canonical parent SETELAH mkdirs (TOCTOU).
-                    val parentCanon = try { out.parentFile?.canonicalPath } catch (e: Exception) { null }
-                    if (parentCanon == null || !FileOps.isPathInside(destPath, parentCanon)) { ok = false; break }
-                    if (header.uncompressedSize >= 0L && header.uncompressedSize > budget.remaining()) { ok = false; break }
-                    if (!existed) written += out
-                    val counting = CountingOutputStream(FileOutputStream(out), budget.remaining())
-                    zipFile.getInputStream(header).use { input ->
-                        counting.use { cos -> input.copyTo(cos, ARCHIVE_COPY_BUFFER_SIZE) }
+                    runner.writeFile(header.fileName, header.uncompressedSize) { cos ->
+                        zipFile.getInputStream(header).use { input ->
+                            input.copyTo(cos, ARCHIVE_COPY_BUFFER_SIZE)
+                        }
                     }
-                    if (!budget.addBytes(counting.count)) { ok = false; break }
                 }
+                if (!ok) return@runGuardedExtraction false
                 done++
                 onProgress(done, total)
             }
-            if (!ok) cleanup()
-            ok
-        } catch (e: ImgCancelledException) {
-            cleanup()
-            throw e
-        } catch (e: Exception) {
-            cleanup()
-            false
         }
-    }
-
-    private fun uniqueDest(dir: File, fileName: String): File {
-        var candidate = File(dir, fileName)
-        if (!candidate.exists()) return candidate
-        val dot = fileName.indexOf('.')
-        val base = if (dot > 0) fileName.substring(0, dot) else fileName
-        val rest = if (dot > 0) fileName.substring(dot) else ""
-        var i = 1
-        while (candidate.exists()) {
-            candidate = File(dir, "$base ($i)$rest")
-            i++
-        }
-        return candidate
+        true
     }
 }

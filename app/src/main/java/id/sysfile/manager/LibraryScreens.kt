@@ -292,6 +292,7 @@ fun CategoryScreen(
     roots: List<RootInfo>,
     showHidden: Boolean,
     accessGranted: Boolean,
+    lockedFolders: Set<String>,
     categoryCache: MutableMap<Category, List<FEntry>>,
     categoryCacheAt: MutableMap<Category, Long>,
     categoryCacheKey: MutableMap<Category, Int>,
@@ -302,12 +303,6 @@ fun CategoryScreen(
     val t = txt()
     val fadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     val context = LocalContext.current
-    val lockedFolders = remember {
-        FileOps.canonicalizeLocked(
-            context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
-                .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
-        )
-    }
     // r84: daftar dari sesi sebelumnya tampil seketika (bila ada).
     // r128: pindai segar dilewati bila cache masih segar (< 60 dtk)
     // DAN tidak ada perubahan berkas sejak pindai itu (reloadKey) —
@@ -315,7 +310,7 @@ fun CategoryScreen(
     var files by remember { mutableStateOf<List<FEntry>?>(categoryCache[category]) }
     var localRefreshTick by remember { mutableStateOf(0) }
     var isRefreshing by remember { mutableStateOf(false) }
-    LaunchedEffect(category, accessGranted, reloadKey, localRefreshTick) {
+    LaunchedEffect(category, accessGranted, reloadKey, localRefreshTick, lockedFolders) {
         if (!accessGranted) {
             files = emptyList()
             isRefreshing = false
@@ -1540,25 +1535,20 @@ fun SearchScreen(
 @Composable
 fun AnalysisScreen(
     roots: List<RootInfo>,
+    lockedFolders: Set<String> = emptySet(),
+    reloadKey: Int = 0,
     onOpenFolder: (String) -> Unit,
     onOpenFile: (FEntry) -> Unit,
 ) {
     val t = txt()
-    val context = LocalContext.current
-    val lockedFolders = remember {
-        FileOps.canonicalizeLocked(
-            context.getSharedPreferences("sysfile_prefs", Context.MODE_PRIVATE)
-                .getStringSet("locked_folders", emptySet())?.toSet() ?: emptySet()
-        )
-    }
     var results by remember { mutableStateOf<Map<String, AnalysisResult>>(emptyMap()) }
     var scanningPath by remember { mutableStateOf<String?>(null) }
     var selectedRootPath by remember { mutableStateOf<String?>(null) }
     var expandedLargest by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    LaunchedEffect(roots) {
+    LaunchedEffect(roots, lockedFolders, reloadKey) {
+        results = emptyMap()
         for (root in roots) {
-            if (results.containsKey(root.path)) continue
             scanningPath = root.path
             val res = withContext(Dispatchers.IO) {
                 try { FileOps.analyze(File(root.path), lockedFolders) } catch (e: Exception) { null }

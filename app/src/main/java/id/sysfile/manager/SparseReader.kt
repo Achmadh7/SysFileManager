@@ -4,6 +4,42 @@ import java.io.Closeable
 import java.io.File
 import java.io.RandomAccessFile
 
+internal fun readRafBytes(raf: RandomAccessFile, offset: Long, size: Int): ByteArray? {
+    if (offset < 0L || size < 0) return null
+    return try {
+        val len = raf.length()
+        if (offset > len || size > len - offset) return null
+        val buf = ByteArray(size)
+        raf.seek(offset)
+        var read = 0
+        while (read < size) {
+            val n = raf.read(buf, read, size - read)
+            if (n < 0) return null
+            read += n
+        }
+        buf
+    } catch (_: Exception) { null }
+}
+
+internal fun readSourceBytes(src: RandomSource, offset: Long, size: Int): ByteArray? {
+    if (offset < 0L || size < 0) return null
+    val len = try { src.length() } catch (_: Exception) { return null }
+    if (offset > len || size > len - offset) return null
+    return try { src.readAt(offset, size) } catch (_: Exception) { null }
+}
+
+internal fun leU16(b: ByteArray, off: Int): Int =
+    (b[off].toInt() and 0xFF) or ((b[off + 1].toInt() and 0xFF) shl 8)
+
+internal fun leU32(b: ByteArray, off: Int): Long =
+    (b[off].toLong() and 0xFF) or
+        ((b[off + 1].toLong() and 0xFF) shl 8) or
+        ((b[off + 2].toLong() and 0xFF) shl 16) or
+        ((b[off + 3].toLong() and 0xFF) shl 24)
+
+internal fun leU64(b: ByteArray, off: Int): Long =
+    leU32(b, off) or (leU32(b, off + 4) shl 32)
+
 /** Sumber byte akses-acak: berkas mentah atau citra sparse yang
  *  dibaca sebagai isi logisnya (hasil unsparse) tanpa pernah
  *  mengurai seluruh citra ke temp. */
@@ -26,24 +62,8 @@ class FileSource(private val raf: RandomAccessFile) : RandomSource {
         }
     }
 
-    override fun readAt(offset: Long, size: Int): ByteArray? {
-        if (offset < 0L || size < 0) return null
-        synchronized(lock) {
-            val len = try { raf.length() } catch (_: Exception) { return null }
-            if (offset > len || size > len - offset) return null
-            return try {
-                val buf = ByteArray(size)
-                raf.seek(offset)
-                var read = 0
-                while (read < size) {
-                    val n = raf.read(buf, read, size - read)
-                    if (n < 0) return null
-                    read += n
-                }
-                buf
-            } catch (_: Exception) { null }
-        }
-    }
+    override fun readAt(offset: Long, size: Int): ByteArray? =
+        synchronized(lock) { readRafBytes(raf, offset, size) }
 
     override fun close() {
         try { raf.close() } catch (_: Exception) { }
@@ -120,15 +140,15 @@ class SparseSource private constructor(
 
         private fun openOn(raf: RandomAccessFile): SparseSource? {
             val fileLen = try { raf.length() } catch (_: Exception) { return null }
-            val header = readAt(raf, 0L, SPARSE_HEADER_SIZE) ?: return null
-            if (u32le(header, 0) != SPARSE_MAGIC) return null
-            if (u16le(header, 4) != 1) return null
-            val fileHdrSz = u16le(header, 8)
-            val chunkHdrSz = u16le(header, 10)
+            val header = readRafBytes(raf, 0L, SPARSE_HEADER_SIZE) ?: return null
+            if (leU32(header, 0) != SPARSE_MAGIC) return null
+            if (leU16(header, 4) != 1) return null
+            val fileHdrSz = leU16(header, 8)
+            val chunkHdrSz = leU16(header, 10)
             if (fileHdrSz < SPARSE_HEADER_SIZE || chunkHdrSz < SPARSE_CHUNK_HEADER_SIZE) return null
-            val blkSz = u32le(header, 12)
-            val totalBlks = u32le(header, 16)
-            val totalChunks = u32le(header, 20)
+            val blkSz = leU32(header, 12)
+            val totalBlks = leU32(header, 16)
+            val totalChunks = leU32(header, 20)
             if (blkSz == 0L || blkSz % 4L != 0L) return null
             if (totalBlks > ImgOps.MAX_UNSPARSE_BYTES / blkSz) return null
             if (totalChunks > MAX_CHUNKS) return null
@@ -139,11 +159,11 @@ class SparseSource private constructor(
             var logicalPos = 0L
             var blocksWritten = 0L
             for (chunkIndex in 0L until totalChunks) {
-                val ch = readAt(raf, filePos, SPARSE_CHUNK_HEADER_SIZE) ?: return null
+                val ch = readRafBytes(raf, filePos, SPARSE_CHUNK_HEADER_SIZE) ?: return null
                 filePos += chunkHdrSz.toLong()
-                val type = u16le(ch, 0)
-                val chunkSz = u32le(ch, 4)
-                val totalSz = u32le(ch, 8)
+                val type = leU16(ch, 0)
+                val chunkSz = leU32(ch, 4)
+                val totalSz = leU32(ch, 8)
                 if (totalSz < chunkHdrSz) return null
                 val dataSz = totalSz - chunkHdrSz
                 when (type) {
@@ -163,8 +183,8 @@ class SparseSource private constructor(
                     SPARSE_CHUNK_FILL -> {
                         if (dataSz != 4L) return null
                         if (chunkSz > totalBlks - blocksWritten) return null
-                        val fillBytes = readAt(raf, filePos, 4) ?: return null
-                        val fill = u32le(fillBytes, 0).toInt()
+                        val fillBytes = readRafBytes(raf, filePos, 4) ?: return null
+                        val fill = leU32(fillBytes, 0).toInt()
                         if (chunkSz > Long.MAX_VALUE / blkSz) return null
                         val bytes = chunkSz * blkSz
                         if (bytes > 0) {
@@ -196,32 +216,6 @@ class SparseSource private constructor(
             if (logicalPos != totalBytes) return null
             return SparseSource(raf, blkSz, chunks, totalBytes)
         }
-
-        private fun readAt(raf: RandomAccessFile, offset: Long, size: Int): ByteArray? {
-            if (offset < 0L || size < 0) return null
-            return try {
-                val len = raf.length()
-                if (offset > len || size > len - offset) return null
-                val buf = ByteArray(size)
-                raf.seek(offset)
-                var read = 0
-                while (read < size) {
-                    val n = raf.read(buf, read, size - read)
-                    if (n < 0) return null
-                    read += n
-                }
-                buf
-            } catch (_: Exception) { null }
-        }
-
-        private fun u16le(b: ByteArray, off: Int): Int =
-            (b[off].toInt() and 0xFF) or ((b[off + 1].toInt() and 0xFF) shl 8)
-
-        private fun u32le(b: ByteArray, off: Int): Long =
-            (b[off].toLong() and 0xFF) or
-                ((b[off + 1].toLong() and 0xFF) shl 8) or
-                ((b[off + 2].toLong() and 0xFF) shl 16) or
-                ((b[off + 3].toLong() and 0xFF) shl 24)
     }
 
     private val lock = Any()
@@ -249,7 +243,7 @@ class SparseSource private constructor(
                 val take = minOf(chunkEnd - pos, (size - done).toLong()).toInt()
                 when (chunk.type) {
                     SPARSE_CHUNK_RAW -> {
-                        val src = readRaw(chunk.fileOffset + (pos - chunk.logicalStart), take) ?: return null
+                        val src = readRafBytes(raf, chunk.fileOffset + (pos - chunk.logicalStart), take) ?: return null
                         src.copyInto(out, done)
                     }
                     SPARSE_CHUNK_FILL -> {
@@ -273,20 +267,6 @@ class SparseSource private constructor(
             }
         }
         return out
-    }
-
-    private fun readRaw(offset: Long, size: Int): ByteArray? {
-        return try {
-            val buf = ByteArray(size)
-            raf.seek(offset)
-            var read = 0
-            while (read < size) {
-                val n = raf.read(buf, read, size - read)
-                if (n < 0) return null
-                read += n
-            }
-            buf
-        } catch (_: Exception) { null }
     }
 
     override fun close() {

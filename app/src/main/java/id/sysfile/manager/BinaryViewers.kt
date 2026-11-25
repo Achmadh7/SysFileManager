@@ -325,9 +325,12 @@ object AxmlOps {
                 if (chunkSize < 8 || chunkStart + chunkSize > bytes.size) break
 
                 when (type) {
-                    0x0001 -> strings = parseStringPool(bytes, chunkStart, headerSize)
+                    0x0001 -> if (chunkStart + headerSize <= chunkStart + chunkSize) {
+                        strings = parseStringPool(bytes, chunkStart, headerSize, chunkStart + chunkSize) ?: return null
+                    }
                     0x0100 -> {
                         // StartNamespace
+                        if (headerSize < 8 || chunkStart + headerSize > chunkStart + chunkSize) break
                         buf.position(chunkStart + headerSize)
                         if (buf.remaining() >= 8) {
                             val prefixIdx = buf.int
@@ -339,6 +342,7 @@ object AxmlOps {
                     }
                     0x0102 -> {
                         // StartTag
+                        if (headerSize < 8 || chunkStart + headerSize > chunkStart + chunkSize) break
                         buf.position(chunkStart + headerSize)
                         if (buf.remaining() >= 20) {
                             val nsIdx = buf.int
@@ -377,6 +381,7 @@ object AxmlOps {
                     }
                     0x0103 -> {
                         // EndTag
+                        if (headerSize < 8 || chunkStart + headerSize > chunkStart + chunkSize) break
                         buf.position(chunkStart + headerSize)
                         if (buf.remaining() >= 8) {
                             val nsIdx = buf.int
@@ -388,6 +393,7 @@ object AxmlOps {
                     }
                     0x0104 -> {
                         // Text
+                        if (headerSize < 8 || chunkStart + headerSize > chunkStart + chunkSize) break
                         buf.position(chunkStart + headerSize)
                         if (buf.remaining() >= 4) {
                             val textIdx = buf.int
@@ -428,37 +434,49 @@ object AxmlOps {
     private fun escapeXml(s: String): String =
         s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
-    private fun parseStringPool(bytes: ByteArray, start: Int, headerSize: Int): List<String> {
+    internal fun parseStringPool(bytes: ByteArray, start: Int, headerSize: Int, chunkEnd: Int = bytes.size): List<String>? {
+        val endBound = chunkEnd.coerceAtMost(bytes.size)
+        if (start < 0 || headerSize < 28 || start + headerSize > endBound) return null
         val buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
         buf.position(start + 8)
         val count = buf.int
+        if (count < 0 || count > 1_000_000) return null
         buf.int // styleCount
         val flags = buf.int
         val stringsOffset = buf.int
         buf.int // stylesOffset
         val isUtf8 = (flags and 0x100) != 0
         val offsetsStart = start + headerSize
+        if (offsetsStart.toLong() + count.toLong() * 4L > endBound) return null
+        if (stringsOffset < 0 || start.toLong() + stringsOffset > endBound) return null
         val dataBase = start + stringsOffset
         return List(count) { i ->
             buf.position(offsetsStart + i * 4)
-            var p = dataBase + buf.int
-            if (p < 0 || p >= bytes.size) return@List ""
+            val rel = buf.int
+            if (rel < 0 || dataBase.toLong() + rel >= endBound) return@List ""
+            var p = dataBase + rel
             if (isUtf8) {
-                var u16 = bytes[p++].toInt() and 0xFF
-                if ((u16 and 0x80) != 0 && p < bytes.size) p++
+                if (p >= endBound) return@List ""
+                val u16 = bytes[p++].toInt() and 0xFF
+                if ((u16 and 0x80) != 0 && p < endBound) p++
+                if (p >= endBound) return@List ""
                 var u8 = bytes[p++].toInt() and 0xFF
-                if ((u8 and 0x80) != 0 && p < bytes.size) {
+                if ((u8 and 0x80) != 0) {
+                    if (p >= endBound) return@List ""
                     u8 = ((u8 and 0x7F) shl 8) or (bytes[p++].toInt() and 0xFF)
                 }
-                val end = (p + u8).coerceAtMost(bytes.size)
+                val end = (p.toLong() + u8).coerceAtMost(endBound.toLong()).toInt()
                 String(bytes, p, end - p, Charsets.UTF_8)
             } else {
+                if (p + 2 > endBound) return@List ""
                 buf.position(p)
                 var len = buf.short.toInt() and 0xFFFF
-                if ((len and 0x8000) != 0 && buf.remaining() >= 2) {
+                if ((len and 0x8000) != 0) {
+                    if (buf.remaining() < 2) return@List ""
                     len = ((len and 0x7FFF) shl 16) or (buf.short.toInt() and 0xFFFF)
                 }
-                val byteLen = (len * 2).coerceAtMost(buf.remaining())
+                val maxChars = (endBound - buf.position()) / 2
+                val byteLen = len.coerceIn(0, maxChars) * 2
                 val arr = ByteArray(byteLen)
                 buf.get(arr)
                 String(arr, Charsets.UTF_16LE)

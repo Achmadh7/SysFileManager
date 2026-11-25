@@ -34,4 +34,11 @@ class TrashOpsTest {
         val item = TrashItem("c.jpg", "", 0L, 10L, false)
         assertFalse(TrashOps.isHiddenLocked(item, locked, emptySet()))
     }
+
+    @Test
+    fun hiddenWhenDeletedFolderContainsLockedChild() {
+        val item = TrashItem("Private", "/storage/emulated/0", 0L, -1L, true)
+        assertTrue(TrashOps.isHiddenLocked(item, locked, emptySet()))
+        assertFalse(TrashOps.isHiddenLocked(item, locked, locked))
+    }
 }

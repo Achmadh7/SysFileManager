@@ -102,4 +102,19 @@ class RootShellTest {
         )
         assertEquals(null, RootShell.parseDfOutput(listOf("sampah tanpa angka")))
     }
+
+    @Test
+    fun groupStatBytes_crlfInFilenamePreserved() {
+        val path1 = "/tmp/a\r\nb"
+        val path2 = "/tmp/c"
+        val raw = (
+            "F|4|10|${path1.toByteArray(Charsets.UTF_8).size}|$path1\n" +
+                "F|5|11|${path2.toByteArray(Charsets.UTF_8).size}|$path2\n"
+            ).toByteArray(Charsets.UTF_8)
+
+        assertEquals(
+            listOf("F|4|10|$path1", "F|5|11|$path2"),
+            RootShell.groupStatBytes(raw)
+        )
+    }
 }

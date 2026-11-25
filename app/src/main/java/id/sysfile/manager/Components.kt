@@ -1,5 +1,11 @@
 package id.sysfile.manager
 
+import android.content.Intent
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -1041,5 +1047,89 @@ fun IosSpokesPullToRefreshBox(
         content = content
     )
 }
+
+/**
+ * WebView terisolasi bersama untuk pratinjau HTML/Markdown dan EPUB:
+ * JavaScript/DOM storage/akses file dimatikan, subresource lokal hanya dilayani
+ * di dalam [allowedDir] lewat [WebViewPolicy], dan tautan http/https dibuka
+ * di browser eksternal.
+ */
+@Composable
+fun HardenedLocalWebView(
+    allowedDir: java.io.File?,
+    html: String,
+    modifier: Modifier = Modifier,
+    onOpenLinkFailed: () -> Unit = {}
+) {
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = false
+                settings.allowFileAccess = false
+                settings.allowFileAccessFromFileURLs = false
+                settings.allowUniversalAccessFromFileURLs = false
+                settings.domStorageEnabled = false
+                settings.blockNetworkLoads = true
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView,
+                        request: WebResourceRequest
+                    ): Boolean {
+                        if (WebViewPolicy.isExternalHttpLink(request.url.toString())) {
+                            try {
+                                ctx.startActivity(
+                                    Intent.createChooser(
+                                        Intent(Intent.ACTION_VIEW, request.url),
+                                        null
+                                    )
+                                )
+                            } catch (_: Exception) {
+                                onOpenLinkFailed()
+                            }
+                        }
+                        return true
+                    }
+
+                    override fun shouldInterceptRequest(
+                        view: WebView,
+                        request: WebResourceRequest
+                    ): WebResourceResponse? {
+                        if (request.isForMainFrame) return null
+                        val scheme = request.url.scheme?.lowercase()
+                        if (scheme != "file" && scheme != "http" && scheme != "https") return null
+                        val file = WebViewPolicy.resolveAllowedSubresource(
+                            request.url.toString(), allowedDir
+                        )
+                        if (file != null) {
+                            return try {
+                                val mime = WebViewPolicy.mimeTypeFor(file.name)
+                                val encoding = if (mime.startsWith("text/") ||
+                                    mime == "image/svg+xml" ||
+                                    mime == "application/json"
+                                ) "UTF-8" else null
+                                WebResourceResponse(mime, encoding, java.io.FileInputStream(file))
+                            } catch (_: Exception) {
+                                WebResourceResponse(
+                                    "text/plain", "UTF-8",
+                                    java.io.ByteArrayInputStream(ByteArray(0))
+                                )
+                            }
+                        }
+                        return WebResourceResponse(
+                            "text/plain", "UTF-8",
+                            java.io.ByteArrayInputStream(ByteArray(0))
+                        )
+                    }
+                }
+            }
+        },
+        update = { wv ->
+            wv.loadDataWithBaseURL(WebViewPolicy.baseUrlForDir(allowedDir), html, "text/html", "UTF-8", null)
+        },
+        onRelease = { it.stopLoading(); it.destroy() },
+        modifier = modifier
+    )
+}
+
 
 

@@ -1,10 +1,5 @@
 package id.sysfile.manager
 
-import android.content.Intent
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,12 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.FileInputStream
 
 /** Pembaca EPUB v1 (BC2): ekstrak ke cache, baca bab per bab di WebView
  *  (base file:// folder bab supaya gambar/CSS relatif termuat), navigasi
@@ -181,85 +173,10 @@ fun EpubReaderScreen(path: String, onBack: () -> Unit) {
                 chapterFailed -> Text(t.readFailed, Modifier.align(Alignment.Center))
                 chapterHtml == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(52.dp))
                 else -> key(index) {
-                    AndroidView(
-                        factory = { ctx ->
-                            WebView(ctx).apply {
-                                // Sama seperti pratinjau HTML (r176: H5/M11/M12):
-                                // JS mati, DOM storage mati, akses file WebView
-                                // dimatikan dan muatan jaringan diblokir.
-                                // Subresource file:// yang sah (gambar/CSS di
-                                // folder bab) dilayani klien di bawah lewat
-                                // WebViewPolicy — file di luar folder bab dan
-                                // semua http(s) diblokir. Tautan hanya boleh
-                                // http/https (dibuka eksternal lewat chooser).
-                                settings.javaScriptEnabled = false
-                                settings.allowFileAccess = false
-                                settings.allowFileAccessFromFileURLs = false
-                                settings.allowUniversalAccessFromFileURLs = false
-                                settings.domStorageEnabled = false
-                                settings.blockNetworkLoads = true
-                                val allowedDir = chapterDir
-                                    ?.takeIf { it.isNotEmpty() }?.let { File(it) }
-                                webViewClient = object : WebViewClient() {
-                                    override fun shouldOverrideUrlLoading(
-                                        view: WebView,
-                                        request: WebResourceRequest
-                                    ): Boolean {
-                                        if (WebViewPolicy.isExternalHttpLink(request.url.toString())) {
-                                            try {
-                                                ctx.startActivity(
-                                                    Intent.createChooser(
-                                                        Intent(Intent.ACTION_VIEW, request.url),
-                                                        null
-                                                    )
-                                                )
-                                            } catch (_: Exception) {
-                                                // Tidak ada browser: abaikan saja.
-                                            }
-                                        }
-                                        return true
-                                    }
-
-                                    override fun shouldInterceptRequest(
-                                        view: WebView,
-                                        request: WebResourceRequest
-                                    ): WebResourceResponse? {
-                                        if (request.isForMainFrame) return null
-                                        val scheme = request.url.scheme?.lowercase()
-                                        if (scheme != "file" && scheme != "http" && scheme != "https") return null
-                                        val file = WebViewPolicy.resolveAllowedSubresource(
-                                            request.url.toString(), allowedDir
-                                        )
-                                        if (file != null) {
-                                            return try {
-                                                val mime = WebViewPolicy.mimeTypeFor(file.name)
-                                                val encoding = if (mime.startsWith("text/") ||
-                                                    mime == "image/svg+xml" ||
-                                                    mime == "application/json"
-                                                ) "UTF-8" else null
-                                                WebResourceResponse(mime, encoding, FileInputStream(file))
-                                            } catch (_: Exception) {
-                                                WebResourceResponse(
-                                                    "text/plain", "UTF-8",
-                                                    ByteArrayInputStream(ByteArray(0))
-                                                )
-                                            }
-                                        }
-                                        return WebResourceResponse(
-                                            "text/plain", "UTF-8",
-                                            ByteArrayInputStream(ByteArray(0))
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        update = { wv ->
-                            val baseUrl = "file://" + (chapterDir ?: "") + "/"
-                            wv.loadDataWithBaseURL(baseUrl, chapterHtml ?: "", "text/html", "UTF-8", null)
-                        },
-                        // L8 (r176): WebView dihancurkan saat ganti bab /
-                        // keluar layar, kalau tidak resource native-nya bocor.
-                        onRelease = { it.stopLoading(); it.destroy() },
+                    val allowedDir = chapterDir?.takeIf { it.isNotEmpty() }?.let { File(it) }
+                    HardenedLocalWebView(
+                        allowedDir = allowedDir,
+                        html = chapterHtml ?: "",
                         modifier = Modifier.fillMaxSize()
                     )
                 }

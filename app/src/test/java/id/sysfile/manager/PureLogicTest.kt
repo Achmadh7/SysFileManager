@@ -238,4 +238,31 @@ class PureLogicTest {
         )
         assertEquals(listOf(roots[0], roots[2]), heroRoots(roots))
     }
+
+    @Test
+    fun axmlParseStringPool_rejectsExcessiveCountAndTruncatedUtf8() {
+        val excessive = java.nio.ByteBuffer.allocate(28)
+            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            .putShort(0x0001)
+            .putShort(28)
+            .putInt(28)
+            .putInt(2_000_000)
+            .array()
+        org.junit.Assert.assertNull(AxmlOps.parseStringPool(excessive, 0, 28))
+
+        val truncatedUtf8 = java.nio.ByteBuffer.allocate(33)
+            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            .putShort(0x0001)
+            .putShort(28)
+            .putInt(33)
+            .putInt(1)     // count = 1
+            .putInt(0)     // styleCount
+            .putInt(0x100) // UTF-8
+            .putInt(32)    // stringsOffset
+            .putInt(0)     // stylesOffset
+            .putInt(0)     // rel offset = 0 at byte 28..31
+            .put(0x81.toByte()) // 2-byte u16 length prefix cut at EOF
+            .array()
+        assertEquals(listOf(""), AxmlOps.parseStringPool(truncatedUtf8, 0, 28))
+    }
 }

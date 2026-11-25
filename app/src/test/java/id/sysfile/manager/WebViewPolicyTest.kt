@@ -165,4 +165,21 @@ class WebViewPolicyTest {
         assertEquals("application/octet-stream", WebViewPolicy.mimeTypeFor("data.xyz"))
         assertEquals("application/octet-stream", WebViewPolicy.mimeTypeFor("noext"))
     }
+
+    @Test
+    fun baseUrlForDir_encodesSpecialCharsAndResolvesSubresource() {
+        val root = java.nio.file.Files.createTempDirectory("webviewtest").toFile()
+        try {
+            val dir = java.io.File(root, "C# Notes").apply { mkdirs() }
+            val css = java.io.File(dir, "theme.css").apply { writeText("body{}") }
+            val base = WebViewPolicy.baseUrlForDir(dir)
+            val resolved = WebViewPolicy.resolveAllowedSubresource(
+                java.net.URI.create(base).resolve("theme.css").toString(),
+                dir
+            )
+            assertEquals(css.canonicalPath, resolved?.canonicalPath)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }

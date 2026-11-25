@@ -36,6 +36,12 @@ object WebViewPolicy {
         return scheme == "http" || scheme == "https"
     }
 
+    /** Base URL kanonis untuk folder lokal dengan encoding aman untuk spasi/`#`/`?`. */
+    fun baseUrlForDir(dir: File?): String {
+        val raw = dir?.toURI()?.rawPath ?: return "file:///"
+        return "file://" + if (raw.endsWith("/")) raw else "$raw/"
+    }
+
     /** MIME untuk menyajikan subresource lokal yang diizinkan. */
     fun mimeTypeFor(fileName: String): String {
         return when (fileName.substringAfterLast('.', "").lowercase()) {
