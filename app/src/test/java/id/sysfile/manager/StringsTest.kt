@@ -31,6 +31,16 @@ class StringsTest {
             assertFalse(t.manageApksSubtitle.isBlank())
             assertFalse(t.infoEngineSubtitle.isBlank())
             assertFalse(t.biometricUnavailable.isBlank())
+            assertFalse(t.cleanupTitle.isBlank())
+            assertFalse(t.cleanupScan.isBlank())
+            assertFalse(t.cleanupScanning.isBlank())
+            assertFalse(t.cleanupRescan.isBlank())
+            assertFalse(t.cleanupCleanAll.isBlank())
+            assertFalse(t.cleanupNone.isBlank())
+            assertFalse(t.cleanupDuplicates.isBlank())
+            assertFalse(t.cleanupEmptyDirs.isBlank())
+            assertFalse(t.cleanupSummary(2, 1, "1 MB").isBlank())
+            assertFalse(t.cleanupConfirm(3, "2 MB").isBlank())
         }
     }
 }

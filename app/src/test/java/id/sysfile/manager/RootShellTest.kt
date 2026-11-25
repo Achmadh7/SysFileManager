@@ -117,4 +117,29 @@ class RootShellTest {
             RootShell.groupStatBytes(raw)
         )
     }
+
+    @Test
+    fun isProtectedRootPath_blocksMountsButAllowsChildren() {
+        org.junit.Assert.assertTrue(RootShell.isProtectedRootPath("/"))
+        org.junit.Assert.assertTrue(RootShell.isProtectedRootPath(""))
+        org.junit.Assert.assertTrue(RootShell.isProtectedRootPath("/system/"))
+        org.junit.Assert.assertTrue(RootShell.isProtectedRootPath("/data"))
+        org.junit.Assert.assertTrue(RootShell.isProtectedRootPath("/storage/emulated/0"))
+        org.junit.Assert.assertFalse(RootShell.isProtectedRootPath("/data/local/tmp/foo"))
+        org.junit.Assert.assertFalse(RootShell.isProtectedRootPath("/system/app/Demo.apk"))
+    }
+
+    @Test
+    fun rootMutations_failClosedWithoutGrantedState() {
+        RootShell.resetRootState()
+        val a = java.io.File("/data/local/tmp/a")
+        val b = java.io.File("/data/local/tmp/b")
+        org.junit.Assert.assertFalse(RootShell.exists(a))
+        org.junit.Assert.assertFalse(RootShell.mkdir(a))
+        org.junit.Assert.assertFalse(RootShell.createFile(a))
+        org.junit.Assert.assertFalse(RootShell.rename(a, b))
+        org.junit.Assert.assertFalse(RootShell.copy(a, b))
+        org.junit.Assert.assertFalse(RootShell.move(a, b))
+        org.junit.Assert.assertFalse(RootShell.delete(a))
+    }
 }

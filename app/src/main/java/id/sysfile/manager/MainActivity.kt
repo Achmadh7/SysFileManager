@@ -2612,6 +2612,8 @@ fun SysFileApp() {
                                                     roots = roots,
                                                     lockedFolders = lockedFolders,
                                                     reloadKey = reloadKey,
+                                                    trashEnabled = trashEnabled,
+                                                    onChanged = { reloadKey++ },
                                                     onOpenFolder = { path -> homeTab = 0; openFolderGuarded(path) { browseStack = listOf(path) } },
                                                     onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
                                                 )
@@ -3007,51 +3009,55 @@ fun SysFileApp() {
                     }
                 }
             )
-            is DialogKind.Delete -> AlertDialog(
-                onDismissRequest = { dialog = null },
-                title = { Text(if (trashEnabled) t.delete else t.deleteForever) },
-                text = {
-                    val name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
-                    Text(if (trashEnabled) t.deleteConfirm(name) else t.deleteForeverConfirm(name))
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        dialog = null
-                        // M13: memindahkan folder terkunci ke sampah
-                        // butuh biometrik dulu — bila beberapa folder
-                        // terkunci dipilih, minta satu per satu.
-                        fun doDelete() {
-                            val blockingLocked = d.entries.firstNotNullOfOrNull { entry ->
-                                FileOps.blockingLockedInside(entry.path, lockedFolders, unlockedSession)
-                            }
-                            if (blockingLocked != null) {
-                                requestUnlock(blockingLocked, ::doDelete)
-                            } else {
-                                runCardOp(
-                                    name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
-                                    successMsg = if (trashEnabled) t.movedToTrash else t.deletedDone
-                                ) {
-                                    var allOk = true
-                                    d.entries.forEach {
-                                        val ok = if (trashEnabled) TrashOps.moveToTrash(it.file)
-                                        else FileOps.deleteRecursively(it.file)
-                                        if (!ok) allOk = false
+            is DialogKind.Delete -> {
+                val hasRootTarget = d.entries.any { RootShell.shouldUseShell(it.path) }
+                val useTrash = trashEnabled && !hasRootTarget
+                AlertDialog(
+                    onDismissRequest = { dialog = null },
+                    title = { Text(if (useTrash) t.delete else t.deleteForever) },
+                    text = {
+                        val name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size)
+                        Text(if (useTrash) t.deleteConfirm(name) else t.deleteForeverConfirm(name))
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            dialog = null
+                            // M13: memindahkan folder terkunci ke sampah
+                            // butuh biometrik dulu — bila beberapa folder
+                            // terkunci dipilih, minta satu per satu.
+                            fun doDelete() {
+                                val blockingLocked = d.entries.firstNotNullOfOrNull { entry ->
+                                    FileOps.blockingLockedInside(entry.path, lockedFolders, unlockedSession)
+                                }
+                                if (blockingLocked != null) {
+                                    requestUnlock(blockingLocked, ::doDelete)
+                                } else {
+                                    runCardOp(
+                                        name = if (d.entries.size == 1) d.entries[0].name else t.items(d.entries.size),
+                                        successMsg = if (useTrash) t.movedToTrash else t.deletedDone
+                                    ) {
+                                        var allOk = true
+                                        d.entries.forEach {
+                                            val ok = if (useTrash) TrashOps.moveToTrash(it.file)
+                                            else FileOps.deleteRecursively(it.file)
+                                            if (!ok) allOk = false
+                                        }
+                                        allOk
                                     }
-                                    allOk
-                                }
-                                val viewing = viewingPath
-                                if (viewing != null && d.entries.any { it.path == viewing }) {
-                                    overlay = null
-                                    overlayReturn = null
-                                    viewingPath = null
+                                    val viewing = viewingPath
+                                    if (viewing != null && d.entries.any { it.path == viewing }) {
+                                        overlay = null
+                                        overlayReturn = null
+                                        viewingPath = null
+                                    }
                                 }
                             }
-                        }
-                        doDelete()
-                    }) { Text(if (trashEnabled) t.delete else t.deleteForever) }
-                },
-                dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
-            )
+                            doDelete()
+                        }) { Text(if (useTrash) t.delete else t.deleteForever) }
+                    },
+                    dismissButton = { TextButton(onClick = { dialog = null }) { Text(t.cancel) } }
+                )
+            }
             is DialogKind.PayloadExtract -> AlertDialog(
                 onDismissRequest = { dialog = null },
                 title = { Text(if (d.partition == null) t.extractAll else "${d.partition}.img") },

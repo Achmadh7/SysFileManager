@@ -96,6 +96,20 @@ data class AnalysisResult(
     val totalFiles: Int
 )
 
+/** Satu kelompok berkas identik (ukuran & SHA-256 sama). */
+data class DuplicateGroup(
+    val hash: String,
+    val size: Long,
+    val files: List<FEntry>
+)
+
+/** Hasil pindai kebersihan: file kembar & folder kosong dalam satu volume. */
+data class CleanupScanResult(
+    val duplicateGroups: List<DuplicateGroup>,
+    val emptyDirs: List<FEntry>,
+    val reclaimableBytes: Long
+)
+
 /**
  * Mesin berkas SysFileManager: semua operasi murni java.io.File, dipanggil dari
  * dispatcher latar oleh UI. Tidak ada status global di sini.
@@ -557,15 +571,22 @@ object FileOps {
     }
 
     /** Nama unik di dalam folder tujuan: "nama (1).ext", "nama (2).ext", dst. */
-    fun uniqueName(dir: File, name: String): String {
-        if (!File(dir, name).exists()) return name
+    fun uniqueName(dir: File, name: String): String =
+        if (RootShell.shouldUseShell(dir.absolutePath)) {
+            uniqueNameWith(name) { RootShell.exists(File(dir, it)) }
+        } else {
+            uniqueNameWith(name) { File(dir, it).exists() }
+        }
+
+    internal fun uniqueNameWith(name: String, exists: (String) -> Boolean): String {
+        if (!exists(name)) return name
         val dot = name.lastIndexOf('.')
         val base = if (dot > 0) name.substring(0, dot) else name
         val ext = if (dot > 0) name.substring(dot) else ""
         var i = 1
         while (true) {
             val candidate = "$base ($i)$ext"
-            if (!File(dir, candidate).exists()) return candidate
+            if (!exists(candidate)) return candidate
             i++
         }
     }
@@ -655,7 +676,7 @@ object FileOps {
     }
 
     private fun isSelfOrDescendantCopy(src: File, destCanon: String?): Boolean {
-        if (!src.isDirectory || destCanon == null) return false
+        if (destCanon == null) return false
         val srcCanon = canonicalOrNull(src.absolutePath) ?: return false
         return isPathInside(srcCanon, destCanon)
     }
@@ -666,7 +687,12 @@ object FileOps {
         var ok = 0
         for (src in sources) {
             if (isSameParent(src, destDir, destCanon) || isSelfOrDescendantCopy(src, destCanon)) continue
-            if (copyOne(src, destDir)) ok++
+            if (RootShell.shouldUseShell(src.absolutePath) || RootShell.shouldUseShell(destDir.absolutePath)) {
+                val dest = File(destDir, uniqueName(destDir, src.name))
+                if (RootShell.copy(src, dest)) ok++
+            } else if (copyOne(src, destDir)) {
+                ok++
+            }
         }
         return ok
     }
@@ -679,6 +705,10 @@ object FileOps {
             if (isSameParent(src, destDir, destCanon)) { ok++; continue }
             if (isSelfOrDescendantCopy(src, destCanon)) continue
             val dest = File(destDir, uniqueName(destDir, src.name))
+            if (RootShell.shouldUseShell(src.absolutePath) || RootShell.shouldUseShell(destDir.absolutePath)) {
+                if (RootShell.move(src, dest)) ok++
+                continue
+            }
             val moved = try { src.renameTo(dest) } catch (e: Exception) { false }
             if (moved) { ok++; continue }
             if (copyRaw(src, dest)) {
@@ -954,16 +984,16 @@ object FileOps {
     fun formatIsoTime(epochMillis: Long): String =
         java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date(epochMillis))
 
-    fun checksums(file: File): Pair<String, String>? {
+    private fun digestFile(file: File, includeMd5: Boolean): Pair<String, String>? {
         return try {
-            val md5 = java.security.MessageDigest.getInstance("MD5")
+            val md5 = if (includeMd5) java.security.MessageDigest.getInstance("MD5") else null
             val sha = java.security.MessageDigest.getInstance("SHA-256")
             file.inputStream().buffered().use { input ->
                 val buffer = ByteArray(64 * 1024)
                 while (true) {
                     val read = input.read(buffer)
                     if (read < 0) break
-                    md5.update(buffer, 0, read)
+                    md5?.update(buffer, 0, read)
                     sha.update(buffer, 0, read)
                 }
             }
@@ -972,13 +1002,23 @@ object FileOps {
                 for (b in bytes) sb.append(String.format("%02x", b.toInt() and 0xFF))
                 return sb.toString()
             }
-            hex(md5.digest()) to hex(sha.digest())
+            (md5?.let { hex(it.digest()) } ?: "") to hex(sha.digest())
         } catch (e: Exception) {
             null
         }
     }
 
+    fun checksums(file: File): Pair<String, String>? = digestFile(file, includeMd5 = true)
+
+    internal fun sha256(file: File): String? = digestFile(file, includeMd5 = false)?.second
+
+    private fun cleanEntryName(name: String): String? {
+        val clean = name.trim()
+        return if (clean.isEmpty() || clean.contains('/') || clean.contains('\\')) null else clean
+    }
+
     fun deleteRecursively(file: File): Boolean {
+        if (RootShell.shouldUseShell(file.absolutePath)) return RootShell.delete(file)
         return try {
             // r175 H1: symlink ke direktori JANGAN diikuti — isDirectory()
             // mengikuti symlink, jadi tanpa cek ini isi folder target ikut
@@ -994,10 +1034,13 @@ object FileOps {
     }
 
     fun rename(file: File, newName: String): File? {
-        val clean = newName.trim()
-        if (clean.isEmpty() || clean.contains('/') || clean.contains('\\')) return null
+        val clean = cleanEntryName(newName) ?: return null
         val parent = file.parentFile ?: return null
         val dest = File(parent, clean)
+        if (RootShell.shouldUseShell(file.absolutePath)) {
+            if (RootShell.exists(dest) && dest.absolutePath != file.absolutePath) return null
+            return if (RootShell.rename(file, dest)) dest else null
+        }
         if (dest.exists() && dest.absolutePath != file.absolutePath) return null
         return try {
             if (file.renameTo(dest)) dest else null
@@ -1007,18 +1050,23 @@ object FileOps {
     }
 
     fun newFolder(dir: File, name: String): File? {
-        val clean = name.trim()
-        if (clean.isEmpty() || clean.contains('/') || clean.contains('\\')) return null
+        val clean = cleanEntryName(name) ?: return null
         val dest = File(dir, clean)
+        if (RootShell.shouldUseShell(dir.absolutePath)) {
+            if (RootShell.exists(dest)) return null
+            return if (RootShell.mkdir(dest)) dest else null
+        }
         if (dest.exists()) return null
         return if (dest.mkdirs()) dest else null
     }
 
     /** Membuat file kosong baru di [dir]; nama duplikat otomatis diberi akhiran angka. */
     fun newFile(dir: File, name: String): File? {
-        val clean = name.trim()
-        if (clean.isEmpty() || clean.contains('/') || clean.contains('\\')) return null
+        val clean = cleanEntryName(name) ?: return null
         val dest = File(dir, uniqueName(dir, clean))
+        if (RootShell.shouldUseShell(dir.absolutePath)) {
+            return if (RootShell.createFile(dest)) dest else null
+        }
         return try {
             if (dest.createNewFile()) dest else null
         } catch (e: Exception) {
@@ -1215,6 +1263,67 @@ object FileOps {
             }
         largest.sortByDescending { it.size }
         return AnalysisResult(sizes, counts, largest.take(20), total)
+    }
+
+    /** Pindai file duplikat (ukuran sama lalu SHA-256) & folder kosong di [root]. */
+    fun scanCleanup(
+        root: File,
+        locked: Set<String> = emptySet(),
+        maxHashFiles: Int = 500
+    ): CleanupScanResult {
+        val bySize = mutableMapOf<Long, MutableList<File>>()
+        val emptyDirs = mutableListOf<FEntry>()
+        val guard = newVisitGuard()
+        root.walkTopDown()
+            .onEnter { dir ->
+                guard(dir) && dir.canRead() && dir.name != TRASH_DIR_NAME &&
+                    !isLockedPath(dir.absolutePath, locked)
+            }
+            .forEach { f ->
+                if (f == root) return@forEach
+                if (f.isDirectory) {
+                    val children = f.list()
+                    if (children != null && children.isEmpty() && emptyDirs.size < 200) {
+                        emptyDirs += entryOf(f)
+                    }
+                } else if (f.isFile) {
+                    val len = f.length()
+                    if (len > 0L) bySize.getOrPut(len) { mutableListOf() } += f
+                }
+            }
+
+        val candidates = bySize.entries
+            .filter { it.value.size >= 2 }
+            .sortedByDescending { it.key * (it.value.size - 1L) }
+
+        val groups = mutableListOf<DuplicateGroup>()
+        var hashedCount = 0
+        for ((size, files) in candidates) {
+            if (hashedCount >= maxHashFiles) break
+            val byHash = mutableMapOf<String, MutableList<FEntry>>()
+            for (f in files) {
+                if (hashedCount >= maxHashFiles) break
+                hashedCount++
+                val hash = sha256(f) ?: continue
+                byHash.getOrPut(hash) { mutableListOf() } += entryOf(f)
+            }
+            for ((hash, dupEntries) in byHash) {
+                if (dupEntries.size >= 2) {
+                    groups += DuplicateGroup(
+                        hash = hash,
+                        size = size,
+                        files = dupEntries.sortedBy { it.path }
+                    )
+                }
+            }
+        }
+        groups.sortByDescending { it.size * (it.files.size - 1L) }
+        val reclaimable = groups.sumOf { it.size * (it.files.size - 1L) }
+        return CleanupScanResult(
+            duplicateGroups = groups,
+            emptyDirs = emptyDirs.sortedBy { it.path },
+            reclaimableBytes = reclaimable
+        )
     }
 
     /** "1.5 GB", "230 MB", dst. */

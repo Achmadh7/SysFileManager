@@ -1190,4 +1190,45 @@ class FileOpsTest {
         assertTrue(ArchiveOps.extractEncryptedZip(archive, dest, "pw123"))
         org.junit.Assert.assertEquals("hello", File(dest, "inside/note.txt").readText())
     }
+
+    @Test
+    fun uniqueNameWith_appendsCounterOnCollisions() {
+        val existing = setOf("note.txt", "note (1).txt")
+        org.junit.Assert.assertEquals(
+            "note (2).txt",
+            FileOps.uniqueNameWith("note.txt") { it in existing }
+        )
+        org.junit.Assert.assertEquals(
+            "fresh.txt",
+            FileOps.uniqueNameWith("fresh.txt") { it in existing }
+        )
+    }
+
+    @Test
+    fun scanCleanup_findsDuplicatesAndEmptyDirsRespectingExclusions() {
+        val root = tmp.newFolder("cleanuproot")
+        val sub = File(root, "sub").apply { mkdirs() }
+        val nonEmpty = File(root, "nonempty").apply { mkdirs() }
+        val nestedEmpty = File(nonEmpty, "nested_empty").apply { mkdirs() }
+        val emptyDir = File(root, "empty_top").apply { mkdirs() }
+        val lockedDir = File(root, "locked").apply { mkdirs() }
+        val lockedEmpty = File(lockedDir, "locked_empty").apply { mkdirs() }
+        val trashDir = File(root, FileOps.TRASH_DIR_NAME).apply { mkdirs() }
+
+        File(root, "dup1.bin").writeText("same-content") // 12 bytes
+        File(sub, "dup2.bin").writeText("same-content")  // 12 bytes
+        File(root, "diff12.bin").writeText("123456789012") // same size, different hash
+        File(lockedDir, "dup3.bin").writeText("same-content")
+        File(trashDir, "dup4.bin").writeText("same-content")
+
+        val res = FileOps.scanCleanup(root, locked = setOf(lockedDir.canonicalPath))
+        org.junit.Assert.assertEquals(1, res.duplicateGroups.size)
+        org.junit.Assert.assertEquals(2, res.duplicateGroups[0].files.size)
+        org.junit.Assert.assertEquals(12L, res.reclaimableBytes)
+        org.junit.Assert.assertEquals(
+            listOf(emptyDir.canonicalPath, nestedEmpty.canonicalPath).sorted(),
+            res.emptyDirs.map { File(it.path).canonicalPath }.sorted()
+        )
+        org.junit.Assert.assertFalse(res.emptyDirs.any { it.name == lockedEmpty.name })
+    }
 }

@@ -107,9 +107,81 @@ object RootShell {
         mountMasterProbed = false
     }
 
+    /** Daftar direktori puncak yang terlarang dihapus/dipindah via root shell. */
+    private val PROTECTED_ROOT_PATHS = setOf(
+        "/", "/system", "/data", "/vendor", "/product", "/odm",
+        "/storage", "/storage/emulated", "/storage/emulated/0", "/sdcard", "/mnt"
+    )
+
+    internal fun isProtectedRootPath(path: String): Boolean {
+        val trimmed = path.trim()
+        if (trimmed.isEmpty()) return true
+        val norm = trimmed.trimEnd('/').ifEmpty { "/" }
+        return norm in PROTECTED_ROOT_PATHS
+    }
+
     /** Shell root dipakai untuk jalur di luar penyimpanan bersama. */
     fun shouldUseShell(path: String): Boolean =
         state == GRANTED && path != "/storage" && !path.startsWith("/storage/") && !path.startsWith("/sdcard")
+
+    private fun runRw(op: String, timeoutSec: Long = 30): Boolean {
+        if (state != GRANTED) return false
+        val script = "($op 2>/dev/null || " +
+            "(mount -o remount,rw / 2>/dev/null; mount -o remount,rw /system 2>/dev/null; $op))"
+        return runSu(script, timeoutSec) != null
+    }
+
+    fun exists(file: File): Boolean {
+        if (state != GRANTED) return false
+        val q = quote(file.absolutePath)
+        return runSu("[ -e $q ] || [ -L $q ]", 10) != null
+    }
+
+    fun mkdir(dir: File): Boolean {
+        if (state != GRANTED || isProtectedRootPath(dir.absolutePath)) return false
+        return runRw("mkdir -p ${quote(dir.absolutePath)}")
+    }
+
+    fun createFile(file: File): Boolean {
+        if (state != GRANTED || isProtectedRootPath(file.absolutePath)) return false
+        val q = quote(file.absolutePath)
+        val qParent = file.parentFile?.let { quote(it.absolutePath) }
+        val op = buildString {
+            if (qParent != null) append("mkdir -p $qParent && ")
+            append("[ ! -e $q ] && : > $q && chmod 644 $q")
+        }
+        return runRw(op)
+    }
+
+    fun rename(src: File, dest: File): Boolean {
+        if (state != GRANTED || isProtectedRootPath(src.absolutePath) || isProtectedRootPath(dest.absolutePath)) return false
+        val qSrc = quote(src.absolutePath)
+        val qDst = quote(dest.absolutePath)
+        return runRw("[ ! -e $qDst ] && mv -f $qSrc $qDst")
+    }
+
+    fun copy(src: File, dest: File): Boolean {
+        if (state != GRANTED || isProtectedRootPath(dest.absolutePath)) return false
+        val qSrc = quote(src.absolutePath)
+        val qDst = quote(dest.absolutePath)
+        return runRw("(cp -a $qSrc $qDst 2>/dev/null || cp -r $qSrc $qDst)", 120)
+    }
+
+    fun move(src: File, dest: File): Boolean {
+        if (state != GRANTED || isProtectedRootPath(src.absolutePath) || isProtectedRootPath(dest.absolutePath)) return false
+        val qSrc = quote(src.absolutePath)
+        val qDst = quote(dest.absolutePath)
+        return runRw(
+            "([ ! -e $qDst ] && mv $qSrc $qDst 2>/dev/null) || " +
+                "((cp -a $qSrc $qDst 2>/dev/null || cp -r $qSrc $qDst) && rm -rf $qSrc)",
+            120
+        )
+    }
+
+    fun delete(target: File): Boolean {
+        if (state != GRANTED || isProtectedRootPath(target.absolutePath)) return false
+        return runRw("rm -rf ${quote(target.absolutePath)}", 60)
+    }
 
     /**
      * Padanan jalur media nyata untuk jalur emulasi: /storage/emulated/0

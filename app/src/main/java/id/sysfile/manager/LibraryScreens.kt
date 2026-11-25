@@ -1537,17 +1537,37 @@ fun AnalysisScreen(
     roots: List<RootInfo>,
     lockedFolders: Set<String> = emptySet(),
     reloadKey: Int = 0,
+    trashEnabled: Boolean = false,
+    onChanged: () -> Unit = {},
     onOpenFolder: (String) -> Unit,
     onOpenFile: (FEntry) -> Unit,
 ) {
     val t = txt()
+    val scope = rememberCoroutineScope()
     var results by remember { mutableStateOf<Map<String, AnalysisResult>>(emptyMap()) }
     var scanningPath by remember { mutableStateOf<String?>(null) }
     var selectedRootPath by remember { mutableStateOf<String?>(null) }
     var expandedLargest by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var cleanupResults by remember { mutableStateOf<Map<String, CleanupScanResult>>(emptyMap()) }
+    var cleanupScanningPath by remember { mutableStateOf<String?>(null) }
+    var cleanupBusy by remember { mutableStateOf(false) }
+    var pendingCleanup by remember { mutableStateOf<Triple<String, List<FEntry>, Long>?>(null) }
+
+    fun scanVolumeCleanup(path: String) {
+        if (cleanupScanningPath != null) return
+        cleanupScanningPath = path
+        scope.launch {
+            val scan = withContext(Dispatchers.IO) {
+                try { FileOps.scanCleanup(File(path), lockedFolders) } catch (_: Exception) { null }
+            }
+            if (scan != null) cleanupResults = cleanupResults + (path to scan)
+            cleanupScanningPath = null
+        }
+    }
 
     LaunchedEffect(roots, lockedFolders, reloadKey) {
         results = emptyMap()
+        cleanupResults = emptyMap()
         for (root in roots) {
             scanningPath = root.path
             val res = withContext(Dispatchers.IO) {
@@ -1775,10 +1795,221 @@ fun AnalysisScreen(
                                     }
                                 }
                             }
+                            val cRes = cleanupResults[root.path]
+                            val cScanning = cleanupScanningPath == root.path
+                            Text(
+                                t.cleanupTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+                            )
+                            Card(
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(24.dp))
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            when {
+                                                cScanning -> t.cleanupScanning
+                                                cRes == null -> t.cleanupTitle
+                                                cRes.duplicateGroups.isEmpty() && cRes.emptyDirs.isEmpty() -> t.cleanupNone
+                                                else -> t.cleanupSummary(
+                                                    cRes.duplicateGroups.size,
+                                                    cRes.emptyDirs.size,
+                                                    FileOps.formatSize(cRes.reclaimableBytes)
+                                                )
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        TextButton(
+                                            enabled = cleanupScanningPath == null && !cleanupBusy,
+                                            onClick = { scanVolumeCleanup(root.path) }
+                                        ) {
+                                            Text(if (cRes == null) t.cleanupScan else t.cleanupRescan)
+                                        }
+                                    }
+                                    if (cScanning) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            LoadingIndicator(Modifier.size(24.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(t.cleanupScanning, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    } else if (cRes != null && (cRes.duplicateGroups.isNotEmpty() || cRes.emptyDirs.isNotEmpty())) {
+                                        val extraCopies = cRes.duplicateGroups.flatMap { it.files.drop(1) }
+                                        val allTargets = extraCopies + cRes.emptyDirs
+                                        if (allTargets.isNotEmpty()) {
+                                            Button(
+                                                enabled = !cleanupBusy,
+                                                onClick = {
+                                                    pendingCleanup = Triple(root.path, allTargets, cRes.reclaimableBytes)
+                                                },
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Icon(
+                                                    if (trashEnabled) Icons.Default.Delete else Icons.Default.DeleteForever,
+                                                    null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                Text("${t.cleanupCleanAll} (${allTargets.size})")
+                                            }
+                                        }
+                                        if (cRes.duplicateGroups.isNotEmpty()) {
+                                            Text(
+                                                t.cleanupDuplicates,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            cRes.duplicateGroups.take(15).forEach { grp ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(14.dp),
+                                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Column(
+                                                        Modifier.padding(12.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                                    ) {
+                                                        Text(
+                                                            "${grp.files.first().name} \u00b7 ${FileOps.formatSize(grp.size)} (${grp.files.size}x)",
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = FontWeight.Bold,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        grp.files.forEachIndexed { copyIdx, entry ->
+                                                            Row(
+                                                                Modifier.fillMaxWidth(),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Text(
+                                                                    entry.path,
+                                                                    style = MaterialTheme.typography.bodySmall,
+                                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis,
+                                                                    modifier = Modifier
+                                                                        .weight(1f)
+                                                                        .clickable { onOpenFile(entry) }
+                                                                )
+                                                                if (copyIdx > 0) {
+                                                                    IconButton(
+                                                                        enabled = !cleanupBusy,
+                                                                        onClick = {
+                                                                            pendingCleanup = Triple(root.path, listOf(entry), entry.size)
+                                                                        },
+                                                                        modifier = Modifier.size(32.dp)
+                                                                    ) {
+                                                                        Icon(
+                                                                            Icons.Default.Delete,
+                                                                            null,
+                                                                            tint = MaterialTheme.colorScheme.error,
+                                                                            modifier = Modifier.size(18.dp)
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if (cRes.emptyDirs.isNotEmpty()) {
+                                            Text(
+                                                t.cleanupEmptyDirs,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            cRes.emptyDirs.take(15).forEach { dirEntry ->
+                                                Row(
+                                                    Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Folder,
+                                                        null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Spacer(Modifier.width(8.dp))
+                                                    Text(
+                                                        dirEntry.path,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clickable { onOpenFolder(dirEntry.path) }
+                                                    )
+                                                    IconButton(
+                                                        enabled = !cleanupBusy,
+                                                        onClick = {
+                                                            pendingCleanup = Triple(root.path, listOf(dirEntry), 0L)
+                                                        },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Default.Delete,
+                                                            null,
+                                                            tint = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+        }
+        val req = pendingCleanup
+        if (req != null) {
+            val (rootPath, targets, bytes) = req
+            AlertDialog(
+                onDismissRequest = { pendingCleanup = null },
+                title = { Text(t.cleanupTitle) },
+                text = { Text(t.cleanupConfirm(targets.size, FileOps.formatSize(bytes))) },
+                confirmButton = {
+                    TextButton(
+                        enabled = !cleanupBusy,
+                        onClick = {
+                            pendingCleanup = null
+                            cleanupBusy = true
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    targets.forEach { target ->
+                                        if (trashEnabled) TrashOps.moveToTrash(target.file)
+                                        else FileOps.deleteRecursively(target.file)
+                                    }
+                                }
+                                cleanupBusy = false
+                                onChanged()
+                                scanVolumeCleanup(rootPath)
+                            }
+                        }
+                    ) { Text(if (trashEnabled) t.delete else t.deleteForever) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingCleanup = null }) { Text(t.cancel) }
+                }
+            )
         }
 }
 
