@@ -55,7 +55,7 @@ SysFileManager needs **All files access** (Android 11+) so it can work outside i
 
 ## Building the APK
 
-**Without a computer (GitHub Actions):** open the **Actions** tab in this repo → workflow **Build APK** → **Run workflow** on branch `main` → download an artifact → install it on your phone. Each run publishes two artifacts with the same signature: **`app-debug-apk`** (the debug build) and **`Sysfile Manager`** (the release build, named `Sysfile Manager <version>-Release.apk` from the app versionName). (Always start a fresh run — re-running an old failed run rebuilds that old commit.)
+**Without a computer (GitHub Actions):** open the **Actions** tab in this repo → workflow **Build APK** → **Run workflow** on branch `main` → download an artifact → install it on your phone. Each run publishes two artifacts with the same signature: **`app-debug-apk`** (the debug build) and **`SysFile Manager-<version>-Release`** (the release build, named `SysFile Manager-<version>-Release.apk` from the app versionName). (Always start a fresh run — re-running an old failed run rebuilds that old commit.)
 
 **With Android Studio:** open this repo folder, wait for Gradle Sync, then Build APK. (The CI workflow uses Gradle 8.13 and installs Android SDK 36; the same setup works locally.)
 

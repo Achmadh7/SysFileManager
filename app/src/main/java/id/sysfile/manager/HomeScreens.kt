@@ -49,6 +49,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -140,6 +141,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -295,24 +297,30 @@ fun HomeScreen(
                         }
                     }
 
-                    // Opsi 1 — Peek Hero Carousel (HorizontalPager + Neighbor Edge Peek + Dynamic Pill Indicator):
-                    // Semua penyimpanan (Internal, Root /, USB OTG, SD Card) dalam 1 slot hemat ruang
-                    // dengan kartu berikutnya mengintip di sisi kanan sebagai petunjuk swipe.
+                    // Opsi 5 — Peek Hero Carousel + Magnetic Border Highlight Snap:
+                    // Kartu aktif menonjol lewat skala 0.96..1, opacity 0.60..1,
+                    // border highlight aksen volume, dan snap spring tegas tanpa bounce.
                     HorizontalPager(
                         state = pagerState,
                         contentPadding = if (roots.size > 1) PaddingValues(end = 38.dp) else PaddingValues(0.dp),
                         pageSpacing = 12.dp,
+                        flingBehavior = PagerDefaults.flingBehavior(
+                            state = pagerState,
+                            snapAnimationSpec = spring(dampingRatio = 0.85f, stiffness = 500f)
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) { page ->
                         val pageRoot = roots[page]
                         val pageOffset = abs(
                             (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
                         ).coerceIn(0f, 1f)
-                        val scale = lerp(0.95f, 1f, 1f - pageOffset)
-                        val alpha = lerp(0.58f, 1f, 1f - pageOffset)
+                        val activeFraction = 1f - pageOffset
+                        val scale = lerp(0.96f, 1f, activeFraction)
+                        val alpha = lerp(0.60f, 1f, activeFraction)
                         PeekStorageHeroCard(
                             root = pageRoot,
                             rootActive = rootActive,
+                            activeFraction = activeFraction,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .graphicsLayer {
@@ -383,16 +391,17 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                // Opsi 4D (Kartu Kategori 2-Kolom Diperbesar):
-                val cats = buildList {
-                    add(Triple(Category.IMAGE, t.catImagesS, Color(0xFF8B5CF6)))
-                    add(Triple(Category.VIDEO, t.catVideosS, Color(0xFF06B6D4)))
-                    add(Triple(Category.APP, t.catAppsS, Color(0xFF10B981)))
-                    add(Triple(Category.DOCUMENT, t.catDocumentsS, Color(0xFFF59E0B)))
-                    add(Triple(Category.AUDIO, t.catAudioS, Color(0xFFF43F5E)))
-                    add(Triple(Category.ARCHIVE, t.catArchivesS, Color(0xFFA855F7)))
-                    add(Triple(Category.OTHER, t.catOtherS, Color(0xFF64748B)))
-                }
+                // Opsi 4D (Kartu Kategori 2-Kolom Diperbesar), ikon diselaraskan
+                // dengan wadah aksen kartu penyimpanan (Opsi A: Unified Cobalt).
+                val cats = listOf(
+                    Category.IMAGE to t.catImagesS,
+                    Category.VIDEO to t.catVideosS,
+                    Category.APP to t.catAppsS,
+                    Category.DOCUMENT to t.catDocumentsS,
+                    Category.AUDIO to t.catAudioS,
+                    Category.ARCHIVE to t.catArchivesS,
+                    Category.OTHER to t.catOtherS,
+                )
                 val totalTiles = if (trashEnabled) cats.size + 1 else cats.size
                 val indices = (0 until totalTiles).chunked(2)
                 indices.forEach { pair ->
@@ -402,21 +411,17 @@ fun HomeScreen(
                     ) {
                         pair.forEach { idx ->
                             if (idx < cats.size) {
-                                val (cat, label, color) = cats[idx]
+                                val (cat, label) = cats[idx]
                                 CategoryTile(
                                     icon = categoryIcon(cat, ""),
                                     label = label,
-                                    color = color,
-                                    highlightRed = cat == Category.APP,
                                     modifier = Modifier.weight(1f),
                                     onClick = { onOpenCategory(cat) }
                                 )
                             } else {
-                                val trashColor = Color(0xFFEF5350)
                                 CategoryTile(
                                     icon = Icons.Default.Delete,
                                     label = t.trash,
-                                    color = trashColor,
                                     highlightRed = true,
                                     modifier = Modifier.weight(1f),
                                     onClick = onOpenTrash
@@ -455,6 +460,7 @@ private fun storageVolumeAccent(kind: String, rootActive: Boolean, defaultPrimar
 private fun PeekStorageHeroCard(
     root: RootInfo,
     rootActive: Boolean,
+    activeFraction: Float = 1f,
     modifier: Modifier = Modifier,
     onOpenRoot: (String) -> Unit
 ) {
@@ -487,11 +493,23 @@ private fun PeekStorageHeroCard(
     val isNothing = LocalNothingTheme.current
     val peekShape = RoundedCornerShape(if (isNothing) 22.dp else 18.dp)
     val iconShape = if (isNothing) CircleShape else RoundedCornerShape(12.dp)
+    val focus = activeFraction.coerceIn(0f, 1f)
+    val activeBorder = when {
+        isNothing && root.kind == "root" -> NothingSignalRed
+        isNothing -> scheme.onSurface.copy(alpha = 0.72f)
+        else -> accentColor.copy(alpha = 0.52f)
+    }
+    val borderColor = lerpColor(
+        scheme.outlineVariant,
+        activeBorder,
+        ((focus - 0.35f) / 0.65f).coerceIn(0f, 1f)
+    )
+    val borderWidth = lerp(1f, 1.5f, ((focus - 0.55f) / 0.45f).coerceIn(0f, 1f)).dp
     Column(
         modifier = modifier
             .clip(peekShape)
             .background(scheme.secondaryContainer)
-            .themeCardBorder(peekShape)
+            .border(borderWidth, borderColor, peekShape)
             .clickable { onOpenRoot(root.path) }
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -614,19 +632,20 @@ private fun PeekStorageHeroCard(
 private fun CategoryTile(
     icon: ImageVector,
     label: String,
-    color: Color,
     highlightRed: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val isNothing = LocalNothingTheme.current
+    val scheme = MaterialTheme.colorScheme
     val tileShape = RoundedCornerShape(if (isNothing) 18.dp else 14.dp)
-    val icShape = if (isNothing) CircleShape else RoundedCornerShape(10.dp)
+    val icShape = if (isNothing) CircleShape else RoundedCornerShape(12.dp)
+    val accent = if (highlightRed) scheme.error else scheme.primary
     Row(
         modifier = modifier
             .height(74.dp)
             .clip(tileShape)
-            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .background(scheme.secondaryContainer)
             .themeCardBorder(tileShape)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -637,13 +656,8 @@ private fun CategoryTile(
             Modifier
                 .size(44.dp)
                 .clip(icShape)
-                .background(
-                    when {
-                        isNothing -> MaterialTheme.colorScheme.surfaceVariant
-                        highlightRed -> MaterialTheme.colorScheme.errorContainer
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                ),
+                .background(if (isNothing) scheme.surfaceVariant else accent.copy(alpha = 0.16f))
+                .nothingBorder(icShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -651,9 +665,8 @@ private fun CategoryTile(
                 null,
                 tint = when {
                     isNothing && highlightRed -> NothingSignalRed
-                    highlightRed -> MaterialTheme.colorScheme.error
-                    isNothing -> MaterialTheme.colorScheme.onSurface
-                    else -> MaterialTheme.colorScheme.onSecondaryFixedVariant
+                    isNothing -> scheme.onSurface
+                    else -> accent
                 },
                 modifier = Modifier.size(22.dp)
             )
