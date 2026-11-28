@@ -15,7 +15,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -534,7 +533,7 @@ fun BrowseScreen(
             if (selected.isEmpty()) {
                 var fabOpen by remember { mutableStateOf(false) }
                 val glass = LocalLiquidGlass.current
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = fabOpen,
                     enter = fadeIn(
                         animationSpec = if (glass.reducedMotion) tween(100) else tween(180, easing = LiquidGlassEaseOut)
