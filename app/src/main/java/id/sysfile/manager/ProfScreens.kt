@@ -79,9 +79,10 @@ fun ProfBrowseScreen(
     val info = (result as? ProfOps.OpenResult.ArtProfile)?.info
 
     Scaffold(
-        containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.background,
+        containerColor = if (isNothing || LocalLiquidGlass.current.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = glassTopAppBarColors(),
                 title = {
                     Column {
                         Text(File(path).name, maxLines = 1, overflow = TextOverflow.Ellipsis)

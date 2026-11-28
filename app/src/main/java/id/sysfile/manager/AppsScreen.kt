@@ -72,6 +72,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -210,15 +211,20 @@ fun AppsScreen(notify: (String) -> Unit, onBack: () -> Unit) {
     // dari kanan 1/3 lebar + pudar (motionScheme).
     val visState = remember { MutableTransitionState(false) }
     val motion = MaterialTheme.motionScheme
+    val glass = LocalLiquidGlass.current
     LaunchedEffect(Unit) { visState.targetState = true }
     AnimatedVisibility(
         visibleState = visState,
-        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
-            fadeIn(animationSpec = motion.defaultEffectsSpec())
+        enter = if (glass.enabled) liquidGlassPanelEnter(glass.reducedMotion) else (
+            slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+                fadeIn(animationSpec = motion.defaultEffectsSpec())
+            )
     ) {
     Scaffold(
+        containerColor = if (LocalNothingTheme.current || glass.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = glassTopAppBarColors(),
                 title = { Text(t.appsTitle) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }

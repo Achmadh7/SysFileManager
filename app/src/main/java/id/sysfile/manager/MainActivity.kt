@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -152,6 +153,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
@@ -315,17 +317,27 @@ fun SysFileApp() {
         themeMode = mode
         prefs.edit().putString("theme_mode", mode).apply()
     }
-    var uiStyle by remember {
-        val saved = prefs.getString("ui_style", "m3") ?: "m3"
-        mutableStateOf(if (saved == "nothing") "nothing" else "m3")
+    var baseUiStyle by remember {
+        val savedBase = prefs.getString("base_ui_style", UI_STYLE_M3)
+        mutableStateOf(
+            if (savedBase == UI_STYLE_NOTHING) UI_STYLE_NOTHING else UI_STYLE_M3
+        )
     }
-    val onUiStyleChange: (String) -> Unit = { style ->
+    var uiStyle by remember {
+        mutableStateOf(sanitizeUiStyle(prefs.getString("ui_style", UI_STYLE_M3)))
+    }
+    val onUiStyleChange: (String) -> Unit = { rawStyle ->
+        val style = sanitizeUiStyle(rawStyle)
         if (themeShot == null) {
             themeShot = try {
                 if (rootView.width > 0 && rootView.height > 0) rootView.drawToBitmap() else null
             } catch (_: Exception) {
                 null
             }
+        }
+        if (style == UI_STYLE_M3 || style == UI_STYLE_NOTHING) {
+            baseUiStyle = style
+            prefs.edit().putString("base_ui_style", style).apply()
         }
         uiStyle = style
         prefs.edit().putString("ui_style", style).apply()
@@ -1645,6 +1657,9 @@ fun SysFileApp() {
                 onTheme = onThemeChange,
                 uiStyle = uiStyle,
                 onUiStyle = onUiStyleChange,
+                onToggleLiquidGlass = { enable ->
+                    onUiStyleChange(toggleLiquidGlassUiStyle(baseUiStyle, enable))
+                },
                 onLanguage = { lang ->
                     language = lang
                     AppLang.code = lang
@@ -1707,6 +1722,7 @@ fun SysFileApp() {
                 onTheme = onThemeChange
             )
         } else {
+            val glass = LocalLiquidGlass.current
             // r88: Box pembungkus supaya pill audio bisa melayang
             // di atas layar overlay (kategori/arsip/viewer).
             Box(Modifier.fillMaxSize()) {
@@ -1723,8 +1739,12 @@ fun SysFileApp() {
                         initialState is Overlay.DexView || targetState is Overlay.DexView ||
                         initialState is Overlay.ArscView || targetState is Overlay.ArscView ||
                         initialState is Overlay.ProfView || targetState is Overlay.ProfView) {
-                        fadeIn(animationSpec = fadeSpec) togetherWith
-                            fadeOut(animationSpec = fadeSpec)
+                        if (glass.enabled) {
+                            liquidGlassOverlayTransition(glass.reducedMotion)
+                        } else {
+                            fadeIn(animationSpec = fadeSpec) togetherWith
+                                fadeOut(animationSpec = fadeSpec)
+                        }
                     } else {
                         EnterTransition.None togetherWith ExitTransition.None
                     }
@@ -2204,18 +2224,16 @@ fun SysFileApp() {
                     )
                     null -> {
                         val isNothing = LocalNothingTheme.current
-                        val barContainer = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.surface
+                        val barContainer = if (isNothing || glass.enabled) Color.Transparent else MaterialTheme.colorScheme.surface
                         Scaffold(
                             // r164: latar dari skema, bukan Transparent —
-                            // kecuali saat Tema 2 Nothing aktif (kanvas dot-matrix di Box akar).
-                            containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.background,
+                            // kecuali Nothing (dot-matrix) atau iOS Liquid Glass (aurora kristal).
+                            containerColor = if (isNothing || glass.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
                             topBar = {
                                 Column {
                                 if (currentPath == null) {
                                     TopAppBar(
-                                        colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = barContainer
-                                        ),
+                                        colors = glassTopAppBarColors(barContainer),
                                         title = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 SysFileLogo(
@@ -2251,9 +2269,7 @@ fun SysFileApp() {
                                     }
                                 } else if (selected.isNotEmpty()) {
                                     TopAppBar(
-                                        colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = barContainer
-                                        ),
+                                        colors = glassTopAppBarColors(barContainer),
                                         title = { Text(t.selected(selected.size)) },
                                         navigationIcon = {
                                             IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Default.Close, t.cancel) }
@@ -2266,9 +2282,7 @@ fun SysFileApp() {
                                     )
                                 } else {
                                     TopAppBar(
-                                        colors = TopAppBarDefaults.topAppBarColors(
-                                            containerColor = barContainer
-                                        ),
+                                        colors = glassTopAppBarColors(barContainer),
                                         title = {
                                             Column {
                                                 Text(
@@ -2439,12 +2453,16 @@ fun SysFileApp() {
                                     // fade + geser dari bawah + kembang/susut vertikal.
                                     AnimatedVisibility(
                                         visible = selected.isNotEmpty() && currentPath != null,
-                                        enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                                            slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
-                                            expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom),
-                                        exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                                            slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
-                                            shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Bottom)
+                                        enter = if (glass.enabled) liquidGlassBarEnter(glass.reducedMotion) else (
+                                            fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                                slideInVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                                                expandVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), expandFrom = Alignment.Bottom)
+                                            ),
+                                        exit = if (glass.enabled) liquidGlassBarExit(glass.reducedMotion) else (
+                                            fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
+                                                slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { it } +
+                                                shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Bottom)
+                                            )
                                     ) {
                                         SelectionBar(
                                             single = selected.size == 1,
@@ -2566,13 +2584,30 @@ fun SysFileApp() {
                                 }
                             }
                         ) { padding ->
-                            Box(Modifier.fillMaxSize().padding(padding)) {
+                            val layoutDir = LocalLayoutDirection.current
+                            val contentBottomPadding = if (glass.enabled) padding.calculateBottomPadding() else 0.dp
+                            Box(
+                                if (glass.enabled) {
+                                    Modifier.fillMaxSize().padding(
+                                        start = padding.calculateStartPadding(layoutDir),
+                                        top = padding.calculateTopPadding(),
+                                        end = padding.calculateEndPadding(layoutDir)
+                                    )
+                                } else {
+                                    Modifier.fillMaxSize().padding(padding)
+                                }
+                            ) {
                                 AnimatedContent(
                                     targetState = currentPath,
                                     transitionSpec = {
                                         val fromDepth = initialState?.count { it == '/' } ?: -1
                                         val toDepth = targetState?.count { it == '/' } ?: -1
-                                        if (toDepth >= fromDepth) {
+                                        if (glass.enabled) {
+                                            liquidGlassFolderTransition(
+                                                push = toDepth >= fromDepth,
+                                                reducedMotion = glass.reducedMotion
+                                            )
+                                        } else if (toDepth >= fromDepth) {
                                             (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
                                                 (slideOutHorizontally { w -> -w / 3 } + fadeOut())
                                         } else {
@@ -2586,8 +2621,15 @@ fun SysFileApp() {
                                         AnimatedContent(
                                             targetState = homeTab,
                                             transitionSpec = {
-                                                fadeIn(animationSpec = fadeSpec) togetherWith
-                                                    fadeOut(animationSpec = fadeSpec)
+                                                if (glass.enabled) {
+                                                    liquidGlassTabTransition(
+                                                        forward = targetState >= initialState,
+                                                        reducedMotion = glass.reducedMotion
+                                                    )
+                                                } else {
+                                                    fadeIn(animationSpec = fadeSpec) togetherWith
+                                                        fadeOut(animationSpec = fadeSpec)
+                                                }
                                             },
                                             label = "tabAnim"
                                         ) { tab -> Box(Modifier.fillMaxSize()) {
@@ -2606,7 +2648,8 @@ fun SysFileApp() {
                                                     onRefresh = {
                                                         recentRefreshing = true
                                                         reloadKey++
-                                                    }
+                                                    },
+                                                    bottomPadding = contentBottomPadding
                                                 )
                                                 2 -> AnalysisScreen(
                                                     roots = roots,
@@ -2615,7 +2658,8 @@ fun SysFileApp() {
                                                     trashEnabled = trashEnabled,
                                                     onChanged = { reloadKey++ },
                                                     onOpenFolder = { path -> homeTab = 0; openFolderGuarded(path) { browseStack = listOf(path) } },
-                                                    onOpenFile = { entry -> homeTab = 0; openEntry(entry) }
+                                                    onOpenFile = { entry -> homeTab = 0; openEntry(entry) },
+                                                    bottomPadding = contentBottomPadding
                                                 )
                                                 else -> HomeScreen(
                                                     accessGranted = accessGranted,
@@ -2630,7 +2674,8 @@ fun SysFileApp() {
                                                     onRefresh = {
                                                         homeRefreshing = true
                                                         refreshRoots { homeRefreshing = false }
-                                                    }
+                                                    },
+                                                    bottomPadding = contentBottomPadding
                                                 )
                                             }
                                         }
@@ -2693,10 +2738,27 @@ fun SysFileApp() {
                                         onRefresh = {
                                             browseRefreshing = true
                                             invalidateRootCaches()
-                                        }
+                                        },
+                                        bottomPadding = contentBottomPadding
                                         )
                                     }
                                 }
+                                }
+                                if (glass.enabled && contentBottomPadding > 0.dp) {
+                                    Box(
+                                        Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .height(contentBottomPadding + 20.dp)
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        MaterialTheme.colorScheme.background.copy(alpha = 0.72f)
+                                                    )
+                                                )
+                                            )
+                                    )
                                 }
                             }
                         }
@@ -2727,6 +2789,7 @@ fun SysFileApp() {
                 // Posisi atas tetap terlihat saat keyboard terbuka
                 // (pill bawah lama bisa tertutup keyboard). Menempel
                 // di Box akar, jadi tampil di layar browse maupun overlay.
+                val rootGlass = LocalLiquidGlass.current
                 Box(
                     Modifier
                         .align(Alignment.TopCenter)
@@ -2742,14 +2805,12 @@ fun SysFileApp() {
                             slideOutVertically(animationSpec = motion.defaultSpatialSpec<IntOffset>()) { -it } +
                             shrinkVertically(animationSpec = motion.defaultSpatialSpec<IntSize>(), shrinkTowards = Alignment.Top)
                     ) {
-                        Surface(
+                        LiquidGlassSurface(
                             shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            tonalElevation = 3.dp,
-                            shadowElevation = 6.dp,
+                            defaultColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.widthIn(max = 320.dp)
                                 .nothingBorder(RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
+                                .then(if (rootGlass.enabled) Modifier else Modifier.clip(RoundedCornerShape(20.dp)))
                                 .clickable { pillVisible = false }
                         ) {
                             Row(
@@ -2800,20 +2861,27 @@ fun SysFileApp() {
         // layar browse maupun overlay.
         val extractCardProg = extractCardProgress
         val extractCardFlag = extractCardCancelFlag
+        val dialogGlass = LocalLiquidGlass.current
         AnimatedVisibility(
             visible = extractCardVisible,
-            enter = fadeIn(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                scaleIn(animationSpec = motion.defaultSpatialSpec<Float>(), initialScale = 0.92f),
-            exit = fadeOut(animationSpec = motion.defaultEffectsSpec<Float>()) +
-                scaleOut(animationSpec = motion.defaultSpatialSpec<Float>(), targetScale = 0.92f),
+            enter = fadeIn(
+                animationSpec = if (dialogGlass.enabled) tween(200, easing = LiquidGlassEaseOut) else motion.defaultEffectsSpec()
+            ) + scaleIn(
+                animationSpec = if (dialogGlass.enabled) tween(220, easing = LiquidGlassDrawerCurve) else motion.defaultSpatialSpec(),
+                initialScale = 0.92f
+            ),
+            exit = fadeOut(
+                animationSpec = if (dialogGlass.enabled) tween(140, easing = LiquidGlassEaseOut) else motion.defaultEffectsSpec()
+            ) + scaleOut(
+                animationSpec = if (dialogGlass.enabled) tween(150, easing = LiquidGlassEaseOut) else motion.defaultSpatialSpec(),
+                targetScale = 0.94f
+            ),
             modifier = Modifier.fillMaxSize()
         ) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Surface(
+                LiquidGlassSurface(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 6.dp,
+                    defaultColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
                         .nothingBorder(RoundedCornerShape(24.dp))
                 ) {
@@ -2870,11 +2938,9 @@ fun SysFileApp() {
             val prog = workProgress
             val flag = workCancelFlag
             androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
-                Surface(
+                LiquidGlassSurface(
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 6.dp,
+                    defaultColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {

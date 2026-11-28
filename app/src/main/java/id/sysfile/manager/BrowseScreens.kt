@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.animateColorAsState
@@ -25,6 +26,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -153,6 +155,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -210,7 +213,7 @@ fun BrowseHeaderBar(
                 expanded = false,
                 onExpandedChange = {},
                 colors = SearchBarDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHigh)
                 ),
                 modifier = Modifier.weight(1f),
                 // r144: inset NOL — SearchBar bawaan mencadangkan tinggi
@@ -297,14 +300,20 @@ fun BrowseHeaderBar(
             labels.forEachIndexed { index, label ->
                 val active = index == labels.lastIndex
                 val isNothing = LocalNothingTheme.current
+                val isGlass = LocalLiquidGlass.current.enabled
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = when {
                         isNothing && active -> MaterialTheme.colorScheme.primary
                         active -> MaterialTheme.colorScheme.primaryContainer
+                        isGlass -> glassCardColor(MaterialTheme.colorScheme.surfaceContainerHigh)
                         else -> MaterialTheme.colorScheme.surfaceContainerHigh
                     },
-                    border = if (isNothing && !active) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+                    border = when {
+                        isNothing && !active -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        isGlass && !active -> glassCardBorder()
+                        else -> null
+                    },
                     onClick = { onNavigate(ancestorPaths.take(index + 1)) },
                     enabled = !active
                 ) {
@@ -361,7 +370,7 @@ fun BrowseHeaderBar(
                         )
                     } else {
                         FilterChipDefaults.filterChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainer),
                             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -410,7 +419,8 @@ fun BrowseScreen(
     onSafAction: (() -> Unit)? = null,
     safSubtreeBlocked: Boolean = false,
     isRefreshing: Boolean = false,
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    bottomPadding: Dp = 0.dp
 ) {
     val t = txt()
     Column(Modifier.fillMaxSize()) {
@@ -489,7 +499,7 @@ fun BrowseScreen(
                 gridView -> LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(bottom = 96.dp + bottomPadding),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -506,7 +516,7 @@ fun BrowseScreen(
                 }
                 else -> LazyColumn(
                     Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 6.dp, bottom = 96.dp)
+                    contentPadding = PaddingValues(top = 6.dp, bottom = 96.dp + bottomPadding)
                 ) {
                     items(entries, key = { it.path }) { entry ->
                         FileRow(
@@ -523,7 +533,17 @@ fun BrowseScreen(
             }
             if (selected.isEmpty()) {
                 var fabOpen by remember { mutableStateOf(false) }
-                if (fabOpen) {
+                val glass = LocalLiquidGlass.current
+                AnimatedVisibility(
+                    visible = fabOpen,
+                    enter = fadeIn(
+                        animationSpec = if (glass.reducedMotion) tween(100) else tween(180, easing = LiquidGlassEaseOut)
+                    ),
+                    exit = fadeOut(
+                        animationSpec = if (glass.reducedMotion) tween(90) else tween(140, easing = LiquidGlassEaseOut)
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     Box(
                         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f))
                             .clickable(
@@ -540,14 +560,23 @@ fun BrowseScreen(
                         ExtendedFloatingActionButton(
                             onClick = { fabOpen = !fabOpen },
                             expanded = !fabOpen,
-                            shape = if (isNothing) CircleShape else FloatingActionButtonDefaults.extendedFabShape,
-                            containerColor = if (isNothing) NothingSignalRed else FloatingActionButtonDefaults.containerColor,
-                            contentColor = if (isNothing) Color.White else MaterialTheme.colorScheme.onPrimaryContainer,
+                            shape = if (isNothing || glass.enabled) CircleShape else FloatingActionButtonDefaults.extendedFabShape,
+                            containerColor = when {
+                                isNothing -> NothingSignalRed
+                                glass.enabled -> MaterialTheme.colorScheme.primary
+                                else -> FloatingActionButtonDefaults.containerColor
+                            },
+                            contentColor = when {
+                                isNothing -> Color.White
+                                glass.enabled -> MaterialTheme.colorScheme.onPrimary
+                                else -> MaterialTheme.colorScheme.onPrimaryContainer
+                            },
                             icon = { Icon(if (fabOpen) Icons.Default.Close else Icons.Default.Add, null) },
                             text = { Text(if (isNothing) t.newShort.uppercase() else t.newShort) }
                         )
                     },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + bottomPadding)
                 ) {
                     FloatingActionButtonMenuItem(
                         onClick = { fabOpen = false; onNewFolder() },
@@ -595,11 +624,9 @@ fun SelectionBar(
         Modifier.fillMaxWidth().padding(bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        LiquidGlassSurface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 3.dp,
-            shadowElevation = 6.dp,
+            defaultColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
         ) {
             Row(
@@ -660,10 +687,16 @@ fun SelectionBar(
 /** Aksi berlabel mikro di pill seleksi: ikon dengan label kecil di bawahnya. */
 @Composable
 private fun PillMicroAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         Modifier
+            .liquidGlassPressScale(interactionSource, pressedScale = 0.92f)
             .clip(RoundedCornerShape(18.dp))
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick
+            )
             .padding(horizontal = 11.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -714,11 +747,13 @@ fun ClipboardBar(
         Modifier.fillMaxWidth().padding(bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        LiquidGlassSurface(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 .nothingBorder(RoundedCornerShape(28.dp)),
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.secondaryContainer
+            defaultColor = MaterialTheme.colorScheme.secondaryContainer,
+            defaultTonalElevation = 0.dp,
+            defaultShadowElevation = 0.dp
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -770,11 +805,9 @@ fun MiniPlayerBar(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        LiquidGlassSurface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            tonalElevation = 3.dp,
-            shadowElevation = 6.dp,
+            defaultColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
         ) {
             Row(

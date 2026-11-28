@@ -23,8 +23,10 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
@@ -88,6 +90,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -174,8 +177,11 @@ fun SettingsScreen(
     showRootEntry: Boolean,
     trashEnabled: Boolean,
     onTheme: (String) -> Unit,
-    uiStyle: String = "m3",
+    uiStyle: String = UI_STYLE_M3,
     onUiStyle: (String) -> Unit = {},
+    onToggleLiquidGlass: (Boolean) -> Unit = { enable ->
+        onUiStyle(if (enable) UI_STYLE_LIQUID_GLASS else UI_STYLE_M3)
+    },
     onLanguage: (String) -> Unit,
     onHidden: (Boolean) -> Unit,
     onRootEntry: (Boolean) -> Unit,
@@ -187,28 +193,35 @@ fun SettingsScreen(
 ) {
     val t = txt()
     val motion = MaterialTheme.motionScheme
-    // Animasi perpindahan ke Pengaturan (S3, MotionScheme resmi): masuk geser dari kanan
-    // + memudar; keluar (exiting) arah berlawanan. MainActivity menunda
-    // pergantian layar 300ms supaya animasi keluar sempat selesai.
+    val glass = LocalLiquidGlass.current
+    // Animasi perpindahan ke Pengaturan: pakai kurva cair saat iOS Liquid Glass aktif.
     val visState = remember { MutableTransitionState(false) }
     LaunchedEffect(Unit) { visState.targetState = true }
     LaunchedEffect(exiting) { visState.targetState = !exiting }
     AnimatedVisibility(
         visibleState = visState,
-        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
-            fadeIn(animationSpec = motion.defaultEffectsSpec()),
-        exit = slideOutHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
-            fadeOut(animationSpec = motion.defaultEffectsSpec())
+        enter = if (glass.enabled) liquidGlassPanelEnter(glass.reducedMotion) else (
+            slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+                fadeIn(animationSpec = motion.defaultEffectsSpec())
+            ),
+        exit = if (glass.enabled) liquidGlassPanelExit(glass.reducedMotion) else (
+            slideOutHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+                fadeOut(animationSpec = motion.defaultEffectsSpec())
+            )
     ) {
     val isNothing = LocalNothingTheme.current
     Scaffold(
-        containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.background,
+        containerColor = if (isNothing || glass.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                ),
+                colors = if (glass.enabled) {
+                    glassTopAppBarColors()
+                } else {
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = if (isNothing) Color.Transparent else MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                },
                 title = { Text(t.settings) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } }
             )
@@ -245,30 +258,61 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                    val resolvedStyle = sanitizeUiStyle(uiStyle)
                     Card(
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardColor),
-                        modifier = Modifier.fillMaxWidth().themeCardBorder(RoundedCornerShape(20.dp))
+                        border = glassCardBorder(),
+                        colors = CardDefaults.cardColors(containerColor = glassCardColor(cardColor)),
+                        modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(20.dp))
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             UiStylePreviewCard(
-                                label = "Nordic Cobalt",
-                                nothingStyle = false,
-                                selected = uiStyle != "nothing",
-                                onClick = { onUiStyle("m3") },
+                                label = "Nordic",
+                                styleId = UI_STYLE_M3,
+                                selected = resolvedStyle == UI_STYLE_M3,
+                                onClick = { onUiStyle(UI_STYLE_M3) },
                                 modifier = Modifier.weight(1f)
                             )
                             UiStylePreviewCard(
-                                label = "Nothing Matrix",
-                                nothingStyle = true,
-                                selected = uiStyle == "nothing",
-                                onClick = { onUiStyle("nothing") },
+                                label = "Nothing",
+                                styleId = UI_STYLE_NOTHING,
+                                selected = resolvedStyle == UI_STYLE_NOTHING,
+                                onClick = { onUiStyle(UI_STYLE_NOTHING) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            UiStylePreviewCard(
+                                label = "Liquid Glass",
+                                styleId = UI_STYLE_LIQUID_GLASS,
+                                selected = resolvedStyle == UI_STYLE_LIQUID_GLASS,
+                                onClick = { onUiStyle(UI_STYLE_LIQUID_GLASS) },
                                 modifier = Modifier.weight(1f)
                             )
                         }
+                    }
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        border = glassCardBorder(),
+                        colors = CardDefaults.cardColors(containerColor = glassCardColor(cardColor)),
+                        modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(20.dp))
+                    ) {
+                        SettingsRow(
+                            icon = Icons.Default.Palette,
+                            circleColor = MaterialTheme.colorScheme.primary,
+                            title = t.themeLiquidGlass,
+                            subtitle = t.themeLiquidGlassDesc,
+                            badge = "iOS",
+                            badgeColor = MaterialTheme.colorScheme.primary,
+                            onClick = { onToggleLiquidGlass(!glass.enabled) },
+                            trailing = {
+                                Switch(
+                                    checked = glass.enabled,
+                                    onCheckedChange = onToggleLiquidGlass
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -277,7 +321,8 @@ fun SettingsScreen(
                 val cardColor = if (isNothing) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer
                 Card(
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor),
+                    border = glassCardBorder(),
+                    colors = CardDefaults.cardColors(containerColor = glassCardColor(cardColor)),
                     modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(20.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
@@ -357,16 +402,32 @@ private fun SettingsBentoTile(
     modifier: Modifier = Modifier
 ) {
     val isNothing = LocalNothingTheme.current
-    val cardColor = if (isNothing) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer
+    val glass = LocalLiquidGlass.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val cardColor = glassCardColor(
+        if (isNothing) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer
+    )
     val iconTint = if (isNothing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(18.dp)
     Card(
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = cardColor),
         modifier = modifier
+            .then(
+                if (onClick != null && glass.enabled) Modifier.liquidGlassPressScale(interactionSource)
+                else Modifier
+            )
             .themeCardBorder(shape)
             .clip(shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = onClick
+                    )
+                } else Modifier
+            )
     ) {
         Column(
             Modifier.padding(14.dp),
@@ -376,7 +437,13 @@ private fun SettingsBentoTile(
                 Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(11.dp))
-                    .background(if (isNothing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainerHigh),
+                    .background(
+                        when {
+                            isNothing -> MaterialTheme.colorScheme.surfaceVariant
+                            glass.enabled -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, null, tint = iconTint, modifier = Modifier.size(19.dp))
@@ -404,22 +471,62 @@ private fun SettingsBentoTile(
 @Composable
 private fun UiStylePreviewCard(
     label: String,
-    nothingStyle: Boolean,
+    styleId: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isNothing = LocalNothingTheme.current
+    val glass = LocalLiquidGlass.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val nothingStyle = styleId == UI_STYLE_NOTHING
+    val glassStyle = styleId == UI_STYLE_LIQUID_GLASS
     val activeAccent = if (nothingStyle) NothingSignalRed else MaterialTheme.colorScheme.primary
+    val previewBg = when {
+        nothingStyle -> Brush.linearGradient(listOf(Color(0xFF000000), Color(0xFF0A0A0D)))
+        glassStyle -> Brush.linearGradient(
+            listOf(Color(0xFFBFDFFF), Color(0xFFE7F2FF), Color(0xFFCFF4F7))
+        )
+        else -> Brush.linearGradient(listOf(Color(0xFF0B0E14), Color(0xFF131A26)))
+    }
+    val miniCardFill = when {
+        nothingStyle -> Color(0xFF131317)
+        glassStyle -> Color.White.copy(alpha = 0.78f)
+        else -> Color(0xFF131823)
+    }
+    val miniCardBorder = when {
+        nothingStyle -> Color(0xFF2A2A32)
+        glassStyle -> Color.White.copy(alpha = 0.92f)
+        else -> Color(0xFF232B3B)
+    }
+    val miniDockFill = when {
+        nothingStyle -> Color(0xFF131317)
+        glassStyle -> Color.White.copy(alpha = 0.76f)
+        else -> Color(0xFF131823)
+    }
+    val miniActivePill = when {
+        nothingStyle -> NothingSignalRed
+        glassStyle -> Color(0xFF0066CC)
+        else -> Color(0xFF3B82F6)
+    }
+    val miniDockPill = when {
+        nothingStyle -> Color(0xFFF5F5F7)
+        glassStyle -> Color(0xFF0066CC).copy(alpha = 0.28f)
+        else -> Color(0xFF3B82F6)
+    }
     Column(
         modifier
+            .liquidGlassPressScale(interactionSource, pressedScale = 0.955f)
             .clip(RoundedCornerShape(16.dp))
             .background(
-                if (selected && !isNothing) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                else Color.Transparent
+                when {
+                    selected && glass.enabled -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                    selected && !isNothing -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                    else -> Color.Transparent
+                }
             )
             .then(
-                if (isNothing || selected) {
+                if (isNothing || glass.enabled || selected) {
                     Modifier.border(
                         if (selected) 1.5.dp else 1.dp,
                         if (selected) activeAccent else MaterialTheme.colorScheme.outlineVariant,
@@ -427,52 +534,48 @@ private fun UiStylePreviewCard(
                     )
                 } else Modifier
             )
-            .clickable(onClick = onClick)
-            .padding(8.dp),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick
+            )
+            .padding(horizontal = 6.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(60.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (nothingStyle) Color(0xFF000000) else Color(0xFF0B0E14))
-                .padding(8.dp)
+                .background(previewBg)
+                .padding(7.dp)
         ) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(24.dp)
+                    .height(22.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF131823))
-                    .border(
-                        1.dp,
-                        if (nothingStyle) Color(0xFF2A2A32) else Color(0xFF232B3B),
-                        RoundedCornerShape(8.dp)
-                    )
+                    .background(miniCardFill)
+                    .border(1.dp, miniCardBorder, RoundedCornerShape(8.dp))
                     .padding(horizontal = 6.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
                 Box(
                     Modifier
-                        .size(width = 16.dp, height = 7.dp)
+                        .size(width = 14.dp, height = 6.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (nothingStyle) NothingSignalRed else Color(0xFF3B82F6))
+                        .background(miniActivePill)
                 )
             }
             Box(
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth(0.72f)
+                    .fillMaxWidth(0.78f)
                     .height(14.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (nothingStyle) Color(0xFF131317) else Color(0xFF131823))
-                    .border(
-                        1.dp,
-                        if (nothingStyle) Color(0xFF2A2A32) else Color(0xFF232B3B),
-                        RoundedCornerShape(50)
-                    )
+                    .background(miniDockFill)
+                    .border(1.dp, miniCardBorder, RoundedCornerShape(50))
             ) {
                 Box(
                     Modifier
@@ -480,16 +583,17 @@ private fun UiStylePreviewCard(
                         .fillMaxWidth(0.36f)
                         .padding(2.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (nothingStyle) Color(0xFFF5F5F7) else Color(0xFF3B82F6))
+                        .background(miniDockPill)
                 )
             }
         }
         Text(
             label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = if (selected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -646,16 +750,20 @@ fun FormatsScreen(onBack: () -> Unit) {
     val t = txt()
     val visState = remember { MutableTransitionState(false) }
     val motion = MaterialTheme.motionScheme
+    val glass = LocalLiquidGlass.current
     LaunchedEffect(Unit) { visState.targetState = true }
     AnimatedVisibility(
         visibleState = visState,
-        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
-            fadeIn(animationSpec = motion.defaultEffectsSpec())
+        enter = if (glass.enabled) liquidGlassPanelEnter(glass.reducedMotion) else (
+            slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+                fadeIn(animationSpec = motion.defaultEffectsSpec())
+            )
     ) {
     Scaffold(
-        containerColor = if (LocalNothingTheme.current) Color.Transparent else MaterialTheme.colorScheme.background,
+        containerColor = if (LocalNothingTheme.current || glass.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = glassTopAppBarColors(),
                 title = { Text(t.formatsTitle) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
@@ -674,7 +782,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = glassCardBorder(),
+                    colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                     modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -697,7 +806,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = glassCardBorder(),
+                    colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                     modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -730,7 +840,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = glassCardBorder(),
+                    colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                     modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -758,7 +869,8 @@ fun FormatsScreen(onBack: () -> Unit) {
             item {
                 Card(
                     shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                    border = glassCardBorder(),
+                    colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                     modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -797,16 +909,20 @@ fun AboutScreen(
     // dari kanan 1/3 lebar + pudar (motionScheme).
     val visState = remember { MutableTransitionState(false) }
     val motion = MaterialTheme.motionScheme
+    val glass = LocalLiquidGlass.current
     LaunchedEffect(Unit) { visState.targetState = true }
     AnimatedVisibility(
         visibleState = visState,
-        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
-            fadeIn(animationSpec = motion.defaultEffectsSpec())
+        enter = if (glass.enabled) liquidGlassPanelEnter(glass.reducedMotion) else (
+            slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+                fadeIn(animationSpec = motion.defaultEffectsSpec())
+            )
     ) {
     Scaffold(
-        containerColor = if (LocalNothingTheme.current) Color.Transparent else MaterialTheme.colorScheme.background,
+        containerColor = if (LocalNothingTheme.current || glass.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = glassTopAppBarColors(),
                 title = { Text(t.about, fontWeight = FontWeight.ExtraBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
@@ -824,9 +940,12 @@ fun AboutScreen(
         ) {
             item {
                 val isNothing = LocalNothingTheme.current
-                val cardBg = if (isNothing) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh
+                val cardBg = glassCardColor(
+                    if (isNothing) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh
+                )
                 Card(
                     shape = RoundedCornerShape(24.dp),
+                    border = glassCardBorder(),
                     colors = CardDefaults.cardColors(containerColor = cardBg),
                     modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(24.dp))
                 ) {
@@ -918,16 +1037,20 @@ fun SpecScreen(onBack: () -> Unit) {
     // dari kanan 1/3 lebar + pudar (motionScheme).
     val visState = remember { MutableTransitionState(false) }
     val motion = MaterialTheme.motionScheme
+    val glass = LocalLiquidGlass.current
     LaunchedEffect(Unit) { visState.targetState = true }
     AnimatedVisibility(
         visibleState = visState,
-        enter = slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
-            fadeIn(animationSpec = motion.defaultEffectsSpec())
+        enter = if (glass.enabled) liquidGlassPanelEnter(glass.reducedMotion) else (
+            slideInHorizontally(animationSpec = motion.defaultSpatialSpec()) { it / 3 } +
+                fadeIn(animationSpec = motion.defaultEffectsSpec())
+            )
     ) {
     Scaffold(
-        containerColor = if (LocalNothingTheme.current) Color.Transparent else MaterialTheme.colorScheme.background,
+        containerColor = if (LocalNothingTheme.current || glass.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = glassTopAppBarColors(),
                 title = { Text(t.appSpecs, fontWeight = FontWeight.ExtraBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) }
@@ -998,7 +1121,8 @@ private fun SpecGroup(
     Card(
         modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp)),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+        border = glassCardBorder(),
+        colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest))
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

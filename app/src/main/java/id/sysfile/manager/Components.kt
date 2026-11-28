@@ -17,10 +17,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -121,9 +123,10 @@ fun SectionCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
+        border = glassCardBorder(),
         shape = RoundedCornerShape(28.dp),
         modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
     ) {
@@ -500,15 +503,18 @@ fun FileRow(
         shortDate(entry.modified, t)
     }
     val isNothing = LocalNothingTheme.current
+    val isGlass = LocalLiquidGlass.current.enabled
     Card(
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            1.dp,
-            if (isNothing && isSelected) NothingSignalRed else MaterialTheme.colorScheme.outlineVariant
-        ),
+        border = when {
+            isNothing && isSelected -> BorderStroke(1.dp, NothingSignalRed)
+            isGlass && !isSelected -> glassCardBorder() ?: BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        },
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isSelected -> MaterialTheme.colorScheme.primaryContainer
+                isGlass -> glassCardColor(MaterialTheme.colorScheme.surfaceContainer)
                 isNothing -> MaterialTheme.colorScheme.surfaceContainerHighest
                 else -> MaterialTheme.colorScheme.surfaceContainer
             }
@@ -727,14 +733,25 @@ fun StorageCard(
     val scheme = MaterialTheme.colorScheme
     val cardShape = RoundedCornerShape(28.dp)
     val isNothing = LocalNothingTheme.current
+    val isGlass = LocalLiquidGlass.current.enabled
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
-        Modifier.fillMaxWidth().clip(cardShape)
-            .background(scheme.secondaryContainer)
+        Modifier.fillMaxWidth()
+            .liquidGlassPressScale(interactionSource, pressedScale = 0.975f)
+            .clip(cardShape)
+            .background(glassCardColor(scheme.secondaryContainer))
             .then(
-                if (isNothing) Modifier.border(1.dp, scheme.outlineVariant, cardShape)
-                else Modifier
+                when {
+                    isNothing -> Modifier.border(1.dp, scheme.outlineVariant, cardShape)
+                    isGlass -> Modifier.themeCardBorder(cardShape)
+                    else -> Modifier
+                }
             )
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick
+            )
     ) {
         StorageCardContent(
             label = label,
@@ -1023,13 +1040,13 @@ fun IosSpokesPullToRefreshBox(
                         }
                         .size(40.dp)
                         .then(
-                            if (isNothing) {
-                                Modifier
+                            when {
+                                LocalLiquidGlass.current.enabled -> Modifier.liquidGlassChrome(CircleShape, elevated = true)
+                                isNothing -> Modifier
                                     .clip(CircleShape)
                                     .background(containerColor)
                                     .nothingBorder(CircleShape)
-                            } else {
-                                Modifier
+                                else -> Modifier
                                     .shadow(4.dp, CircleShape, clip = false)
                                     .clip(CircleShape)
                                     .background(containerColor)

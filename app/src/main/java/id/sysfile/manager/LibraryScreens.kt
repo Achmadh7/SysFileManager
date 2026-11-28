@@ -21,8 +21,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -134,6 +136,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -160,7 +163,8 @@ fun RecentScreen(
     accessGranted: Boolean,
     onOpenEntry: (FEntry) -> Unit,
     isRefreshing: Boolean = false,
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    bottomPadding: Dp = 0.dp
 ) {
     val t = txt()
     if (!accessGranted) {
@@ -194,7 +198,8 @@ fun RecentScreen(
         modifier = Modifier.fillMaxSize()
     ) {
     LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp + bottomPadding),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         itemsIndexed(sorted, key = { _, entry -> entry.path }) { index, entry ->
@@ -216,6 +221,8 @@ fun RecentScreen(
                         )
                     }
                 }
+                val glass = LocalLiquidGlass.current
+                val itemInteraction = remember { MutableInteractionSource() }
                 ListItem(
                     headlineContent = {
                         Text(
@@ -240,10 +247,16 @@ fun RecentScreen(
                         )
                     },
                     leadingContent = { FileThumbTile(entry, 48) },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                    colors = ListItemDefaults.colors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerLowest)),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        .liquidGlassPressScale(itemInteraction, pressedScale = 0.98f)
                         .clip(RoundedCornerShape(28.dp))
-                        .clickable { onOpenEntry(entry) }
+                        .then(if (glass.enabled) Modifier.themeCardBorder(RoundedCornerShape(28.dp)) else Modifier)
+                        .clickable(
+                            interactionSource = itemInteraction,
+                            indication = LocalIndication.current,
+                            onClick = { onOpenEntry(entry) }
+                        )
                 )
             }
         }
@@ -339,8 +352,10 @@ fun CategoryScreen(
         isRefreshing = false
     }
     Scaffold(
+        containerColor = if (LocalNothingTheme.current || LocalLiquidGlass.current.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = glassTopAppBarColors(),
                 title = {
                     Text(
                         when (category) {
@@ -581,8 +596,10 @@ fun TrashScreen(
         }
     }
     Scaffold(
+        containerColor = if (LocalNothingTheme.current || LocalLiquidGlass.current.enabled) Color.Transparent else MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = glassTopAppBarColors(),
                 title = { Text(t.trash) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, t.home) } },
                 actions = {
@@ -1409,7 +1426,9 @@ fun SearchScreen(
     val dirResults = filtered.filter { it.isDir }
     val fileResults = filtered.filter { !it.isDir }
 
-    Scaffold { padding ->
+    Scaffold(
+        containerColor = if (LocalNothingTheme.current || LocalLiquidGlass.current.enabled) Color.Transparent else MaterialTheme.colorScheme.background
+    ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
@@ -1541,6 +1560,7 @@ fun AnalysisScreen(
     onChanged: () -> Unit = {},
     onOpenFolder: (String) -> Unit,
     onOpenFile: (FEntry) -> Unit,
+    bottomPadding: Dp = 0.dp
 ) {
     val t = txt()
     val scope = rememberCoroutineScope()
@@ -1581,7 +1601,8 @@ fun AnalysisScreen(
     val activeRootPath = selectedRootPath ?: roots.firstOrNull()?.path
     val displayRoots = if (roots.size > 1) roots.filter { it.path == activeRootPath } else roots
     LazyColumn(
-            Modifier.fillMaxSize().padding(16.dp),
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + bottomPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             val done = roots.mapNotNull { results[it.path] }
@@ -1664,7 +1685,8 @@ fun AnalysisScreen(
                         if (res == null) {
                             Card(
                                 shape = RoundedCornerShape(28.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                border = glassCardBorder(),
+                                colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                                 modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
                             ) {
                                 Row(
@@ -1692,7 +1714,8 @@ fun AnalysisScreen(
                                 entries.forEach { (cat, size) ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        border = glassCardBorder(),
+                                        colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                                         modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(28.dp))
                                     ) {
                                         Row(
@@ -1747,7 +1770,8 @@ fun AnalysisScreen(
                                 shownLargest.forEach { entry ->
                                     Card(
                                         shape = RoundedCornerShape(28.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        border = glassCardBorder(),
+                                        colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                                         modifier = Modifier.nothingBorder(RoundedCornerShape(28.dp))
                                     ) {
                                         Row(
@@ -1805,7 +1829,8 @@ fun AnalysisScreen(
                             )
                             Card(
                                 shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                                border = glassCardBorder(),
+                                colors = CardDefaults.cardColors(containerColor = glassCardColor(MaterialTheme.colorScheme.surfaceContainerHighest)),
                                 modifier = Modifier.fillMaxWidth().nothingBorder(RoundedCornerShape(24.dp))
                             ) {
                                 Column(

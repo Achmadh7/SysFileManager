@@ -41,6 +41,8 @@ class StringsTest {
             assertFalse(t.cleanupEmptyDirs.isBlank())
             assertFalse(t.cleanupSummary(2, 1, "1 MB").isBlank())
             assertFalse(t.cleanupConfirm(3, "2 MB").isBlank())
+            assertFalse(t.themeLiquidGlass.isBlank())
+            assertFalse(t.themeLiquidGlassDesc.isBlank())
         }
     }
 }

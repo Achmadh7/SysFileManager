@@ -23,9 +23,13 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -130,29 +134,41 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -227,6 +243,7 @@ fun HomeScreen(
     onOpenTrash: () -> Unit,
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {},
+    bottomPadding: Dp = 0.dp
 ) {
     val t = txt()
     IosSpokesPullToRefreshBox(
@@ -235,7 +252,8 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize()
     ) {
     LazyColumn(
-        Modifier.fillMaxSize().padding(16.dp),
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + bottomPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (!accessGranted) {
@@ -491,26 +509,41 @@ private fun PeekStorageHeroCard(
     val remainFraction = (1f - clampedFraction).coerceAtLeast(0f)
 
     val isNothing = LocalNothingTheme.current
+    val glass = LocalLiquidGlass.current
+    val interactionSource = remember { MutableInteractionSource() }
     val peekShape = RoundedCornerShape(if (isNothing) 22.dp else 18.dp)
     val iconShape = if (isNothing) CircleShape else RoundedCornerShape(12.dp)
     val focus = activeFraction.coerceIn(0f, 1f)
     val activeBorder = when {
         isNothing && root.kind == "root" -> NothingSignalRed
         isNothing -> scheme.onSurface.copy(alpha = 0.72f)
+        glass.enabled -> accentColor.copy(alpha = 0.65f)
         else -> accentColor.copy(alpha = 0.52f)
     }
+    val baseBorderColor = if (glass.enabled && !glass.dark) {
+        Color.White.copy(alpha = 0.92f)
+    } else if (glass.enabled) {
+        Color.White.copy(alpha = 0.24f)
+    } else {
+        scheme.outlineVariant
+    }
     val borderColor = lerpColor(
-        scheme.outlineVariant,
+        baseBorderColor,
         activeBorder,
         ((focus - 0.35f) / 0.65f).coerceIn(0f, 1f)
     )
     val borderWidth = lerp(1f, 1.5f, ((focus - 0.55f) / 0.45f).coerceIn(0f, 1f)).dp
     Column(
         modifier = modifier
+            .liquidGlassPressScale(interactionSource, pressedScale = 0.975f)
             .clip(peekShape)
-            .background(scheme.secondaryContainer)
+            .background(glassCardColor(scheme.secondaryContainer))
             .border(borderWidth, borderColor, peekShape)
-            .clickable { onOpenRoot(root.path) }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = { onOpenRoot(root.path) }
+            )
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -637,17 +670,24 @@ private fun CategoryTile(
     onClick: () -> Unit
 ) {
     val isNothing = LocalNothingTheme.current
+    val glass = LocalLiquidGlass.current
+    val interactionSource = remember { MutableInteractionSource() }
     val scheme = MaterialTheme.colorScheme
     val tileShape = RoundedCornerShape(if (isNothing) 18.dp else 14.dp)
     val icShape = if (isNothing) CircleShape else RoundedCornerShape(12.dp)
     val accent = if (highlightRed) scheme.error else scheme.primary
     Row(
         modifier = modifier
+            .liquidGlassPressScale(interactionSource, pressedScale = 0.96f)
             .height(74.dp)
             .clip(tileShape)
-            .background(scheme.secondaryContainer)
+            .background(glassCardColor(scheme.secondaryContainer))
             .themeCardBorder(tileShape)
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -729,6 +769,16 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
     val inactiveFg = if (isDark) Color.White.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant
 
     val safeTab = homeTab.coerceIn(0, 2)
+    val glass = LocalLiquidGlass.current
+    if (glass.enabled) {
+        LiquidGlassNavBar(
+            safeTab = safeTab,
+            items = items,
+            outlined = outlined,
+            onSelect = onSelect
+        )
+        return
+    }
     val pillProgress by animateFloatAsState(
         targetValue = safeTab.toFloat(),
         animationSpec = spring(
@@ -848,6 +898,189 @@ fun SysFileNavBar(homeTab: Int, onSelect: (Int) -> Unit) {
                         color = fg,
                         maxLines = 1
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiquidGlassNavBar(
+    safeTab: Int,
+    items: List<Triple<Int, ImageVector, String>>,
+    outlined: List<ImageVector>,
+    onSelect: (Int) -> Unit
+) {
+    val glass = LocalLiquidGlass.current
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val primary = MaterialTheme.colorScheme.primary
+    val inactiveFg = MaterialTheme.colorScheme.onSurfaceVariant
+    val navShape = RoundedCornerShape(28.dp)
+
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 10.dp)
+            .liquidGlassChrome(navShape, elevated = true)
+            .padding(horizontal = 6.dp, vertical = 6.dp)
+    ) {
+        val gap = 4.dp
+        val slotWidth = (maxWidth - gap * 2) / 3f
+        val slotWidthPx = with(density) { slotWidth.toPx() }
+        val stepPx = with(density) { (slotWidth + gap).toPx() }
+        val maxOffsetPx = (stepPx * 2f).coerceAtLeast(0f)
+
+        val pillAnim = remember { Animatable(safeTab * stepPx) }
+        var isDragging by remember { mutableStateOf(false) }
+        var dragRawPx by remember { mutableStateOf(0f) }
+        var lastHapticTab by remember { mutableStateOf(safeTab) }
+
+        LaunchedEffect(safeTab, stepPx, isDragging) {
+            if (!isDragging && stepPx > 0f) {
+                val target = safeTab * stepPx
+                if (glass.reducedMotion) {
+                    pillAnim.snapTo(target)
+                } else {
+                    pillAnim.animateTo(
+                        targetValue = target,
+                        animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f)
+                    )
+                }
+            }
+        }
+
+        val pillOffsetPx = if (isDragging) {
+            rubberbandClamp(dragRawPx, 0f, maxOffsetPx, slotWidthPx.coerceAtLeast(1f))
+        } else {
+            pillAnim.value
+        }
+        val inFlight = abs(pillOffsetPx - safeTab * stepPx) > 1.5f
+        val lensScale by animateFloatAsState(
+            targetValue = if (!glass.reducedMotion && (isDragging || inFlight)) 1.07f else 1f,
+            animationSpec = spring(dampingRatio = 0.76f, stiffness = 480f),
+            label = "glassNavLensScale"
+        )
+        val sheenProgress = liquidGlassProgressFromPill(pillOffsetPx, maxOffsetPx)
+        val activeColor = primary
+        val lensFillTop = if (glass.dark) Color(0xFF2B4369).copy(alpha = 0.86f) else Color.White.copy(alpha = 0.90f)
+        val lensFillBottom = if (glass.dark) primary.copy(alpha = 0.30f) else primary.copy(alpha = 0.14f)
+        val lensRimTop = if (glass.dark) Color.White.copy(alpha = 0.44f) else Color.White.copy(alpha = 0.98f)
+        val lensRimBottom = if (glass.dark) primary.copy(alpha = 0.42f) else primary.copy(alpha = 0.28f)
+        val sheenTint = if (glass.dark) Color.White.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.65f)
+
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .pointerInput(slotWidthPx, stepPx, maxOffsetPx) {
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            isDragging = true
+                            dragRawPx = pillAnim.value
+                            lastHapticTab = safeTab
+                        },
+                        onDragCancel = { isDragging = false },
+                        onDragEnd = {
+                            val clamped = rubberbandClamp(dragRawPx, 0f, maxOffsetPx, slotWidthPx.coerceAtLeast(1f))
+                            val targetTab = nearestTabByCenter(
+                                pillCenterPx = clamped + slotWidthPx / 2f,
+                                tabWidthPx = stepPx,
+                                count = 3
+                            )
+                            isDragging = false
+                            onSelect(targetTab)
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            dragRawPx += dragAmount
+                            val clamped = rubberbandClamp(dragRawPx, 0f, maxOffsetPx, slotWidthPx.coerceAtLeast(1f))
+                            val hovered = nearestTabByCenter(
+                                pillCenterPx = clamped + slotWidthPx / 2f,
+                                tabWidthPx = stepPx,
+                                count = 3
+                            )
+                            if (hovered != lastHapticTab) {
+                                lastHapticTab = hovered
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        }
+                    )
+                }
+        ) {
+            // Lensa kaca aktif yang mengapung & memantulkan kilau spekular sesuai posisi gestur.
+            Box(
+                Modifier
+                    .offset { IntOffset(pillOffsetPx.roundToInt(), 0) }
+                    .width(slotWidth)
+                    .height(52.dp)
+                    .graphicsLayer {
+                        scaleX = lensScale
+                        scaleY = lensScale
+                    }
+            ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val cr = CornerRadius(size.height / 2f, size.height / 2f)
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(listOf(lensFillTop, lensFillBottom)),
+                        cornerRadius = cr
+                    )
+                    val sheenCenter = Offset(size.width * (0.25f + 0.50f * sheenProgress), size.height * 0.22f)
+                    drawRoundRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(sheenTint, Color.Transparent),
+                            center = sheenCenter,
+                            radius = size.width * 0.72f
+                        ),
+                        size = Size(size.width, size.height * 0.65f),
+                        cornerRadius = cr
+                    )
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(listOf(lensRimTop, lensRimBottom)),
+                        cornerRadius = cr,
+                        style = Stroke(width = 1.2.dp.toPx())
+                    )
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEach { (index, icon, label) ->
+                    val selected = safeTab == index
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val fg by animateColorAsState(
+                        targetValue = if (selected) activeColor else inactiveFg,
+                        animationSpec = tween(durationMillis = 160, easing = LiquidGlassEaseOut),
+                        label = "glassNavTileFg"
+                    )
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .liquidGlassPressScale(interactionSource, pressedScale = 0.94f)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                onClick = { onSelect(index) }
+                            ),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically)
+                    ) {
+                        Icon(
+                            imageVector = if (selected) icon else outlined[index],
+                            contentDescription = label,
+                            tint = fg,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = fg,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
